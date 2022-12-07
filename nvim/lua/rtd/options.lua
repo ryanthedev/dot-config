@@ -40,3 +40,6 @@ opt.splitbelow = true -- split horizontal window to the bottom
 
 opt.iskeyword:append("-") -- consider string-string as whole word
 
+
+-- set leader key to space
+vim.g.mapleader = " "
