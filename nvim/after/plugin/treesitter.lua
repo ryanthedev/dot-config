@@ -3,7 +3,7 @@ local status, treesitter = pcall(require, "nvim-treesitter.configs")
 if not status then
   return
 end
-
+print("treesitter")
 -- configure treesitter
 treesitter.setup({
   -- enable syntax highlighting
@@ -15,7 +15,7 @@ treesitter.setup({
   -- enable autotagging (w/ nvim-ts-autotag plugin)
   autotag = { enable = true },
   -- ensure these language parsers are installed
-  ensure_installed = "all" 
+  ensure_installed = "all", 
   -- auto install above language parsers
   auto_install = true,
 })

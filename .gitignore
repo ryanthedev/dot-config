@@ -1,6 +1,7 @@
 /*
 /*/
 !nvim/
+nvim/plugin/
 !i3/
 !readme.md
 !.gitignore

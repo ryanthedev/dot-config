@@ -40,6 +40,7 @@ opt.splitbelow = true -- split horizontal window to the bottom
 
 opt.iskeyword:append("-") -- consider string-string as whole word
 
-
+-- cursor
+opt.guicursor = 'a:hor30-iCursor-blinkwait300-blinkon200-blinkoff150'
 -- set leader key to space
 vim.g.mapleader = " "
