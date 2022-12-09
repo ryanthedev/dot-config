@@ -25,5 +25,10 @@ return require("packer").startup(function(use)
         },
         tag = 'nightly' -- optional, updated every week. (see issue #1193)
     })
+    use("neovim/nvim-lspconfig")
+    use("hrsh7th/cmp-buffer")
+    use("hrsh7th/cmp-nvim-lsp")
+    use("hrsh7th/nvim-cmp")
+    use("onsails/lspkind.nvim")
 
 end)
