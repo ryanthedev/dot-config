@@ -1,26 +1,27 @@
 local lsp_cmds = vim.api.nvim_create_augroup('lsp_cmds', {clear = true})
 
+local Remap = require("rtd.keymap")
+local nnoremap = Remap.nnoremap
+local xnoremap = Remap.xnoremap
+
+
 vim.api.nvim_create_autocmd('LspAttach', {
   group = lsp_cmds,
   desc = 'LSP actions',
   callback = function()
-    local bufmap = function(mode, lhs, rhs)
-      vim.keymap.set(mode, lhs, rhs, {buffer = true})
-    end
-
-    bufmap('n', 'K', '<cmd>lua vim.lsp.buf.hover()<cr>')
-    bufmap('n', 'gd', '<cmd>lua vim.lsp.buf.definition()<cr>')
-    bufmap('n', 'gD', '<cmd>lua vim.lsp.buf.declaration()<cr>')
-    bufmap('n', 'gi', '<cmd>lua vim.lsp.buf.implementation()<cr>')
-    bufmap('n', 'go', '<cmd>lua vim.lsp.buf.type_definition()<cr>')
-    bufmap('n', 'gr', '<cmd>lua vim.lsp.buf.references()<cr>')
-    bufmap('n', '<C-k>', '<cmd>lua vim.lsp.buf.signature_help()<cr>')
-    bufmap('n', '<F2>', '<cmd>lua vim.lsp.buf.rename()<cr>')
-    bufmap('n', '<F3>', '<cmd>lua vim.lsp.buf.format({async = true})<cr>')
-    bufmap('n', '<F4>', '<cmd>lua vim.lsp.buf.code_action()<cr>')
-    bufmap('x', '<F4>', '<cmd>lua vim.lsp.buf.range_code_action()<cr>')
-    bufmap('n', 'gl', '<cmd>lua vim.diagnostic.open_float()<cr>')
-    bufmap('n', '[d', '<cmd>lua vim.diagnostic.goto_prev()<cr>')
-    bufmap('n', ']d', '<cmd>lua vim.diagnostic.goto_next()<cr>')
+    nnoremap('K', '<cmd>lua vim.lsp.buf.hover()<cr>')
+    nnoremap('gd', '<cmd>lua vim.lsp.buf.definition()<cr>')
+    nnoremap('gD', '<cmd>lua vim.lsp.buf.declaration()<cr>')
+    nnoremap('gi', '<cmd>lua vim.lsp.buf.implementation()<cr>')
+    nnoremap('go', '<cmd>lua vim.lsp.buf.type_definition()<cr>')
+    nnoremap('gr', '<cmd>lua vim.lsp.buf.references()<cr>')
+    nnoremap('<C-k>', '<cmd>lua vim.lsp.buf.signature_help()<cr>')
+    nnoremap('<F2>', '<cmd>lua vim.lsp.buf.rename()<cr>')
+    nnoremap('<F3>', '<cmd>lua vim.lsp.buf.format({async = true})<cr>')
+    nnoremap('<F4>', '<cmd>lua vim.lsp.buf.code_action()<cr>')
+    xnoremap('<F4>', '<cmd>lua vim.lsp.buf.range_code_action()<cr>')
+    nnoremap('gl', '<cmd>lua vim.diagnostic.open_float()<cr>')
+    nnoremap('[d', '<cmd>lua vim.diagnostic.goto_prev()<cr>')
+    nnoremap(']d', '<cmd>lua vim.diagnostic.goto_next()<cr>')
   end
 })

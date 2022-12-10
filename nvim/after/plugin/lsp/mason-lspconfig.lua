@@ -6,13 +6,15 @@ lsp_defaults.capabilities = vim.tbl_deep_extend(
   lsp_defaults.capabilities,
   require('cmp_nvim_lsp').default_capabilities()
 )
+
 require("mason-lspconfig").setup({
   ensure_installed = {
     "sumneko_lua",
     "tsserver",
     "eslint",
     "html",
-    "cssls"
+    "cssls",
+    "omnisharp"
   },
   automatic_installation = true,
 })
@@ -28,7 +30,8 @@ require('mason-lspconfig').setup_handlers({
         }
       }
     })
+  end,
+  ['omnisharp'] = function()
+    lspconfig.omnisharp.setup({})
   end
 })
--- require("lspconfig").sumneko_lua.setup {
-
