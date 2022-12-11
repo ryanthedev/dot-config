@@ -7,23 +7,23 @@ return require("packer").startup(function(use)
   use("nvim-telescope/telescope.nvim")
 
   use({
-      'nvim-lualine/lualine.nvim',
-      requires = { 'kyazdani42/nvim-web-devicons', opt = true }
+    'nvim-lualine/lualine.nvim',
+    requires = { 'kyazdani42/nvim-web-devicons', opt = true }
   })
 
-    -- Colorscheme section
+  -- Colorscheme section
   use("gruvbox-community/gruvbox")
   use("folke/tokyonight.nvim")
 
   use("nvim-treesitter/nvim-treesitter", {
-      run = ":TSUpdate"
+    run = ":TSUpdate"
   })
   use({
-      'nvim-tree/nvim-tree.lua',
-      requires = {
-        'nvim-tree/nvim-web-devicons', -- optional, for file icons
-      },
-      tag = 'nightly' -- optional, updated every week. (see issue #1193)
+    'nvim-tree/nvim-tree.lua',
+    requires = {
+      'nvim-tree/nvim-web-devicons', -- optional, for file icons
+    },
+    tag = 'nightly' -- optional, updated every week. (see issue #1193)
   })
 
   -- LSP, DAP, goodness
@@ -45,7 +45,7 @@ return require("packer").startup(function(use)
 
   -- Snippet engine
   use("L3MON4D3/LuaSnip")
-  -- Snippet colletion 
+  -- Snippet colletion
   use("rafamadriz/friendly-snippets")
 
 
@@ -55,7 +55,7 @@ return require("packer").startup(function(use)
   -- DAP
   use({
     "rcarriga/nvim-dap-ui",
-    requires = { "mfussenegger/nvim-dap"}
+    requires = { "mfussenegger/nvim-dap" }
   })
   use("jayp0521/mason-nvim-dap.nvim")
   use("nvim-telescope/telescope-dap.nvim")
@@ -71,4 +71,13 @@ return require("packer").startup(function(use)
     end
   })
 
+
+  -- Test Runners
+  use({
+    "nvim-neotest/neotest",
+    requires = {
+      "Issafalcon/neotest-dotnet",
+      "antoinemadec/FixCursorHold.nvim"
+    }
+  })
 end)

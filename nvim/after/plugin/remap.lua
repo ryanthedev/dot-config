@@ -23,10 +23,19 @@ nnoremap("<leader>+", "<C-a>") -- increment
 nnoremap("<leader>-", "<C-x>") -- decrement
 
 -- window management
-nnoremap("<leader>sv", "<C-w>v") -- split window vertically
-nnoremap("<leader>sh", "<C-w>s") -- split window horizontally
-nnoremap("<leader>se", "<C-w>=") -- make split windows equal width & height
-nnoremap("<leader>sx", ":close<CR>") -- close current split window
+nnoremap("<leader>swv", "<C-w>v") -- split window vertically
+nnoremap("<leader>swh", "<C-w>s") -- split window horizontally
+nnoremap("<leader>swe", "<C-w>=") -- make split windows equal width & height
+nnoremap("<leader>swx", ":close<CR>") -- close current split window
+
+
+nnoremap("<leader>sh", "<C-w>h") -- move splt window focus left
+nnoremap("<leader>sl", "<C-w>l") -- move splt window focus right
+nnoremap("<leader>sj", "<C-w>j") -- move splt window focus down 
+nnoremap("<leader>sk", "<C-w>k") -- move splt window focus up 
+
+nnoremap("<leader>s+", "<C-w><S->><C-w><S->>") -- increase split window focus size 
+nnoremap("<leader>s-", "<C-w><S-<><C-w><S-<>") -- decrease split window focus size 
 
 nnoremap("<leader>to", ":tabnew<CR>") -- open new tab
 nnoremap("<leader>tx", ":tabclose<CR>") -- close current tab
@@ -50,6 +59,7 @@ nnoremap("<leader>fc", "<cmd>Telescope grep_string<cr>") -- find string under cu
 nnoremap("<leader>fb", "<cmd>Telescope buffers<cr>") -- list open buffers in current neovim instance
 nnoremap("<leader>fh", "<cmd>Telescope help_tags<cr>") -- list available help tags
 nnoremap("<leader>fg", "<cmd>Telescope current_buffer_fuzzy_find fuzzy=false case_mode=ignore_case<cr>") -- list available help tags
+nnoremap("<leader>fj", "<cmd>Telescope jumplist<cr>") -- search jumplist!!! 
 
 -- telescope git commands (not on youtube nvim video)
 nnoremap("<leader>gc", "<cmd>Telescope git_commits<cr>") -- list all git commits (use <cr> to checkout) ["gc" for git commits]
