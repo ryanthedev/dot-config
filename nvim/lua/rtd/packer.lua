@@ -48,4 +48,27 @@ return require("packer").startup(function(use)
   -- Snippet colletion 
   use("rafamadriz/friendly-snippets")
 
+
+  -- Dashboard
+  use("glepnir/dashboard-nvim")
+
+  -- DAP
+  use({
+    "rcarriga/nvim-dap-ui",
+    requires = { "mfussenegger/nvim-dap"}
+  })
+  use("jayp0521/mason-nvim-dap.nvim")
+  use("nvim-telescope/telescope-dap.nvim")
+
+
+
+  -- Terminal Toggle
+  use({
+    "akinsho/toggleterm.nvim",
+    tag = '*',
+    config = function()
+      require("toggleterm").setup()
+    end
+  })
+
 end)

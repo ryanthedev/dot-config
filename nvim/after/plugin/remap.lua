@@ -49,6 +49,7 @@ nnoremap("<leader>fs", "<cmd>Telescope live_grep<cr>") -- find string in current
 nnoremap("<leader>fc", "<cmd>Telescope grep_string<cr>") -- find string under cursor in current working directory
 nnoremap("<leader>fb", "<cmd>Telescope buffers<cr>") -- list open buffers in current neovim instance
 nnoremap("<leader>fh", "<cmd>Telescope help_tags<cr>") -- list available help tags
+nnoremap("<leader>fg", "<cmd>Telescope current_buffer_fuzzy_find fuzzy=false case_mode=ignore_case<cr>") -- list available help tags
 
 -- telescope git commands (not on youtube nvim video)
 nnoremap("<leader>gc", "<cmd>Telescope git_commits<cr>") -- list all git commits (use <cr> to checkout) ["gc" for git commits]
@@ -65,3 +66,38 @@ nnoremap("<C-u>", "<C-u>zz")
 
 -- preview files (netrw)
 nnoremap("<leader>pv", "<cmd>Ex<CR>")
+
+
+
+-- Terminal Toggle
+nnoremap("<leader>nth", "<cmd>ToggleTerm size=18 direction=horizontal<CR>")
+
+nnoremap("<F4>", ":lua require('dapui').toggle()<CR>")
+nnoremap("<F7>", ":lua require('dap').toggle_breakpoint()<CR>")
+nnoremap("<F5>", ":lua require('dap').continue()<CR>")
+
+nnoremap("<F1>", ":lua require('dap').step_over()<CR>")
+nnoremap("<F2>", ":lua require('dap').step_into()<CR>")
+nnoremap("<F3>", ":lua require('dap').step_out()<CR>")
+
+nnoremap("<leader>dsc", ":lua require('dap').continue()<CR>")
+nnoremap("<leader>dsv", ":lua require('dap').step_over()<CR>")
+nnoremap("<leader>dsi", ":lua require('dap').step_into()<CR>")
+nnoremap("<leader>dso", ":lua require('dap').step_out()<CR>")
+
+nnoremap("<leader>dhh", ":lua require('dap.ui.variables').hover()<CR>")
+vnoremap("<leader>dhv", ":lua require('dap.ui.variables').visual_hover()<CR>")
+
+nnoremap("<leader>duh", ":lua require('dap.ui.widgets').hover()<CR>")
+nnoremap("<leader>duf", ":lua local widgets=require('dap.ui.widgets');widgets.centered_float(widgets.scopes)<CR>")
+
+nnoremap("<leader>dro", ":lua require('dap').repl.open()<CR>")
+nnoremap("<leader>drl", ":lua require('dap').repl.run_last()<CR>")
+
+nnoremap("<leader>dbc", ":lua require('dap').set_breakpoint(vim.fn.input('Breakpoint condition: '))<CR>")
+nnoremap("<leader>dbm", ":lua require('dap').set_breakpoint({ nil, nil, vim.fn.input('Log point message: '))<CR>")
+nnoremap("<leader>dbt", ":lua require('dap').toggle_breakpoint()<CR>")
+
+nnoremap("<leader>dc", ":lua require('dap.ui.variables').scopes()<CR>")
+nnoremap("<leader>di", ":lua require('dapui').toggle()<CR>")
+
