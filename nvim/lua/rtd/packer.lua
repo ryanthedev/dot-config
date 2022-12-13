@@ -38,19 +38,21 @@ return require("packer").startup(function(use)
   -- Autocomplete engine
   use("hrsh7th/nvim-cmp")
 
+  -- null-ls magic
+  use("jose-elias-alvarez/null-ls.nvim")
   -- Completion source
-  use("hrsh7th/cmp-buffer")
-  use("saadparwaiz1/cmp_luasnip")
+--  use("hrsh7th/cmp-buffer")
+ -- use("saadparwaiz1/cmp_luasnip")
   use("hrsh7th/cmp-nvim-lsp")
 
   -- Snippet engine
-  use("L3MON4D3/LuaSnip")
+ -- use("L3MON4D3/LuaSnip")
   -- Snippet colletion
-  use("rafamadriz/friendly-snippets")
+ -- use("rafamadriz/friendly-snippets")
 
 
   -- Dashboard
-  use("glepnir/dashboard-nvim")
+ -- use("glepnir/dashboard-nvim")
 
   -- DAP
   use({
@@ -59,6 +61,9 @@ return require("packer").startup(function(use)
   })
   use("jayp0521/mason-nvim-dap.nvim")
   use("nvim-telescope/telescope-dap.nvim")
+
+  -- Formatter
+  use("mhartington/formatter.nvim")
 
 
 
