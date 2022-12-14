@@ -1,8 +1,17 @@
 local dap, dapui = require("dap"), require("dapui")
 
-require("mason-nvim-dap").setup()
+require("mason-nvim-dap").setup({
+  automatic_installation = true,
+  automatic_setup = true,
+})
 require('telescope').load_extension('dap')
 
+
+dap.adapters.coreclr = {
+  type = 'executable',
+  command = 'netcoredbg',
+  args = { '--interpreter=vscode' }
+}
 
 
 dap.configurations.cs = {
@@ -11,17 +20,15 @@ dap.configurations.cs = {
     name = "launch - netcoredbg",
     request = "launch",
     env = {
-        ASPNETCORE_ENVIRONMENT= "Development",
-        OTEL_RESOURCE_ATTRIBUTES= "application=alyssatest-dev,deployment.environment=dev",
-        OTEL_SERVICE_NAME= "sabre-microservice-wrapper",
-        OTEL_EXPORTER_OTLP_PROTOCOL= "http/protobuf",
-        OTEL_EXPORTER_OTLP_ENDPOINT= "https://collectors.sumologic.com/receiver/v1/trace/ZaVnC4dhaV08gi3AGBdZhWBLssF666kAtBTE11LANoK5WTGyFJ7nLk8I1bVlV9AbFIfCtuCCv2v7V_vg2v1veVHjJIxyVN6P-IGcrfSIZjtI8HETKXvNXw=="
+      ASPNETCORE_ENVIRONMENT = "Development",
+      NVIM_TEST = "Test from dap file"
     },
     program = function()
-        return vim.fn.input('Path to dll', vim.fn.getcwd() .. '/bin/Debug/', 'file')
+      return vim.fn.input('Path to dll', vim.fn.getcwd() .. '/bin/Debug/', 'file')
     end,
   },
 }
+
 
 
 dap.configurations.javascript = {
@@ -40,33 +47,33 @@ dap.configurations.javascript = {
     name = 'Attach to process',
     type = 'node2',
     request = 'attach',
-    processId = require'dap.utils'.pick_process,
+    processId = require 'dap.utils'.pick_process,
   },
 }
 dap.configurations.javascriptreact = { -- change this to javascript if needed
-    {
-        type = "chrome",
-        request = "attach",
-        program = "${file}",
-        cwd = vim.fn.getcwd(),
-        sourceMaps = true,
-        protocol = "inspector",
-        port = 9222,
-        webRoot = "${workspaceFolder}"
-    }
+  {
+    type = "chrome",
+    request = "attach",
+    program = "${file}",
+    cwd = vim.fn.getcwd(),
+    sourceMaps = true,
+    protocol = "inspector",
+    port = 9222,
+    webRoot = "${workspaceFolder}"
+  }
 }
 
 dap.configurations.typescriptreact = { -- change to typescript if needed
-    {
-        type = "chrome",
-        request = "attach",
-        program = "${file}",
-        cwd = vim.fn.getcwd(),
-        sourceMaps = true,
-        protocol = "inspector",
-        port = 9222,
-        webRoot = "${workspaceFolder}"
-    }
+  {
+    type = "chrome",
+    request = "attach",
+    program = "${file}",
+    cwd = vim.fn.getcwd(),
+    sourceMaps = true,
+    protocol = "inspector",
+    port = 9222,
+    webRoot = "${workspaceFolder}"
+  }
 }
 
 

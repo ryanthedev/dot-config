@@ -14,10 +14,30 @@ return require("packer").startup(function(use)
   -- Colorscheme section
   use("gruvbox-community/gruvbox")
   use("folke/tokyonight.nvim")
+  use("glepnir/zephyr-nvim")
+  use("rockerBOO/boo-colorscheme-nvim")
+  use("sainnhe/edge")
+  use("marko-cerovac/material.nvim")
+  use("Th3Whit3Wolf/space-nvim")
+  use("ray-x/starry.nvim")
+  use("shaunsingh/nord.nvim")
+  use("NTBBloodbath/doom-one.nvim")
+  use("FrenzyExists/aquarium-vim")
+  use("EdenEast/nightfox.nvim")
+  use("Everblush/nvim")
+  use("adisen99/apprentice.nvim")
+  use("rmehri01/onenord.nvim")
 
+
+  -- make things transparent
+  use("xiyaowong/nvim-transparent")
+
+  -- Treesitter
   use("nvim-treesitter/nvim-treesitter", {
     run = ":TSUpdate"
   })
+
+  -- nvim tree
   use({
     'nvim-tree/nvim-tree.lua',
     requires = {
