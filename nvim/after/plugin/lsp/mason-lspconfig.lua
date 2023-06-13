@@ -9,7 +9,6 @@ lsp_defaults.capabilities = vim.tbl_deep_extend(
 
 require("mason-lspconfig").setup({
   ensure_installed = {
-    "sumneko_lua",
     "tsserver",
     "eslint",
     "html",

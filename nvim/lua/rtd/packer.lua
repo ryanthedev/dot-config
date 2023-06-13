@@ -47,7 +47,6 @@ return require("packer").startup(function(use)
   })
 
   -- LSP, DAP, goodness
-
   -- External tool installer
   use("williamboman/mason.nvim")
 
@@ -55,6 +54,9 @@ return require("packer").startup(function(use)
   use("williamboman/mason-lspconfig.nvim")
   use("neovim/nvim-lspconfig")
 
+  -- LSP Setup UI
+  use("j-hui/fidget.nvim")
+  
   -- Autocomplete engine
   use("hrsh7th/nvim-cmp")
 
@@ -74,6 +76,7 @@ return require("packer").startup(function(use)
   -- Dashboard
  -- use("glepnir/dashboard-nvim")
 
+  use("andrewferrier/wrapping.nvim")
   -- DAP
   use({
     "rcarriga/nvim-dap-ui",
