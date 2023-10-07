@@ -29,18 +29,23 @@ nnoremap("<leader>swe", "<C-w>=") -- make split windows equal width & height
 nnoremap("<leader>swx", ":close<CR>") -- close current split window
 
 
-nnoremap("<leader>sh", "<C-w>h") -- move splt window focus left
-nnoremap("<leader>sl", "<C-w>l") -- move splt window focus right
+nnoremap("<c-h>", "<C-w>h") -- move splt window focus left
+nnoremap("<c-l>", "<C-w>l") -- move splt window focus right
 nnoremap("<leader>sj", "<C-w>j") -- move splt window focus down 
 nnoremap("<leader>sk", "<C-w>k") -- move splt window focus up 
 
 nnoremap("<leader>s+", "<C-w><S->><C-w><S->>") -- increase split window focus size 
 nnoremap("<leader>s-", "<C-w><S-<><C-w><S-<>") -- decrease split window focus size 
 
-nnoremap("<leader>to", ":tabnew<CR>") -- open new tab
+nnoremap("<leader>tn", ":tabnew<CR>") -- open new tab
 nnoremap("<leader>tx", ":tabclose<CR>") -- close current tab
-nnoremap("<leader>tn", ":tabn<CR>") --  go to next tab
-nnoremap("<leader>tp", ":tabp<CR>") --  go to previous tab
+nnoremap("<leader>tk", ":tabn<CR>") --  go to next tab
+nnoremap("<leader>tj", ":tabp<CR>") --  go to previous tab
+
+
+xnoremap("p", "P") -- Allows to repeat paste 
+
+
 
 ----------------------
 -- Plugin Keybinds
@@ -53,7 +58,7 @@ nnoremap("<leader>sm", ":MaximizerToggle<CR>") -- toggle split window maximizati
 nnoremap("<leader>e", ":NvimTreeToggle<CR>") -- toggle file explorer
 
 -- telescope
-nnoremap("<leader>ff", "<cmd>Telescope find_files<cr>") -- find files within current working directory, respects .gitignore
+nnoremap("<leader>ff", "<cmd>Telescope git_files<cr>") -- find files within current working directory, respects .gitignore
 nnoremap("<leader>fs", "<cmd>Telescope live_grep<cr>") -- find string in current working directory as you type
 nnoremap("<leader>fc", "<cmd>Telescope grep_string<cr>") -- find string under cursor in current working directory
 nnoremap("<leader>fb", "<cmd>Telescope buffers<cr>") -- list open buffers in current neovim instance
