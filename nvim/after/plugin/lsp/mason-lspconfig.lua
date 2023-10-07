@@ -32,5 +32,17 @@ require('mason-lspconfig').setup_handlers({
   end,
   ['omnisharp'] = function()
     lspconfig.omnisharp.setup({})
+  end,
+  ['sumneko_lua'] = function()
+    lspconfig.osumneko_lua.setup({
+      settings = {
+        Lua = {
+          diagnostics = {
+            -- Get the language server to recognize the `vim` global
+            globals = {'vim'},
+          },
+        },
+      }
+    })
   end
 })

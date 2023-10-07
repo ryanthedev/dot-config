@@ -13,7 +13,6 @@ return require("packer").startup(function(use)
 
   -- Colorscheme section
   use("gruvbox-community/gruvbox")
-  use("folke/tokyonight.nvim")
   use("glepnir/zephyr-nvim")
   use("rockerBOO/boo-colorscheme-nvim")
   use("sainnhe/edge")
