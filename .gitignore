@@ -1,6 +1,7 @@
 /*
 /*/
 !polybar/
+!tmux/
 !nvim/
 nvim/plugin/
 !i3/

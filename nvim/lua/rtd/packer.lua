@@ -1,7 +1,7 @@
 return require("packer").startup(function(use)
   use("wbthomason/packer.nvim")
 
-  -- TJ created lodash of neovim
+  -- Telescope
   use("nvim-lua/plenary.nvim")
   use("nvim-lua/popup.nvim")
   use("nvim-telescope/telescope.nvim")
@@ -12,21 +12,10 @@ return require("packer").startup(function(use)
   })
 
   -- Colorscheme section
-  use("gruvbox-community/gruvbox")
-  use("glepnir/zephyr-nvim")
-  use("rockerBOO/boo-colorscheme-nvim")
-  use("sainnhe/edge")
-  use("marko-cerovac/material.nvim")
-  use("Th3Whit3Wolf/space-nvim")
-  use("ray-x/starry.nvim")
-  use("shaunsingh/nord.nvim")
-  use("NTBBloodbath/doom-one.nvim")
-  use("FrenzyExists/aquarium-vim")
-  use("EdenEast/nightfox.nvim")
-  use("Everblush/nvim")
-  use("adisen99/apprentice.nvim")
-  use("rmehri01/onenord.nvim")
-
+  use({
+    'catppuccin/nvim',
+    as = 'catppuccin'
+  })
 
   -- make things transparent
   use("xiyaowong/nvim-transparent")
@@ -55,7 +44,8 @@ return require("packer").startup(function(use)
 
   -- LSP Setup UI
   use("j-hui/fidget.nvim")
-  
+
+
   -- Autocomplete engine
   use("hrsh7th/nvim-cmp")
 
@@ -72,10 +62,16 @@ return require("packer").startup(function(use)
  -- use("rafamadriz/friendly-snippets")
 
 
-  -- Dashboard
- -- use("glepnir/dashboard-nvim")
 
-  use("andrewferrier/wrapping.nvim")
+  use({
+    "andrewferrier/wrapping.nvim",
+    config = function()
+      require("wrapping").setup()
+    end,
+  })
+
+  use('christoomey/vim-tmux-navigator')
+
   -- DAP
   use({
     "rcarriga/nvim-dap-ui",
@@ -84,27 +80,4 @@ return require("packer").startup(function(use)
   use("jayp0521/mason-nvim-dap.nvim")
   use("nvim-telescope/telescope-dap.nvim")
 
-  -- Formatter
-  use("mhartington/formatter.nvim")
-
-
-
-  -- Terminal Toggle
-  use({
-    "akinsho/toggleterm.nvim",
-    tag = '*',
-    config = function()
-      require("toggleterm").setup()
-    end
-  })
-
-
-  -- Test Runners
-  use({
-    "nvim-neotest/neotest",
-    requires = {
-      "Issafalcon/neotest-dotnet",
-      "antoinemadec/FixCursorHold.nvim"
-    }
-  })
 end)

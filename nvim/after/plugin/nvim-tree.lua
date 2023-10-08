@@ -12,7 +12,7 @@ vim.g.loaded_netrwPlugin = 1
 vim.cmd([[ highlight NvimTreeIndentMarker guifg=#3FC5FF ]])
 
 -- configure nvim-tree
-require("nvim-tree").setup({
+nvimtree.setup({
   -- change folder arrow icons
   view = {
     side = 'right',

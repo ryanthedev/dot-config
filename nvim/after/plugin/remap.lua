@@ -65,6 +65,7 @@ nnoremap("<leader>fb", "<cmd>Telescope buffers<cr>") -- list open buffers in cur
 nnoremap("<leader>fh", "<cmd>Telescope help_tags<cr>") -- list available help tags
 nnoremap("<leader>fg", "<cmd>Telescope current_buffer_fuzzy_find fuzzy=false case_mode=ignore_case<cr>") -- list available help tags
 nnoremap("<leader>fj", "<cmd>Telescope jumplist<cr>") -- search jumplist!!! 
+nnoremap("<leader>ft", "<cmd>Telescope colorscheme<cr>")
 
 -- telescope git commands (not on youtube nvim video)
 nnoremap("<leader>gc", "<cmd>Telescope git_commits<cr>") -- list all git commits (use <cr> to checkout) ["gc" for git commits]
@@ -82,11 +83,7 @@ nnoremap("<C-u>", "<C-u>zz")
 -- preview files (netrw)
 nnoremap("<leader>pv", "<cmd>Ex<CR>")
 
-
-
--- Terminal Toggle
-nnoremap("<leader>nth", "<cmd>ToggleTerm size=18 direction=horizontal<CR>")
-
+-- debug
 nnoremap("<F4>", ":lua require('dapui').toggle()<CR>")
 nnoremap("<F7>", ":lua require('dap').toggle_breakpoint()<CR>")
 nnoremap("<F5>", ":lua require('dap').continue()<CR>")
