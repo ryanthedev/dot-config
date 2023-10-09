@@ -2,6 +2,7 @@
 /*/
 !polybar/
 !tmux/
+tmux/plugins/
 !nvim/
 nvim/plugin/
 !i3/
