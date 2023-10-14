@@ -34,32 +34,36 @@ return require("packer").startup(function(use)
     tag = 'nightly' -- optional, updated every week. (see issue #1193)
   })
 
-  -- LSP, DAP, goodness
-  -- External tool installer
-  use("williamboman/mason.nvim")
+use {
+  'VonHeikemen/lsp-zero.nvim',
+  branch = 'v3.x',
+  requires = {
+    {'williamboman/mason.nvim'},
+    {'williamboman/mason-lspconfig.nvim'},
 
-  -- Lspconfig & mason extension
-  use("williamboman/mason-lspconfig.nvim")
-  use("neovim/nvim-lspconfig")
+    -- LSP Support
+    {'neovim/nvim-lspconfig'},
+    -- Autocompletion
+    {'hrsh7th/nvim-cmp'},
+    {'hrsh7th/cmp-nvim-lsp'},
+    {'L3MON4D3/LuaSnip'},
+  }
+}
 
   -- Mason recommended linter
   use 'mfussenegger/nvim-lint'
 
   -- Mason recommended formatter
   use 'mhartington/formatter.nvim'
+  
+  -- Autoclose
+  use 'm4xshen/autoclose.nvim'
 
-  -- LSP Steup UI
-  use("j-hui/fidget.nvim")
-
-  -- wrod 
-  --
-  -- pryamid 
-  -- wrod
--- Text wrapping
+  -- Text wrapping
   use({
     "andrewferrier/wrapping.nvim",
     config = function()
-      require("wrapping").setup()
+      require("wrapping").setup({ create_keymaps = false })
     end,
   })
 
@@ -85,5 +89,6 @@ return require("packer").startup(function(use)
   })
   use("jayp0521/mason-nvim-dap.nvim")
   use("nvim-telescope/telescope-dap.nvim")
+
 
 end)
