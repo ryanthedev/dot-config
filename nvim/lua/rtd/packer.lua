@@ -42,27 +42,20 @@ return require("packer").startup(function(use)
   use("williamboman/mason-lspconfig.nvim")
   use("neovim/nvim-lspconfig")
 
-  -- LSP Setup UI
+  -- Mason recommended linter
+  use 'mfussenegger/nvim-lint'
+
+  -- Mason recommended formatter
+  use 'mhartington/formatter.nvim'
+
+  -- LSP Steup UI
   use("j-hui/fidget.nvim")
 
-
-  -- Autocomplete engine
-  use("hrsh7th/nvim-cmp")
-
-  -- null-ls magic
-  use("jose-elias-alvarez/null-ls.nvim")
-  -- Completion source
---  use("hrsh7th/cmp-buffer")
- -- use("saadparwaiz1/cmp_luasnip")
-  use("hrsh7th/cmp-nvim-lsp")
-
-  -- Snippet engine
- -- use("L3MON4D3/LuaSnip")
-  -- Snippet colletion
- -- use("rafamadriz/friendly-snippets")
-
-
-
+  -- wrod 
+  --
+  -- pryamid 
+  -- wrod
+-- Text wrapping
   use({
     "andrewferrier/wrapping.nvim",
     config = function()
@@ -70,20 +63,20 @@ return require("packer").startup(function(use)
     end,
   })
 
-use { 'alexghergh/nvim-tmux-navigation', config = function()
-        require'nvim-tmux-navigation'.setup {
-            disable_when_zoomed = true, -- defaults to false
-            keybindings = {
-                left = "<C-h>",
-                down = "<C-j>",
-                up = "<C-k>",
-                right = "<C-l>",
-                last_active = "<C-Backspace>",
-                next = "<C-n>",
-            }
-        }
-    end
-}
+  use { 'alexghergh/nvim-tmux-navigation', config = function()
+          require'nvim-tmux-navigation'.setup {
+              disable_when_zoomed = true, -- defaults to false
+              keybindings = {
+                  left = "<C-h>",
+                  down = "<C-j>",
+                  up = "<C-k>",
+                  right = "<C-l>",
+                  last_active = "<C-Backspace>",
+                  next = "<C-n>",
+              }
+          }
+      end
+  }
 
   -- DAP
   use({
