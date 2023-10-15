@@ -34,8 +34,8 @@ nnoremap("<c-l>", "<C-w>l") -- move splt window focus right
 nnoremap("<leader>sj", "<C-w>j") -- move splt window focus down 
 nnoremap("<leader>sk", "<C-w>k") -- move splt window focus up 
 
-nnoremap("<leader>s+", "<C-w><S->><C-w><S->>") -- increase split window focus size 
-nnoremap("<leader>s-", "<C-w><S-<><C-w><S-<>") -- decrease split window focus size 
+nnoremap("<C-i>", "<C-w><S->><C-w><S->>") -- increase split window focus size 
+nnoremap("<C-o>", "<C-w><S-<><C-w><S-<>") -- decrease split window focus size 
 
 nnoremap("<leader>tn", ":tabnew<CR>") -- open new tab
 nnoremap("<leader>tx", ":tabclose<CR>") -- close current tab
