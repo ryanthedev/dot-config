@@ -4,6 +4,7 @@
 !tmux/
 tmux/plugins/
 !nvim/
+!kitty/
 nvim/plugin/
 !i3/
 !readme.md
