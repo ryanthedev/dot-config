@@ -60,6 +60,13 @@ use {
   -- Autoclose
   use 'm4xshen/autoclose.nvim'
 
+  -- Comment
+  use {
+      'numToStr/Comment.nvim',
+      config = function()
+          require('Comment').setup()
+      end
+  }
   -- Text wrapping
   use({
     "andrewferrier/wrapping.nvim",
