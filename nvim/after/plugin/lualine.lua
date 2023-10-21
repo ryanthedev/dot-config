@@ -9,5 +9,13 @@ lualine.setup({
   options = {
     theme = "catppuccin",
   },
+  sections = {
+    lualine_c = {
+      {
+        'filename',
+        path = 4
+      }
+    }
+  },
   disabled_filetypes = { 'packer', 'NvimTree_1' }
 })
