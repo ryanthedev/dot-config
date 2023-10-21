@@ -6,6 +6,7 @@ tmux/plugins/
 !nvim/
 !kitty/
 nvim/plugin/
+!zsh/
 !i3/
 !readme.md
 !.gitignore
