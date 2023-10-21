@@ -9,7 +9,7 @@ fi
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
 # Path to your oh-my-zsh installation.
-export ZSH="/Users/ryanhayden/.oh-my-zsh"
+export ZSH="$HOME/.oh-my-zsh"
 
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
@@ -91,10 +91,14 @@ export DOTNET_ROOT=$HOME/.dotnet
 export PATH=$PATH:$DOTNET_ROOT:$DOTNET_ROOT/tools
 
 # export MANPATH="/usr/local/man:$MANPATH"
-export NVM_DIR=~/.nvm
-source $(brew --prefix nvm)/nvm.sh
+
 
 export TMUX_CONF=~/.config/tmux/tmux.conf
+
+if [[ "$(uname)" == "Darwin" ]]; then
+  export NVM_DIR=~/.nvm
+  source $(brew --prefix nvm)/nvm.sh
+fi
 
 #if [ -n "$TMUX" ]; then
 #    precmd() {
