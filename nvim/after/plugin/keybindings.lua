@@ -51,11 +51,8 @@ xnoremap("p", "P") -- Allows to repeat paste
 -- Plugin Keybinds
 ----------------------
 
--- vim-maximizer
-nnoremap("<leader>sm", ":MaximizerToggle<CR>") -- toggle split window maximization
-
 -- nvim-tree
-nnoremap("<leader>e", ":NvimTreeToggle<CR>") -- toggle file explorer
+nnoremap("<leader>e", ":Telescope file_browser<CR>") -- toggle file explorer
 
 -- telescope
 nnoremap("<leader>ff", "<cmd>Telescope git_files show_untracked=true<cr>") -- find files within current working directory, respects .gitignore
