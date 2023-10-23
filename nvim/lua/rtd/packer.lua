@@ -17,8 +17,12 @@ return require("packer").startup(function(use)
     as = 'catppuccin'
   })
 
-  -- make things transparent
-  use("xiyaowong/nvim-transparent")
+  use {
+      'goolord/alpha-nvim',
+      -- config = function ()
+      --     require'alpha'.setup(require'alpha.themes.dashboard'.config)
+      -- end
+  }
 
   -- Treesitter
   use("nvim-treesitter/nvim-treesitter", {
