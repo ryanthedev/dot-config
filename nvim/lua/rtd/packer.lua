@@ -17,7 +17,6 @@ return require("packer").startup(function(use)
     as = 'catppuccin'
   })
 
-<<<<<<< Updated upstream
   use {
       'goolord/alpha-nvim',
       -- config = function ()
@@ -25,8 +24,6 @@ return require("packer").startup(function(use)
       -- end
   }
 
-=======
->>>>>>> Stashed changes
   -- Treesitter
   use("nvim-treesitter/nvim-treesitter", {
     run = ":TSUpdate"
