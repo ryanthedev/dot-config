@@ -208,4 +208,4 @@ bindsym --release $mod+Shift+Print exec --no-startup-id master_flamez.sh selectw
 
 
 
-exec --no-startup-id "i3-msg workspace 1 gaps inner 8"
+# exec --no-startup-id "i3-msg workspace 1 gaps inner 8"

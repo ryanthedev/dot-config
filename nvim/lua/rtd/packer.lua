@@ -23,7 +23,6 @@ return require("packer").startup(function(use)
       --     require'alpha'.setup(require'alpha.themes.dashboard'.config)
       -- end
   }
-
   -- Treesitter
   use("nvim-treesitter/nvim-treesitter", {
     run = ":TSUpdate"
