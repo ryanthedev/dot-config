@@ -8,5 +8,6 @@ tmux/plugins/
 nvim/plugin/
 !zsh/
 !i3/
+!randy/
 !readme.md
 !.gitignore
