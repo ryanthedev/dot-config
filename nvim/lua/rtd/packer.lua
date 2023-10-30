@@ -17,12 +17,11 @@ return require("packer").startup(function(use)
     as = 'catppuccin'
   })
 
+  -- Dashboard
   use {
       'goolord/alpha-nvim',
-      -- config = function ()
-      --     require'alpha'.setup(require'alpha.themes.dashboard'.config)
-      -- end
   }
+
   -- Treesitter
   use("nvim-treesitter/nvim-treesitter", {
     run = ":TSUpdate"
@@ -101,5 +100,6 @@ use {
   use("jayp0521/mason-nvim-dap.nvim")
   use("nvim-telescope/telescope-dap.nvim")
 
+  use "fladson/vim-kitty"
 
 end)
