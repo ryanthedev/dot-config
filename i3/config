@@ -14,7 +14,7 @@ set $ws9 9
 set $ws10 10
 
 # Active window border?
-for_window [class="^.*"] border pixel 0 
+for_window [class="^.*"] border pixel 2 
 
 # Global gaps
 gaps inner 6
@@ -197,3 +197,4 @@ workspace $ws1 output DP-2
 workspace $ws2 output DP-0
 
 workspace $ws1 gaps top 31
+workspace $ws2 gaps bottom 31
