@@ -14,12 +14,28 @@ return require("packer").startup(function(use)
   })
 
   -- Colorscheme section
-  use({
-    'catppuccin/nvim',
-    as = 'catppuccin'
-  })
+  -- use({
+  --   'catppuccin/nvim',
+  --   as = 'catppuccin'
+  -- })
+  use {
+        'maxmx03/fluoromachine.nvim',
+        config = function ()
+         local fm = require 'fluoromachine'
 
+<<<<<<< Updated upstream
   -- Dashboard
+=======
+         fm.setup {
+            glow = true,
+            theme = 'fluoromachine',
+            transparent = 'full',
+         }
+
+         vim.cmd.colorscheme 'fluoromachine'
+        end
+    }
+>>>>>>> Stashed changes
   use {
       'goolord/alpha-nvim',
   }

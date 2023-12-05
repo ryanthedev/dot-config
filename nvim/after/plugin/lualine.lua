@@ -7,7 +7,7 @@ end
 -- configure lualine with modified theme
 lualine.setup({
   options = {
-    theme = "catppuccin",
+    theme = "fluoromachine",
   },
   sections = {
     lualine_c = {
