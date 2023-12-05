@@ -60,15 +60,13 @@ nnoremap("<leader>fs", "<cmd>Telescope live_grep<cr>") -- find string in current
 nnoremap("<leader>fc", "<cmd>Telescope grep_string<cr>") -- find string under cursor in current working directory
 nnoremap("<leader>fb", "<cmd>Telescope buffers<cr>") -- list open buffers in current neovim instance
 nnoremap("<leader>fh", "<cmd>Telescope help_tags<cr>") -- list available help tags
-nnoremap("<leader>fg", "<cmd>Telescope current_buffer_fuzzy_find fuzzy=false case_mode=ignore_case<cr>") -- list available help tags
+nnoremap("<leader>fcb", "<cmd>Telescope current_buffer_fuzzy_find fuzzy=false case_mode=ignore_case<cr>") -- list available help tags
 nnoremap("<leader>fj", "<cmd>Telescope jumplist<cr>") -- search jumplist!!! 
 nnoremap("<leader>ft", "<cmd>Telescope colorscheme<cr>")
-
 -- telescope git commands (not on youtube nvim video)
-nnoremap("<leader>gc", "<cmd>Telescope git_commits<cr>") -- list all git commits (use <cr> to checkout) ["gc" for git commits]
-nnoremap("<leader>gfc", "<cmd>Telescope git_bcommits<cr>") -- list git commits for current file/buffer (use <cr> to checkout) ["gfc" for git file commits]
-nnoremap("<leader>gb", "<cmd>Telescope git_branches<cr>") -- list git branches (use <cr> to checkout) ["gb" for git branch]
-nnoremap("<leader>gs", "<cmd>Telescope git_status<cr>") -- list current changes per file with diff preview ["gs" for git status]
+nnoremap("<leader>fgc", "<cmd>Telescope git_commits<cr>") -- list all git commits (use <cr> to checkout) ["gc" for git commits]
+nnoremap("<leader>fgb", "<cmd>Telescope git_branches<cr>") -- list git branches (use <cr> to checkout) ["gb" for git branch]
+nnoremap("<leader>fgs", "<cmd>Telescope git_status<cr>") -- list current changes per file with diff preview ["gs" for git status]
 
 -- restart lsp server (not on youtube nvim video)
 nnoremap("<leader>rs", ":LspRestart<CR>") -- mapping to restart lsp if necessary

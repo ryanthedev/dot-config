@@ -1,6 +1,8 @@
 return require("packer").startup(function(use)
   use("wbthomason/packer.nvim")
 
+  use 'nvim-tree/nvim-web-devicons'
+  
   -- Telescope
   use("nvim-lua/plenary.nvim")
   use("nvim-lua/popup.nvim")
@@ -52,6 +54,12 @@ use {
     {'hrsh7th/cmp-nvim-lsp-signature-help'},
   }
 }
+  use {
+    'folke/trouble.nvim',
+    requires = {
+      {'nvim-tree/nvim-web-devicons'}
+    }
+  }
 
   -- Mason recommended linter
   use 'mfussenegger/nvim-lint'
