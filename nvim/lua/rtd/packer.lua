@@ -18,24 +18,37 @@ return require("packer").startup(function(use)
   --   'catppuccin/nvim',
   --   as = 'catppuccin'
   -- })
+  -- use {
+  --       'maxmx03/fluoromachine.nvim',
+  --       config = function ()
+  --        local fm = require 'fluoromachine'
+  --
+  --        fm.setup {
+  --           glow = true,
+  --           theme = 'fluoromachine',
+  --           transparent = 'full',
+  --        }
+  --
+  --        vim.cmd.colorscheme 'fluoromachine'
+  --       end
+  --   }
+
   use {
-        'maxmx03/fluoromachine.nvim',
-        config = function ()
-         local fm = require 'fluoromachine'
+    'zootedb0t/citruszest.nvim',
+    config = function()
+      local cm = require 'citruszest'
+      cm.setup {
+        option = {
+            transparent = false, -- Enable/Disable transparency
+            italic = true,
+            bold = true,
+        },
+      }
 
-<<<<<<< Updated upstream
+      vim.cmd.colorscheme 'citruszest'
+    end
+  }
   -- Dashboard
-=======
-         fm.setup {
-            glow = true,
-            theme = 'fluoromachine',
-            transparent = 'full',
-         }
-
-         vim.cmd.colorscheme 'fluoromachine'
-        end
-    }
->>>>>>> Stashed changes
   use {
       'goolord/alpha-nvim',
   }
