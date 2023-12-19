@@ -2,12 +2,19 @@ return require("packer").startup(function(use)
   use("wbthomason/packer.nvim")
 
   use 'nvim-tree/nvim-web-devicons'
-  
+
   -- Telescope
   use("nvim-lua/plenary.nvim")
   use("nvim-lua/popup.nvim")
   use("nvim-telescope/telescope.nvim")
 
+  -- the poon
+  use {
+      "ThePrimeagen/harpoon",
+      branch = "harpoon2",
+      requires = { {"nvim-lua/plenary.nvim"} }
+  }
+  -- Da line
   use({
     'nvim-lualine/lualine.nvim',
     requires = { 'kyazdani42/nvim-web-devicons', opt = true }
@@ -39,7 +46,7 @@ return require("packer").startup(function(use)
       local cm = require 'citruszest'
       cm.setup {
         option = {
-            transparent = false, -- Enable/Disable transparency
+            transparent = true, -- Enable/Disable transparency
             italic = true,
             bold = true,
         },
