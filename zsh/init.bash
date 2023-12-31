@@ -1,4 +1,6 @@
+mv ~/.zshrc ~/.zshrc.backup
 ln -s ~/.config/zsh/.zshrc ~/.zshrc
+mv ~/.p10k.zsh ~/.p10k.zsh.backup
 ln -s ~/.config/zsh/.p10k.zsh ~/.p10k.zsh
 
 # would be nice to check if we need to do this
