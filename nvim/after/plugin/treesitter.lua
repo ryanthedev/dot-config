@@ -36,9 +36,9 @@ vim.api.nvim_create_autocmd("FileType",
   group = gib_autogroup
 })
 
-vim.treesitter.query.set("c_sharp", "folds", [[
-  (method_declaration (block) @fold)
-  (lambda_expression (block) @fold)
-  (constructor_declaration (block) @fold)
-]])
+-- vim.treesitter.query.set("c_sharp", "folds", [[
+--   (method_declaration (block) @fold)
+--   (lambda_expression (block) @fold)
+--   (constructor_declaration (block) @fold)
+-- ]])
 

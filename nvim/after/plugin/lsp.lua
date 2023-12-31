@@ -1,6 +1,7 @@
-local lsp_zero = require('lsp-zero')
+require'fidget'.setup{}
 
-lsp_zero.on_attach(function(client, bufnr)
+local lsp_zero = require('lsp-zero')
+local on_attach = function(client, bufnr)
   local opts = {buffer = bufnr, remap = false}
 
   vim.keymap.set("n", "go", function() vim.lsp.buf.type_definition() end, opts)
@@ -15,7 +16,31 @@ lsp_zero.on_attach(function(client, bufnr)
   vim.keymap.set("n", "<leader>vca", function() vim.lsp.buf.code_action() end, opts)
   vim.keymap.set("n", "<leader>vrn", function() vim.lsp.buf.rename() end, opts)
   vim.keymap.set("i", "<C-i>", function() vim.lsp.buf.signature_help() end, opts)
-end)
+end
+
+-- nvim-cmp supports additional completion capabilities, so broadcast that to servers
+local capabilities = vim.lsp.protocol.make_client_capabilities()
+capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
+
+lsp_zero.on_attach(on_attach)
+
+-- local lsp_configurations = require('lspconfig.configs')
+--
+-- if not lsp_configurations.roslyn then
+--   lsp_configurations.roslyn  = {
+--     default_config = {
+--       name = 'roslyn ',
+--       cmd = {'roslyn'},
+--       filetypes = {'cs'},
+--       root_dir = require('lspconfig.util').root_pattern('.sln')
+--     }
+--   }
+-- end
+
+require("roslyn").setup({
+    on_attach =  on_attach,
+    capabilities = capabilities
+})
 
 require('mason').setup({})
 require('mason-lspconfig').setup({
@@ -25,7 +50,7 @@ require('mason-lspconfig').setup({
     lua_ls = function()
       local lua_opts = lsp_zero.nvim_lua_ls()
       require('lspconfig').lua_ls.setup(lua_opts)
-    end,
+    end
   }
 })
 

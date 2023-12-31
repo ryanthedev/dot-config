@@ -100,6 +100,8 @@ if [[ "$(uname)" == "Darwin" ]]; then
   source $(brew --prefix nvm)/nvm.sh
 fi
 
+alias k=kubectl
+
 #if [ -n "$TMUX" ]; then
 #    precmd() {
 #        tmux rename-window "${PWD##*/}"

@@ -11,12 +11,5 @@
 -- vim.cmd('colorscheme catppuccin')
 
 
--- require("citruszest").setup({
---     option = {
---         transparent = true, 
---         italic = true,
---         bold = true,
---     },
--- })
---
--- vim.cmd('colorscheme citruszest')
+require("citruszest").setup({})
+vim.cmd('colorscheme citruszest')

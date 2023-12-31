@@ -4,6 +4,7 @@
 !tmux/
 tmux/plugins/
 !nvim/
+nvim/lazy-lock.json
 !kitty/
 nvim/plugin/
 !zsh/
