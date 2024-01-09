@@ -43,6 +43,9 @@ nnoremap("<leader>tk", ":tabn<CR>") --  go to next tab
 nnoremap("<leader>tj", ":tabp<CR>") --  go to previous tab
 
 
+vnoremap("J", ":m '>+1<CR>gv=gv") --  go to previous tab
+vnoremap("K", ":m '<-2<CR>gv=gv") --  go to previous tab
+
 xnoremap("p", "P") -- Allows to repeat paste 
 
 nnoremap("<C-W>", "<C-I>") --  go to previous tab

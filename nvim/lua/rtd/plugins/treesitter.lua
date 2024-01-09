@@ -3,21 +3,29 @@ local status, treesitter = pcall(require, "nvim-treesitter.configs")
 if not status then
   return
 end
+
+return{
+  'nvim-treesitter/nvim-treesitter',
+  build = ':TSUpdate',
+  config = function()
+
+    treesitter.setup({
+      -- enable syntax highlighting
+      highlight = {
+        enable = true,
+      },
+      -- enable indentation
+      indent = { enable = true },
+      -- enable autotagging (w/ nvim-ts-autotag plugin)
+      autotag = { enable = true },
+      -- ensure these language parsers are installed
+      ensure_installed = "all",
+      -- auto install above language parsers
+      auto_install = true,
+    })
+  end 
+}
 -- configure treesitter
-treesitter.setup({
-  -- enable syntax highlighting
-  highlight = {
-    enable = true,
-  },
-  -- enable indentation
-  indent = { enable = true },
-  -- enable autotagging (w/ nvim-ts-autotag plugin)
-  autotag = { enable = true },
-  -- ensure these language parsers are installed
-  ensure_installed = "all",
-  -- auto install above language parsers
-  auto_install = true,
-})
 
 -- AutoCmd group for my custom commands.
 local gib_autogroup = vim.api.nvim_create_augroup("gib_autogroup", { clear = true })
@@ -35,10 +43,3 @@ vim.api.nvim_create_autocmd("FileType",
   end,
   group = gib_autogroup
 })
-
--- vim.treesitter.query.set("c_sharp", "folds", [[
---   (method_declaration (block) @fold)
---   (lambda_expression (block) @fold)
---   (constructor_declaration (block) @fold)
--- ]])
-
