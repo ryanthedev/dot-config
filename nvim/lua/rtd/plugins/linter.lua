@@ -1,14 +1,17 @@
-local lint = require('lint')
+return {
+  'mfussenegger/nvim-lint',
+  config = function()
+    local lint = require('lint')
+    lint.inters_by_ft = {
+      lua = {
+      }
+    }
 
-lint.linters_by_ft = {
-  lua = {
-    'cspell'
-  }
+
+    vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+      callback = function()
+        lint.try_lint()
+      end,
+    })
+  end
 }
-
-
-vim.api.nvim_create_autocmd({ "BufWritePost" }, {
-  callback = function()
-    lint.try_lint()
-  end,
-})

@@ -5,5 +5,5 @@ return {
   config = function()
     require("citruszest").setup({})
     vim.cmd('colorscheme citruszest')
-  end
+  end,
 }

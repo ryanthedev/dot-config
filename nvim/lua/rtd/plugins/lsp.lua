@@ -1,7 +1,4 @@
-require'fidget'.setup{}
-
-local lsp_zero = require('lsp-zero')
-local on_attach = function(client, bufnr)
+local on_lsp_attach = function(client, bufnr)
   local opts = {buffer = bufnr, remap = false}
 
   vim.keymap.set("n", "go", function() vim.lsp.buf.type_definition() end, opts)
@@ -19,62 +16,147 @@ local on_attach = function(client, bufnr)
 end
 
 -- nvim-cmp supports additional completion capabilities, so broadcast that to servers
-local capabilities = vim.lsp.protocol.make_client_capabilities()
-capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
-
-lsp_zero.on_attach(on_attach)
-
--- local lsp_configurations = require('lspconfig.configs')
+-- local capabilities = vim.lsp.protocol.make_client_capabilities()
+-- capabilities = require('cmp-nvim-lsp').default_capabilities(capabilities)
 --
--- if not lsp_configurations.roslyn then
---   lsp_configurations.roslyn  = {
---     default_config = {
---       name = 'roslyn ',
---       cmd = {'roslyn'},
---       filetypes = {'cs'},
---       root_dir = require('lspconfig.util').root_pattern('.sln')
---     }
+--
+-- require('mason').setup({})
+-- require('mason-lspconfig').setup({
+--   ensure_installed = {'tsserver'},
+--   handlers = {
+--     lsp_zero.default_setup,
+--     lua_ls = function()
+--       local lua_opts = lsp_zero.nvim_lua_ls()
+--       require('lspconfig').lua_ls.setup(lua_opts)
+--     end
 --   }
--- end
+-- })
+--
+-- local cmp = require('cmp')
+-- local cmp_select = {behavior = cmp.SelectBehavior.Select}
+--
+-- cmp.setup({
+--   formatting = lsp_zero.cmp_format(),
+--   mapping = cmp.mapping.preset.insert({
+--     ['<C-b>'] = cmp.mapping.scroll_docs(-4),
+--     ['<C-f>'] = cmp.mapping.scroll_docs(4),
+--     ['<C-o>'] = cmp.mapping.complete(),
+--     ['<C-e>'] = cmp.mapping.abort(),
+--     ['<CR>'] = cmp.mapping.confirm({ select = true }),
+--   }),
+--   preselect = 'item',
+--   completion = {
+--     completeopt = 'menu,menuone,noinsert'
+--   },
+-- })
 
-require("roslyn").setup({
-    on_attach =  on_attach,
-    capabilities = capabilities
-})
+return {
+	{
+    'j-hui/fidget.nvim',
+    config = function()
+      require('fidget').setup()
+    end,
+  },
+  {
+    'VonHeikemen/lsp-zero.nvim',
+    branch = 'v3.x',
+    lazy = true,
+    config = false,
+    init = function()
+      -- Disable automatic setup, we are doing it manually
+      vim.g.lsp_zero_extend_cmp = 0
+      vim.g.lsp_zero_extend_lspconfig = 0
+    end,
+  },
+  {
+    'williamboman/mason.nvim',
+    lazy = false,
+    config = true,
+  },
+  -- Autocompletion
+  {
+    'hrsh7th/nvim-cmp',
+    event = 'InsertEnter',
+    dependencies = {
+      {'L3MON4D3/LuaSnip'},
+      {'hrsh7th/cmp-buffer'},
+      {'hrsh7th/cmp-path'},
+      {'hrsh7th/cmp-nvim-lsp-signature-help'},
+    },
+    config = function()
+      -- Here is where you configure the autocompletion settings.
+      local lsp_zero = require('lsp-zero')
+      lsp_zero.extend_cmp()
 
-require('mason').setup({})
-require('mason-lspconfig').setup({
-  ensure_installed = {'tsserver'},
-  handlers = {
-    lsp_zero.default_setup,
-    lua_ls = function()
-      local lua_opts = lsp_zero.nvim_lua_ls()
-      require('lspconfig').lua_ls.setup(lua_opts)
+      -- And you can configure cmp even more, if you want to.
+      local cmp = require('cmp')
+      local cmp_action = lsp_zero.cmp_action()
+
+      cmp.setup({
+        sources = {
+          {name = 'path'},
+          {name = 'nvim_lsp'},
+          {name = 'nvim_lua'},
+          {name = 'buffer'},
+          {name = 'nvim_lsp_signature_help'},
+        },
+        formatting = lsp_zero.cmp_format(),
+        mapping = cmp.mapping.preset.insert({
+          ['<C-Space>'] = cmp.mapping.complete(),
+          ['<C-u>'] = cmp.mapping.scroll_docs(-4),
+          ['<C-d>'] = cmp.mapping.scroll_docs(4),
+          ['<C-f>'] = cmp_action.luasnip_jump_forward(),
+          ['<C-b>'] = cmp_action.luasnip_jump_backward(),
+        })
+      })
     end
-  }
-})
-
-local cmp = require('cmp')
-local cmp_select = {behavior = cmp.SelectBehavior.Select}
-
-cmp.setup({
-  sources = {
-    {name = 'path'},
-    {name = 'nvim_lsp'},
-    {name = 'nvim_lua'},
-    {name = 'buffer'},
-    {name = 'nvim_lsp_signature_help'},
   },
-  formatting = lsp_zero.cmp_format(),
-  mapping = cmp.mapping.preset.insert({
-    ['<C-b>'] = cmp.mapping.scroll_docs(-4),
-    ['<C-f>'] = cmp.mapping.scroll_docs(4),
-    ['<C-o>'] = cmp.mapping.complete(),
-    ['<C-e>'] = cmp.mapping.abort(),
-    ['<CR>'] = cmp.mapping.confirm({ select = true }),
-  }),
-  preselect = 'item',
-  completion = {
-    completeopt = 'menu,menuone,noinsert'
+  -- LSP
+  {
+    'neovim/nvim-lspconfig',
+    cmd = {'LspInfo', 'LspInstall', 'LspStart'},
+    event = {'BufReadPre', 'BufNewFile'},
+    dependencies = {
+      {'hrsh7th/cmp-nvim-lsp'},
+      {'williamboman/mason-lspconfig.nvim'},
+    },
+    config = function()
+      -- This is where all the LSP shenanigans will live
+      local lsp_zero = require('lsp-zero')
+      lsp_zero.extend_lspconfig()
+
+      --- if you want to know more about lsp-zero and mason.nvim
+      --- read this: https://github.com/VonHeikemen/lsp-zero.nvim/blob/v3.x/doc/md/guides/integrate-with-mason-nvim.md
+      lsp_zero.on_attach(function(client, bufnr)
+        -- see :help lsp-zero-keybindings
+        -- to learn the available actions
+        lsp_zero.default_keymaps({buffer = bufnr})
+      end)
+
+      require('mason-lspconfig').setup({
+        ensure_installed = {},
+        handlers = {
+          lsp_zero.default_setup,
+          lua_ls = function()
+            -- (Optional) Configure lua language server for neovim
+            local lua_opts = lsp_zero.nvim_lua_ls()
+            require('lspconfig').lua_ls.setup(lua_opts)
+          end,
+        }
+      })
+    end
   },
-})
+  -- Dotnet Roslyn
+	{
+    'jmederosalvarado/roslyn.nvim',
+    dependencies = {'hrsh7th/cmp-nvim-lsp'},
+    config = function()
+      local capabilities = vim.lsp.protocol.make_client_capabilities()
+      capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
+      require("roslyn").setup({
+          on_attach =  on_lsp_attach,
+          capabilities = capabilities
+      })
+    end
+  },
+}
