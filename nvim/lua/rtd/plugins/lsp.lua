@@ -48,6 +48,7 @@ return {
       {'hrsh7th/cmp-buffer'},
       {'hrsh7th/cmp-path'},
       {'hrsh7th/cmp-nvim-lsp-signature-help'},
+      {'saadparwaiz1/cmp_luasnip'},
     },
     config = function()
       -- Here is where you configure the autocompletion settings.
@@ -89,6 +90,7 @@ return {
           completeopt = 'menu,menuone,noinsert'
         },
       })
+      require("luasnip.loaders.from_vscode").load({ paths = { "~/.config/snippets" } })
     end
   },
   -- LSP
