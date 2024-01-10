@@ -12,43 +12,9 @@ local on_lsp_attach = function(client, bufnr)
   vim.keymap.set("n", "]d", function() vim.diagnostic.goto_prev() end, opts)
   vim.keymap.set("n", "<leader>vca", function() vim.lsp.buf.code_action() end, opts)
   vim.keymap.set("n", "<leader>vrn", function() vim.lsp.buf.rename() end, opts)
-  vim.keymap.set("i", "<C-i>", function() vim.lsp.buf.signature_help() end, opts)
+  -- vim.keymap.set("i", "<C-i>", function() vim.lsp.buf.signature_help() end, opts)
 end
 
--- nvim-cmp supports additional completion capabilities, so broadcast that to servers
--- local capabilities = vim.lsp.protocol.make_client_capabilities()
--- capabilities = require('cmp-nvim-lsp').default_capabilities(capabilities)
---
---
--- require('mason').setup({})
--- require('mason-lspconfig').setup({
---   ensure_installed = {'tsserver'},
---   handlers = {
---     lsp_zero.default_setup,
---     lua_ls = function()
---       local lua_opts = lsp_zero.nvim_lua_ls()
---       require('lspconfig').lua_ls.setup(lua_opts)
---     end
---   }
--- })
---
--- local cmp = require('cmp')
--- local cmp_select = {behavior = cmp.SelectBehavior.Select}
---
--- cmp.setup({
---   formatting = lsp_zero.cmp_format(),
---   mapping = cmp.mapping.preset.insert({
---     ['<C-b>'] = cmp.mapping.scroll_docs(-4),
---     ['<C-f>'] = cmp.mapping.scroll_docs(4),
---     ['<C-o>'] = cmp.mapping.complete(),
---     ['<C-e>'] = cmp.mapping.abort(),
---     ['<CR>'] = cmp.mapping.confirm({ select = true }),
---   }),
---   preselect = 'item',
---   completion = {
---     completeopt = 'menu,menuone,noinsert'
---   },
--- })
 
 return {
 	{
@@ -93,21 +59,35 @@ return {
       local cmp_action = lsp_zero.cmp_action()
 
       cmp.setup({
+        snippet = {
+          expand = function(args)
+            require('luasnip').lsp_expand(args.body)
+          end,
+        },
         sources = {
           {name = 'path'},
           {name = 'nvim_lsp'},
           {name = 'nvim_lua'},
+          {name = 'luasnip'},
           {name = 'buffer'},
           {name = 'nvim_lsp_signature_help'},
         },
+        window = {
+          completion = cmp.config.window.bordered(),
+          documentation = cmp.config.window.bordered(),
+        },
         formatting = lsp_zero.cmp_format(),
         mapping = cmp.mapping.preset.insert({
-          ['<C-Space>'] = cmp.mapping.complete(),
+          ['<Tab>'] = cmp_action.luasnip_supertab(),
+          ['<S-Tab>'] = cmp_action.luasnip_shift_supertab(),
+          ['<CR>'] = cmp.mapping.confirm({select = true}),
           ['<C-u>'] = cmp.mapping.scroll_docs(-4),
           ['<C-d>'] = cmp.mapping.scroll_docs(4),
-          ['<C-f>'] = cmp_action.luasnip_jump_forward(),
-          ['<C-b>'] = cmp_action.luasnip_jump_backward(),
-        })
+        }),
+        preselect = 'item',
+        completion = {
+          completeopt = 'menu,menuone,noinsert'
+        },
       })
     end
   },
