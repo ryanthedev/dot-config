@@ -9,7 +9,7 @@ return  {
 					down = '<C-j>',
 					up = '<C-k>',
 					right = '<C-l>',
-					last_active = '<C-Backspace>',
+					last_active = '<C-b>',
 					next = '<C-n>',
 				},
 			})
