@@ -14,7 +14,13 @@ return {
         },
         cs = {
           require'formatter.filetypes.cs'.dotnetformat,
-        }
+        },
+        xml = {
+          require('formatter.filetypes.xml').xmllint,
+        },
+        javascript = {
+          require('formatter.filetypes.javascript').prettier,
+        },
       },
     })
   end,

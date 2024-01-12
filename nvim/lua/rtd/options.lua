@@ -39,13 +39,14 @@ opt.splitright = true -- split vertical window to the right
 opt.splitbelow = true -- split horizontal window to the bottom
 
 -- fold method
--- opt.foldmethod = "expr"
--- opt.foldexpr = "nvim_treesitter#foldexpr()"
-
+opt.foldcolumn = '0' -- '0' is not bad
+opt.foldlevel = 99 -- Using ufo provider need a large value, feel free to decrease the value
+opt.foldlevelstart = 99
+opt.foldenable = true
 
 opt.iskeyword:append("-") -- consider string-string as whole word
 
 -- cursor
-opt.guicursor = 'a:hor30-iCursor-blinkwait300-blinkon200-blinkoff150'
+-- opt.guicursor = 'a:hor30-iCursor-blinkwait300-blinkon200-blinkoff150'
 -- set leader key to space
 vim.g.mapleader = " "

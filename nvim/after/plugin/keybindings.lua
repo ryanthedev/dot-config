@@ -23,32 +23,38 @@ nnoremap("<leader>+", "<C-a>") -- increment
 nnoremap("<leader>-", "<C-x>") -- decrement
 
 -- window management
-nnoremap("<leader>swv", "<C-w>v") -- split window vertically
-nnoremap("<leader>swh", "<C-w>s") -- split window horizontally
-nnoremap("<leader>swe", "<C-w>=") -- make split windows equal width & height
-nnoremap("<leader>swx", ":close<CR>") -- close current split window
-
-
-nnoremap("<c-h>", "<C-w>h") -- move splt window focus left
-nnoremap("<c-l>", "<C-w>l") -- move splt window focus right
+-- splits
+nnoremap("<leader>sv", "<C-w>v") -- split window vertically
+nnoremap("<leader>sh", "<C-w>s") -- split window horizontally
+nnoremap("<leader>se", "<C-w>=") -- make split windows equal width & height
+nnoremap("<leader>sx", ":close<CR>") -- close current split window
+nnoremap("<leader>sh", "<C-w>h") -- move splt window focus left
+nnoremap("<leader>sl", "<C-w>l") -- move splt window focus right
 nnoremap("<leader>sj", "<C-w>j") -- move splt window focus down 
 nnoremap("<leader>sk", "<C-w>k") -- move splt window focus up 
-
-nnoremap("<C-g>", "<C-w><S->><C-w><S->>") -- increase split window focus size 
-nnoremap("<C-s>", "<C-w><S-<><C-w><S-<>") -- decrease split window focus size 
-
+nnoremap("<leader>si", "<C-w><S->><C-w><S->>") -- increase split window focus size 
+nnoremap("<leader>sd", "<C-w><S-<><C-w><S-<>") -- decrease split window focus size 
+-- tabs
 nnoremap("<leader>tn", ":tabnew<CR>") -- open new tab
 nnoremap("<leader>tx", ":tabclose<CR>") -- close current tab
 nnoremap("<leader>tk", ":tabn<CR>") --  go to next tab
 nnoremap("<leader>tj", ":tabp<CR>") --  go to previous tab
 
-
-vnoremap("J", ":m '>+1<CR>gv=gv") --  go to previous tab
-vnoremap("K", ":m '<-2<CR>gv=gv") --  go to previous tab
+-- randy
+vnoremap("J", ":m '>+1<CR>gv=gv") --  move current line up 
+vnoremap("K", ":m '<-2<CR>gv=gv") --  move current line down 
 
 xnoremap("p", "P") -- Allows to repeat paste 
 
-nnoremap("<C-W>", "<C-I>") --  go to previous tab
+nnoremap("gi", "gizz");
+nnoremap("go", "gozz");
+nnoremap("<C-o>", "<C-o>zz");
+
+nnoremap("n", "nzz");
+nnoremap("N", "Nzz");
+-- page down & up but keep cursor in middle
+nnoremap("<C-d>", "<C-d>zz")
+nnoremap("<C-u>", "<C-u>zz")
 
 ----------------------
 -- Plugin Keybinds
@@ -74,9 +80,6 @@ nnoremap("<leader>fgs", "<cmd>Telescope git_status<cr>") -- list current changes
 -- restart lsp server (not on youtube nvim video)
 nnoremap("<leader>rs", ":LspRestart<CR>") -- mapping to restart lsp if necessary
 
--- page down & up but keep cursor in middle
-nnoremap("<C-d>", "<C-d>zz")
-nnoremap("<C-u>", "<C-u>zz")
 
 -- preview files (netrw)
 nnoremap("<leader>pv", "<cmd>Ex<CR>")
