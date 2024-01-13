@@ -80,6 +80,7 @@ export ZSH_CUSTOM=$HOME/.oh-my-zsh/custom
 plugins=(
   git
   zsh-syntax-highlighting
+  vi-mode
 )
 
 source $ZSH/oh-my-zsh.sh
@@ -101,6 +102,7 @@ if [[ "$(uname)" == "Darwin" ]]; then
 fi
 
 alias k=kubectl
+alias vim=nvim
 
 #if [ -n "$TMUX" ]; then
 #    precmd() {
