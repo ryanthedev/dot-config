@@ -55,6 +55,8 @@ nnoremap("N", "Nzz");
 -- page down & up but keep cursor in middle
 nnoremap("<C-d>", "<C-d><cr>zz")
 nnoremap("<C-u>", "<C-u><cr>zz")
+nnoremap("<C-e>", "j<C-e>")
+nnoremap("<C-y>", "k<C-y>")
 
 ----------------------
 -- Plugin Keybinds

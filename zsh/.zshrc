@@ -82,7 +82,6 @@ plugins=(
   zsh-syntax-highlighting
   vi-mode
 )
-
 source $ZSH/oh-my-zsh.sh
 
 # User configuration
@@ -99,16 +98,14 @@ export TMUX_CONF=~/.config/tmux/tmux.conf
 if [[ "$(uname)" == "Darwin" ]]; then
   export NVM_DIR=~/.nvm
   source $(brew --prefix nvm)/nvm.sh
+else
+  # NVM
+  export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
 fi
 
 alias k=kubectl
 alias vim=nvim
-
-#if [ -n "$TMUX" ]; then
-#    precmd() {
-#        tmux rename-window "${PWD##*/}"
-#    }
-#fi
 
 # You may need to manually set your language environment
 # export LANG=en_US.UTF-8
@@ -137,5 +134,4 @@ alias vim=nvim
 eval "$(zoxide init zsh)"
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-# source ~/.config/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-# source /Users/ryanhayden/.config/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
