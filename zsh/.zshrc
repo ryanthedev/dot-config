@@ -97,10 +97,13 @@ export PATH=$PATH:/usr/local/go/bin
 export TMUX_CONF=~/.config/tmux/tmux.conf
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 # NVM
 export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
 =======
+=======
+>>>>>>> Stashed changes
 # in case i need it in the future
 # if [[ "$(uname)" == "Darwin" ]]; then
 if [[ "$(uname)" == "Darwin" ]]; then
@@ -111,6 +114,9 @@ else
   export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
   [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
 fi
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 # You may need to manually set your language environment
