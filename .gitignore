@@ -11,5 +11,6 @@ nvim/plugin/
 !zsh/
 !i3/
 !randy/
+!rofi/
 !readme.md
 !.gitignore

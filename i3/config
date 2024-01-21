@@ -61,7 +61,7 @@ bindsym $mod+Return exec kitty
 bindsym $mod+Shift+q kill
 
 # start dmenu (a program launcher)
-bindsym $mod+d exec --no-startup-id "rofi -show"  
+bindsym $mod+d exec --no-startup-id rofi -show   
 # A more modern dmenu replacement is rofi:
 # bindcode $mod+40 exec "rofi -modi drun,run -show drun"
 # There also is i3-dmenu-desktop which only displays applications shipping a
@@ -186,7 +186,9 @@ exec_always --no-startup-id $HOME/.config/polybar/launch.sh
 exec_always --no-startup-id picom --config ~/.config/i3/picom.conf
 
 # decrease mouse sensitvity by .6
-exec --no-startup-id $HOME/.config/randy/mtwk.sh d .6
+exec --no-startup-id $HOME/.config/randy/mtwk.sh d .8
+
+exec --no-startup-id /usr/bin/gnome-keyring-daemon --start --components=secrets
 
 # screenshots
 bindsym $mod+Print exec --no-startup-id flameshot gui
