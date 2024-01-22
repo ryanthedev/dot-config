@@ -1,6 +1,5 @@
 local on_lsp_attach = function(client, bufnr)
   local opts = {buffer = bufnr, remap = false}
-  print("lsp attach")
 
   vim.keymap.set("n", "go", function() vim.lsp.buf.type_definition() end, opts)
   vim.keymap.set("n", "gr", function() vim.lsp.buf.references() end, opts)
@@ -108,7 +107,7 @@ return {
 
       lsp_zero.on_attach(function (client, bufnr)
         on_lsp_attach(client, bufnr)
-      end) 
+      end)
       lsp_zero.set_server_config({
         capabilities = {
           textDocument = {
