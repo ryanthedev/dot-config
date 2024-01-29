@@ -19,7 +19,7 @@ opt.smartcase = true -- if you include mixed case in your search, assumes you wa
 -- opt.hlsearch = false -- disable highlight searching
 
 -- cursor line
-opt.cursorline = true -- highlight the current cursor line
+opt.cursorline = false -- highlight the current cursor line
 
 
 -- turn on termguicolors for nightfly colorscheme to work
