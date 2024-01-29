@@ -14,6 +14,7 @@
         -- configure nvim-tree
         require('nvim-tree').setup({
           view = {
+            relativenumber = true,
             float = {
               enable = true,
               open_win_config = function()
