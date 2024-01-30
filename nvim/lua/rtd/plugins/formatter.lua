@@ -21,6 +21,9 @@ return {
         javascript = {
           require('formatter.filetypes.javascript').prettier,
         },
+        json = {
+          require('formatter.filetypes.json').prettier,
+        },
       },
     })
   end,
