@@ -89,7 +89,7 @@ source $ZSH/oh-my-zsh.sh
 # dotnet
 export DOTNET_ROOT=$HOME/.dotnet
 export PATH=$PATH:$DOTNET_ROOT:$DOTNET_ROOT/tools
-
+export PATH=$PATH:/opt/homebrew/bin
 # go
 export PATH=$PATH:/usr/local/go/bin
 
