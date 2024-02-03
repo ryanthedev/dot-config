@@ -81,6 +81,7 @@ plugins=(
   git
   zsh-syntax-highlighting
   vi-mode
+  kubectl
 )
 source $ZSH/oh-my-zsh.sh
 
