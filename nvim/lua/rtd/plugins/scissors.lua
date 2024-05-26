@@ -6,7 +6,7 @@ return {
       snippetDir = "~/.config/snippets",
       editSnippetPopup = {
         keymaps = {
-          delete = "<leader>sd",
+          deleteSnippet = "<leader>sd",
         }
       }
     })

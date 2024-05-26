@@ -35,7 +35,7 @@ return {
     local ufo = require('ufo')
     ufo.setup({
       fold_virt_text_handler = handler,
-      close_fold_kinds = {
+      close_foldkinds_for_ft = {
         'imports',
         'comments'
       }
