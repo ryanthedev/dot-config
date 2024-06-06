@@ -48,6 +48,7 @@ xnoremap("p", "P") -- Allows to repeat paste
 
 nnoremap("gi", "gizz");
 nnoremap("go", "gozz");
+nnoremap("gd", "gdzz");
 nnoremap("<C-o>", "<C-o>zz");
 
 nnoremap("n", "nzz");
@@ -64,7 +65,7 @@ nnoremap("<C-u>", "<C-u><cr>zz")
 nnoremap("<leader>e", ":NvimTreeToggle<cr>") -- toggle file explorer
 
 -- telescope
-nnoremap("<leader>ff", "<cmd>Telescope git_files show_untracked=true<cr>") -- find files within current working directory, respects .gitignore
+nnoremap("<leader>ff", "<cmd>Telescope find_files show_untracked=true<cr>") -- find files within current working directory, respects .gitignore
 nnoremap("<leader>fs", "<cmd>Telescope live_grep<cr>") -- find string in current working directory as you type
 nnoremap("<leader>fc", "<cmd>Telescope grep_string<cr>") -- find string under cursor in current working directory
 nnoremap("<leader>fb", "<cmd>Telescope buffers<cr>") -- list open buffers in current neovim instance

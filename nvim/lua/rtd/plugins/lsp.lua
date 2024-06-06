@@ -1,15 +1,12 @@
 local on_lsp_attach = function(client, bufnr)
 
-  local cap = client.server_capabilities
-  print(vim.inspect(cap))
-
   local opts = {buffer = bufnr, remap = false}
-
-  vim.keymap.set("n", "go", function() vim.lsp.buf.type_definition() end, opts)
-  vim.keymap.set("n", "gr", function() vim.lsp.buf.references() end, opts)
-  vim.keymap.set("n", "gi", function() vim.lsp.buf.implementation() end, opts)
-  vim.keymap.set("n", "gd", function() vim.lsp.buf.definition() end, opts)
-  vim.keymap.set("n", "gl", function() vim.diagnostic.open_float() end, opts)
+  local builtin = require('telescope.builtin')
+  vim.keymap.set("n", "go", function() builtin.lsp_type_definitions() end, opts)
+  vim.keymap.set("n", "gr", function() builtin.lsp_references() end, opts)
+  vim.keymap.set("n", "gi", function() builtin.lsp_implementations() end, opts)
+  vim.keymap.set("n", "gd", function() builtin.lsp_definitions() end, opts)
+  vim.keymap.set("n", "ge", function() builtin.diagnostics() end, opts)
   vim.keymap.set("n", "<leader>vws", function() vim.lsp.buf.workspace_symbol() end, opts)
   vim.keymap.set("n", "[d", function() vim.diagnostic.goto_next() end, opts)
   vim.keymap.set("n", "]d", function() vim.diagnostic.goto_prev() end, opts)
