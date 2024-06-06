@@ -1,4 +1,8 @@
 local on_lsp_attach = function(client, bufnr)
+
+  local cap = client.server_capabilities
+  print(vim.inspect(cap))
+
   local opts = {buffer = bufnr, remap = false}
 
   vim.keymap.set("n", "go", function() vim.lsp.buf.type_definition() end, opts)
@@ -126,22 +130,10 @@ return {
           lua_ls = function()
             -- (Optional) Configure lua language server for neovim
             local lua_opts = lsp_zero.nvim_lua_ls()
+            -- print(vim.inspect(lua_opts))
             require('lspconfig').lua_ls.setup(lua_opts)
           end,
         }
-      })
-    end
-  },
-  -- Dotnet Roslyn
-	{
-    'jmederosalvarado/roslyn.nvim',
-    dependencies = {'hrsh7th/cmp-nvim-lsp'},
-    config = function()
-      local capabilities = vim.lsp.protocol.make_client_capabilities()
-      capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
-      require("roslyn").setup({
-          on_attach =  on_lsp_attach,
-          capabilities = capabilities
       })
     end
   },
