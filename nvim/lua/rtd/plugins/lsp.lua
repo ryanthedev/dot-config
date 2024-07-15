@@ -84,10 +84,10 @@ return {
           ['<C-u>'] = cmp.mapping.scroll_docs(-4),
           ['<C-d>'] = cmp.mapping.scroll_docs(4),
         }),
-        preselect = 'item',
-        completion = {
-          completeopt = 'menu,menuone,noinsert'
-        },
+        -- preselect = 'item',
+        -- completion = {
+        --   completeopt = 'menu,menuone,noinsert'
+        -- },
       })
       require("luasnip.loaders.from_vscode").load({ paths = { "~/.config/snippets" } })
     end
