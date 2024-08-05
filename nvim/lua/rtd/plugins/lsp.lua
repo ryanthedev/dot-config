@@ -16,6 +16,10 @@ end
 
 
 return {
+  {
+    'towolf/vim-helm',
+    ft = 'helm'
+  },
 	{
     'j-hui/fidget.nvim',
     config = function()
@@ -120,6 +124,8 @@ return {
         }
       })
 
+      local lsp_capabilities = require('cmp_nvim_lsp').default_capabilities()
+
       require('mason-lspconfig').setup({
         ensure_installed = {},
         handlers = {
@@ -129,6 +135,18 @@ return {
             local lua_opts = lsp_zero.nvim_lua_ls()
             -- print(vim.inspect(lua_opts))
             require('lspconfig').lua_ls.setup(lua_opts)
+          end,
+          helm_ls = function()
+            require('lspconfig').helm_ls .setup({
+              capabilities = lsp_capabilities,
+              settings = {
+                ['helm-ls'] = {
+                  yamlls = {
+                    path = "yaml-language-server",
+                  }
+                }
+              }
+            })
           end,
         }
       })
