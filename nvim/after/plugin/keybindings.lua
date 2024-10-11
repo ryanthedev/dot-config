@@ -5,13 +5,9 @@ local inoremap = Remap.inoremap
 local xnoremap = Remap.xnoremap
 local nmap = Remap.nmap
 
-
 ---------------------
 -- General Keymaps
 ---------------------
--- use jk to exit insert mode
-inoremap("jk", "<ESC>")
-
 -- clear search highlights
 nnoremap("<leader>nh", ":nohl<CR>")
 
@@ -46,13 +42,15 @@ vnoremap("K", ":m '<-2<CR>gv=gv") --  move current line down
 
 xnoremap("p", "P") -- Allows to repeat paste 
 
-nnoremap("gi", "gizz");
-nnoremap("go", "gozz");
-nnoremap("gd", "gdzz");
-nnoremap("<C-o>", "<C-o>zz");
+-- go into things and center screen
+nnoremap("gi", "gi<cr>zz");
+nnoremap("go", "go<cr>zz");
+nnoremap("gd", "gd<cr>zz");
+nnoremap("<C-o>", "<C-o><cr>zz");
 
 nnoremap("n", "nzz");
 nnoremap("N", "Nzz");
+nnoremap("Y", "^y$");
 -- page down & up but keep cursor in middle
 nnoremap("<C-d>", "<C-d><cr>zz")
 nnoremap("<C-u>", "<C-u><cr>zz")
