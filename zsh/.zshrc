@@ -124,7 +124,6 @@ export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || pr
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 alias k=kubectl
 alias vim=nvim
-alias docker=podman
 
 
 

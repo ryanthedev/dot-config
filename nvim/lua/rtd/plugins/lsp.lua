@@ -124,12 +124,23 @@ return {
         }
       })
 
+      vim.filetype.add {
+        extension = {
+          jinja = 'jinja',
+          jinja2 = 'jinja',
+          j2 = 'jinja',
+        },
+      }
+
       local lsp_capabilities = require('cmp_nvim_lsp').default_capabilities()
 
       require('mason-lspconfig').setup({
         ensure_installed = {},
         handlers = {
           lsp_zero.default_setup,
+          jinja_lsp = function()
+            require('lspconfig').jinja_lsp.setup({})
+          end,
           lua_ls = function()
             -- (Optional) Configure lua language server for neovim
             local lua_opts = lsp_zero.nvim_lua_ls()
