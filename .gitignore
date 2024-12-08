@@ -1,6 +1,8 @@
 /*
 /*/
 !polybar/
+!skhd/
+!yabai/
 !tmux/
 tmux/plugins/
 !nvim/
