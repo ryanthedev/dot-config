@@ -1,3 +1,7 @@
+# Window rules
+yabai -m rule --add app="^System Settings$" manage=off
+
+# Core configuration
 yabai -m config                                 \
     external_bar                 off:40:0       \
     menubar_opacity              1.0            \
