@@ -121,6 +121,8 @@ cmd - j : yabai -m window --focus south
 cmd - k : yabai -m window --focus north 
 cmd - n  : ~/.config/skhd/cycle_displays.sh next
 cmd - p  : ~/.config/skhd/cycle_displays.sh prev 
+cmd - q : ~/.config/yabai/close_window.sh
+
 
 shift + cmd - h : yabai -m window --warp west 
 shift + cmd - l : yabai -m window --warp east 
@@ -135,4 +137,4 @@ shift + alt - r : yabai --restart-service
 
 # Cycle window through displays with focus
 shift + cmd - n : ~/.config/skhd/cycle_windows.sh next
-shift + cmd - p : ~/.config/skhd/cycle_window.sh prev
+shift + cmd - p : ~/.config/skhd/cycle_windows.sh prev

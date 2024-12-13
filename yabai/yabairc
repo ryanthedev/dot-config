@@ -1,5 +1,5 @@
 # Window rules
-yabai -m rule --add app="^System Settings$" manage=off
+# yabai -m rule --add app="^System Settings$" manage=off
 
 # Core configuration
 yabai -m config                                 \
