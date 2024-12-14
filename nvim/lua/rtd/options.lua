@@ -50,3 +50,7 @@ opt.iskeyword:append("-") -- consider string-string as whole word
 -- opt.guicursor = 'a:hor30-iCursor-blinkwait300-blinkon200-blinkoff150'
 -- set leader key to space
 vim.g.mapleader = " "
+
+
+
+vim.diagnostic.config({virtual_text=false})
