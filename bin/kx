@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Check if kubectl is installed
+if ! command -v kubectl &> /dev/null; then
+    echo "kubectl is not installed. Please install it first."
+    exit 1
+fi
+
+# Check if fzf is installed
+if ! command -v fzf &> /dev/null; then
+    echo "fzf is not installed. Please install it first."
+    exit 1
+fi
+
+# Get current context
+current_context=$(kubectl config current-context 2>/dev/null)
+if [ $? -ne 0 ]; then
+    current_context="No current context set"
+fi
+
+echo "Current context: $current_context"
+echo "Select a context to switch to:"
+
+# Get all contexts and pipe to fzf for selection
+selected_context=$(kubectl config get-contexts -o name | fzf \
+    --height 40% \
+    --border \
+    --prompt="Select context > " \
+    --preview 'kubectl config get-contexts {}' \
+    --preview-window=up:3:wrap)
+
+# Check if a selection was made
+if [ -n "$selected_context" ]; then
+    kubectl config use-context "$selected_context"
+    echo "Switched to context: $selected_context"
+else
+    echo "No context selected. Keeping current context: $current_context"
+fi

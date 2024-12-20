@@ -93,7 +93,8 @@ export PATH=$PATH:$DOTNET_ROOT:$DOTNET_ROOT/tools
 export PATH=$PATH:/opt/homebrew/bin
 # go
 export PATH=$PATH:/usr/local/go/bin
-
+# custom
+export PATH=$PATH:$HOME/.config/bin
 # tmux
 export TMUX_CONF=~/.config/tmux/tmux.conf
 

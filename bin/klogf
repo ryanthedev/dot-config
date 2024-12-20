@@ -1,0 +1,94 @@
+#!/bin/bash
+
+# klogf: Interactive Kubernetes log tailing using fzf
+
+# Usage: klogf [options]
+
+# Options:
+#   -n, --namespace   Specify the Kubernetes namespace (default: current context's namespace)
+#   -l, --label       Filter pods by label selector (e.g., app=my-app)
+#   -c, --container   Specify the container name within the pod
+#   -h, --help        Display help message
+
+# Function to display help
+function show_help() {
+    grep '^#' "$0" | cut -c4-
+}
+
+# Default values
+NAMESPACE=$(kubectl config view --minify --output 'jsonpath={..namespace}')
+LABEL_SELECTOR=""
+CONTAINER=""
+
+# Parse arguments
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -n|--namespace)
+            NAMESPACE="$2"
+            shift
+            ;;
+        -l|--label)
+            LABEL_SELECTOR="$2"
+            shift
+            ;;
+        -c|--container)
+            CONTAINER="$2"
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo "Unknown parameter passed: $1"
+            show_help
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+# Fetch pods
+if [[ -n "$LABEL_SELECTOR" ]]; then
+    PODS=$(kubectl get pods -n "$NAMESPACE" -l "$LABEL_SELECTOR" -o jsonpath='{.items[*].metadata.name}')
+else
+    PODS=$(kubectl get pods -n "$NAMESPACE" -o jsonpath='{.items[*].metadata.name}')
+fi
+
+# Check if any pods are found
+if [[ -z "$PODS" ]]; then
+    echo "No pods found in namespace '$NAMESPACE' with label '$LABEL_SELECTOR'."
+    exit 1
+fi
+
+# Convert PODS to an array
+read -ra POD_ARRAY <<< "$PODS"
+
+# Use fzf to select a pod
+SELECTED_POD=$(printf '%s\n' "${POD_ARRAY[@]}" | fzf --prompt="Select pod to tail logs> " --height=40% --layout=reverse)
+
+# Check if a pod was selected
+if [[ -z "$SELECTED_POD" ]]; then
+    echo "No pod selected. Exiting."
+    exit 0
+fi
+
+# If multiple containers exist and container not specified, prompt user to select
+if [[ -z "$CONTAINER" ]]; then
+    CONTAINERS=$(kubectl get pod "$SELECTED_POD" -n "$NAMESPACE" -o jsonpath='{.spec.containers[*].name}')
+    readarray -t CONTAINER_ARRAY <<< "$CONTAINERS"
+
+    if [[ ${#CONTAINER_ARRAY[@]} -gt 1 ]]; then
+        CONTAINER=$(printf '%s\n' "${CONTAINER_ARRAY[@]}" | fzf --prompt="Select container> " --height=40% --layout=reverse)
+        if [[ -z "$CONTAINER" ]]; then
+            echo "No container selected. Exiting."
+            exit 0
+        fi
+    else
+        CONTAINER="${CONTAINER_ARRAY[0]}"
+    fi
+fi
+
+# Tail the logs
+echo "Tailing logs for pod '$SELECTED_POD', container '$CONTAINER' in namespace '$NAMESPACE'..."
+kubectl logs "$SELECTED_POD" -n "$NAMESPACE" -c "$CONTAINER" -f
