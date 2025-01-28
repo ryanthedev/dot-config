@@ -25,9 +25,9 @@ current_subscription=$(az account show --query name -o tsv)
 selected_subscription=$(az account list \
     --query '[].{name:name}' \
     -o tsv \
-    | fzf --height 40% \
-        --prompt="Current subscription: $current_subscription > " \
-        --header="Select Azure Subscription" \
+    | fzf --tmux 80% \
+        --prompt="> " \
+        --header="current: $current_subscription" \
         --preview 'az account show --subscription {} --query "{Name:name, ID:id, TenantID:tenantId}" -o yaml')
 
 # Check if a subscription was selected
