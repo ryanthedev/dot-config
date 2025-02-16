@@ -136,5 +136,5 @@ shift + cmd - d : yabai -m window --resize right:30:0
 shift + alt - r : yabai --restart-service
 
 # Cycle window through displays with focus
-shift + cmd - n : ~/.config/skhd/cycle_windows.sh next
-shift + cmd - p : ~/.config/skhd/cycle_windows.sh prev
+alt + cmd - n : ~/.config/skhd/cycle_windows.sh next
+alt + cmd - p : ~/.config/skhd/cycle_windows.sh prev
