@@ -126,6 +126,7 @@ export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || pr
 alias k=kubectl
 alias vim=nvim
 
+# alias code='open -a "Visual Studio Code" --args --user-data-dir=$HOME/.config/vscode'
 
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.

@@ -1,0 +1,8 @@
+{
+  "workbench.colorTheme": "Gruvbox Dark Hard",
+  "window.systemColorTheme": "dark",
+  "hediet.vscode-drawio.theme": "dark",
+  "markdown-mermaid.lightModeTheme": "dark",
+  "typescript.inlayHints.enumMemberValues.enabled": true,
+  "workbench.sideBar.location": "right",
+}
