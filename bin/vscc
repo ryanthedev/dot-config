@@ -1,0 +1,7 @@
+#!/bin/bash
+
+code --list-extensions > $HOME/.config/vscode/extensions
+
+git add $HOME/.config/vscode/extensions
+git commit -m 'update extensions'
+git push
