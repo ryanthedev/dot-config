@@ -23,7 +23,7 @@ echo "Select a context to switch to:"
 
 # Get all contexts and pipe to fzf for selection
 selected_context=$(kubectl config get-contexts -o name | fzf \
-    --height 40% \
+    --tmux 80% \
     --border \
     --prompt="Select context > " \
     --preview 'kubectl config get-contexts {}' \
