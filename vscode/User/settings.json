@@ -5,5 +5,6 @@
   "markdown-mermaid.lightModeTheme": "dark",
   "typescript.inlayHints.enumMemberValues.enabled": true,
   "workbench.sideBar.location": "right",
-  "vim.useSystemClipboard": true 
+  "vim.useSystemClipboard": true,
+  "editor.lineNumbers": "relative"
 }
