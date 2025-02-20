@@ -1,3 +1,3 @@
--- return {
---   "rest-nvim/rest.nvim",
--- }
+return {
+  "rest-nvim/rest.nvim",
+}

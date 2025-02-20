@@ -134,3 +134,5 @@ alias vim=nvim
 eval "$(zoxide init zsh)"
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+[ -s ~/.luaver/luaver ] && . ~/.luaver/luaver
+[ -s ~/.luaver/completions/luaver.bash ] && . ~/.luaver/completions/luaver.bash
