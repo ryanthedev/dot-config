@@ -169,6 +169,7 @@ return {
   {
   "seblj/roslyn.nvim",
   ft = "cs",
+  commit = "633a61c",
   -- enabled = false,
   opts = {
     config = {

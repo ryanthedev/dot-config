@@ -1,11 +1,72 @@
 {
-  "workbench.colorTheme": "Gruvbox Dark Hard",
-  "window.systemColorTheme": "dark",
-  "hediet.vscode-drawio.theme": "dark",
-  "markdown-mermaid.lightModeTheme": "dark",
-  "typescript.inlayHints.enumMemberValues.enabled": true,
-  "workbench.sideBar.location": "right",
-  "vim.useSystemClipboard": true,
-  "editor.lineNumbers": "relative",
-  "git.openRepositoryInParentFolders": "never"
+    "workbench.colorTheme": "Gruvbox Dark Hard",
+    "window.systemColorTheme": "dark",
+    "hediet.vscode-drawio.theme": "dark",
+    "markdown-mermaid.lightModeTheme": "dark",
+    "typescript.inlayHints.enumMemberValues.enabled": true,
+    "workbench.sideBar.location": "right",
+    "vim.useSystemClipboard": true,
+    "editor.lineNumbers": "relative",
+    "git.openRepositoryInParentFolders": "never",
+    "azureFunctions.showProjectWarning": false,
+    "workbench.editor.pinnedTabsOnSeparateRow": true,
+    "vim.leader": "<space>",
+    "vim.normalModeKeyBindings": [
+        {
+            "before": [
+                "<leader>",
+                "f",
+                "t"
+            ],
+            "commands": [
+                "pk.tabs",
+            ],
+            "silent": true
+        },
+        {
+            "before": [
+                "K"
+            ],
+            "commands": [
+                "editor.action.showHover",
+            ],
+            "silent": true
+        },
+        {
+            "before": [
+                "<leader>",
+                "c",
+                "r",
+                "n"
+            ],
+            "commands": [
+                {
+                    "command": "editor.action.codeAction",
+                    "args": {
+                        "kind": "refactor.extract.function"
+                    }
+                }
+            ],
+            "silent": true
+        }
+    ],
+    "workbench.iconTheme": "vscode-icons",
+    "[jsonc]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    "multiCommand.commands": [
+        {
+            "command": "multiCommand.toggleFullScreenTerminal",
+            "sequence": [
+                "workbench.action.terminal.toggleTerminal",
+                "workbench.action.toggleMaximizedPanel"
+            ]
+        },
+        {
+            "command": "multiCommand.minimizeTerminal",
+            "sequence": [
+                "workbench.action.closePanel"
+            ]
+        }
+    ]
 }

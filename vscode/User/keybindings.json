@@ -12,5 +12,16 @@
       "key":     "cmd+shift+enter",
       "command": "workbench.action.focusActiveEditorGroup",
       "when":    "terminalFocus"
-  }
+  },
+  {
+    "key": "cmd+t",
+    "command": "multiCommand.toggleFullScreenTerminal"
+  },
+  {
+    "key": "cmd+t",
+    "command": "multiCommand.minimizeTerminal",
+    "when": "terminalFocus"
+  },
+
+
 ]
