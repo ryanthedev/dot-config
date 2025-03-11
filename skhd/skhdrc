@@ -120,7 +120,7 @@ cmd - l : yabai -m window --focus east
 cmd - j : yabai -m window --focus south 
 cmd - k : yabai -m window --focus north 
 cmd - n  : ~/.config/skhd/cycle_displays.sh next
-cmd - p  : ~/.config/skhd/cycle_displays.sh prev 
+# cmd - p  : ~/.config/skhd/cycle_displays.sh prev 
 cmd - q : ~/.config/yabai/close_window.sh
 
 

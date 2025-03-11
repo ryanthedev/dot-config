@@ -11,6 +11,20 @@
     "azureFunctions.showProjectWarning": false,
     "workbench.editor.pinnedTabsOnSeparateRow": true,
     "vim.leader": "<space>",
+    "vim.normalModeKeyBindingsNonRecursive": [
+        // {
+        //     "before": [ "d" ],
+        //     "after": [ "\"", "_", "d" ]
+        // },
+        // {
+        //     "before": [ "D" ],
+        //     "after": [ "\"", "_", "D" ]
+        // },
+        // {
+        //     "before": [ "d", "d" ],
+        //     "after": [ "\"", "_", "d", "d" ]
+        // }
+    ],
     "vim.normalModeKeyBindings": [
         {
             "before": [
@@ -48,7 +62,7 @@
                 }
             ],
             "silent": true
-        }
+        },
     ],
     "workbench.iconTheme": "vscode-icons",
     "[jsonc]": {
@@ -68,5 +82,7 @@
                 "workbench.action.closePanel"
             ]
         }
-    ]
+    ],
+    "redhat.telemetry.enabled": false,
+    "bicep.enableSurveys": false
 }
