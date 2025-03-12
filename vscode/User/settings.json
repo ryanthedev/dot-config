@@ -1,4 +1,9 @@
 {
+    "rest-client.previewResponsePanelTakeFocus": false,
+    "rest-client.previewResponseInUntitledDocument": true,
+    "rest-client.previewColumn": "current",
+    "rest-client.showResponseInDifferentTab": false,
+    "editor.hover.sticky": true,
     "workbench.colorTheme": "Gruvbox Dark Hard",
     "window.systemColorTheme": "dark",
     "hediet.vscode-drawio.theme": "dark",
@@ -10,6 +15,18 @@
     "git.openRepositoryInParentFolders": "never",
     "azureFunctions.showProjectWarning": false,
     "workbench.editor.pinnedTabsOnSeparateRow": true,
+    "terminal.integrated.defaultProfile.osx": "tmux-shell",
+    "terminal.integrated.profiles.osx": {
+        "tmux-shell": {
+            "path": "tmux",
+            "args": [
+                "new-session",
+                "-A",
+                "-s",
+                "vscode:${workspaceFolder}"
+            ]
+        }
+    },
     "vim.leader": "<space>",
     "vim.normalModeKeyBindingsNonRecursive": [
         // {

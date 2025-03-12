@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Usage: c <optional zoxide-like dir, relative or absolute path>
+# If no argument is given, a combination of recent VS Code workspaces and zoxide directories will be displayed in FZF
+
+__fzfcmd() {
+  echo "fzf"
+}
+
+# Function to get recent VS Code workspaces
+get_vscode_workspaces() {
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS
+    STORAGE_PATH="$HOME/Library/Application Support/Code/User/workspaceStorage"
+  elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    # Linux
+    STORAGE_PATH="$HOME/.config/Code/User/workspaceStorage"
+  elif [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin"* || "$OSTYPE" == "win32" ]]; then
+    # Windows
+    STORAGE_PATH="$APPDATA/Code/User/workspaceStorage"
+  else
+    # Default to Linux path
+    STORAGE_PATH="$HOME/.config/Code/User/workspaceStorage"
+  fi
+  
+  # Check if the storage path exists
+  if [ -d "$STORAGE_PATH" ]; then
+    # Extract workspace folder names and their timestamps
+    find "$STORAGE_PATH" -type d -depth 1 -exec bash -c 'FOLDER="{}"; 
+      if [ -f "$FOLDER/workspace.json" ]; then 
+        TIMESTAMP=$(stat -c %Y "$FOLDER" 2>/dev/null || stat -f %m "$FOLDER" 2>/dev/null);
+        FOLDER_PATH=$(grep -o "\"folder\":\"[^\"]*\"" "$FOLDER/workspace.json" 2>/dev/null | cut -d\" -f4 | sed "s|\\\\|/|g");
+        if [ -n "$FOLDER_PATH" ]; then
+          echo "$TIMESTAMP $FOLDER_PATH";
+        fi;
+      fi' \; 2>/dev/null | sort -rn | cut -d' ' -f2-
+  fi
+}
+
+# Parse optional argument
+if [ "$1" ]; then
+  # Argument is given
+  eval "$(zoxide init bash)"
+  RESULT=$(z "$@" && pwd)
+else
+  # No argument is given. Use FZF
+  RESULT=$((get_vscode_workspaces; zoxide query -l) | $(__fzfcmd) --reverse)
+  if [ -z "$RESULT" ]; then
+    exit 0
+  fi
+fi
+
+# Open VS Code with the selected folder
+if [ -d "$RESULT" ]; then
+  # RESULT is a valid directory
+  code "$RESULT"
+else
+  # Try to resolve RESULT as a path
+  POSSIBLE_PATH=$(eval echo "$RESULT")
+  if [ -d "$POSSIBLE_PATH" ]; then
+    code "$POSSIBLE_PATH"
+  else
+    echo "Invalid directory: $RESULT"
+    exit 1
+  fi
+fi
