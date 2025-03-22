@@ -1,0 +1,131 @@
+#!/bin/bash
+
+# fzf-search.sh - Search for text in files using fzf
+# Usage: ./fzf-search.sh [-i|--ignore-gitignore] [search_string]
+
+show_help() {
+    echo "Usage: $0 [-i|--ignore-gitignore] [search_string]"
+    echo
+    echo "Search for text in files using fzf."
+    echo
+    echo "Options:"
+    echo "  -i, --ignore-gitignore    Ignore .gitignore patterns (search all files)"
+    echo "  -h, --help                Show this help message"
+    echo
+    echo "If search_string is provided, initial results will be filtered by that string."
+    echo "Otherwise, you can type your search string in the fzf interface."
+}
+
+# Default: respect .gitignore
+RESPECT_GITIGNORE=true
+SEARCH_STRING=""
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -i|--ignore-gitignore)
+            RESPECT_GITIGNORE=false
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            SEARCH_STRING="$1"
+            shift
+            ;;
+    esac
+done
+
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" &> /dev/null
+}
+
+# Check if required commands exist
+if ! command_exists fzf; then
+    echo "Error: fzf is not installed. Please install it first."
+    echo "https://github.com/junegunn/fzf#installation"
+    exit 1
+fi
+
+if ! command_exists rg || ! command_exists grep; then
+    echo "Warning: ripgrep (rg) is recommended for better performance."
+    echo "Falling back to grep, which might be slower."
+fi
+
+# Determine search command based on available tools and respect_gitignore setting
+if command_exists rg; then
+    if $RESPECT_GITIGNORE; then
+        FIND_CMD="rg --files"
+    else
+        FIND_CMD="rg --files --no-ignore"
+    fi
+else
+    if $RESPECT_GITIGNORE && [ -f .gitignore ]; then
+        FIND_CMD="find . -type f | grep -v -f <(git ls-files --ignored --exclude-standard --others)"
+    else
+        FIND_CMD="find . -type f"
+    fi
+fi
+
+# Search for the string in the files
+search_files() {
+    local query="$1"
+    if [ -z "$query" ]; then
+        # When no search string is provided
+        eval "$FIND_CMD" | fzf --ansi \
+            --preview 'if [ -f {} ]; then bat --style=numbers --color=always {} 2>/dev/null || cat {}; else echo "File not found: {}"; fi' \
+            --preview-window 'down:70%:wrap' \
+            --layout=reverse
+    else
+        if command_exists rg; then
+            # Use rg's --files-with-matches option and pipe directly to fzf
+            # This avoids potential issues with ANSI color codes and special characters
+            eval "$FIND_CMD" | xargs -r -I{} bash -c "if [ -f \"{}\" ]; then rg --files-with-matches --no-messages \"$query\" \"{}\" 2>/dev/null; fi" | 
+                fzf --ansi \
+                    --preview "if [ -f {} ]; then rg --color=always -n \"$query\" {} 2>/dev/null; else echo 'File not found: {}'; fi" \
+                    --preview-window 'down:70%:wrap' \
+                    --layout=reverse
+        else
+            # Use --color=never for the listing to avoid ANSI color issues
+            eval "$FIND_CMD" | xargs -r -I{} bash -c "if [ -f \"{}\" ]; then grep -l \"$query\" \"{}\" 2>/dev/null; fi" | 
+                fzf --ansi \
+                    --preview "if [ -f {} ]; then grep --color=always -n \"$query\" {} 2>/dev/null; else echo 'File not found: {}'; fi" \
+                    --preview-window 'down:70%:wrap' \
+                    --layout=reverse
+        fi
+    fi
+}
+
+# Main execution
+if $RESPECT_GITIGNORE; then
+    echo "Searching with respect to .gitignore"
+else
+    echo "Searching all files (ignoring .gitignore)"
+fi
+
+# Perform the search
+selected_file=$(search_files "$SEARCH_STRING")
+
+# Open the selected file if any
+if [ -n "$selected_file" ]; then
+    # Check if we can open with VS Code
+    if command_exists code; then
+        # Use code --reuse-window to open in the current VS Code window
+        code --reuse-window "$selected_file"
+    else
+        # Fall back to other editors if VS Code is not available
+        if [ -n "$EDITOR" ]; then
+            $EDITOR "$selected_file"
+        elif command_exists vim; then
+            vim "$selected_file"
+        elif command_exists nano; then
+            nano "$selected_file"
+        else
+            echo "Selected file: $selected_file"
+            echo "No editor found. Please open the file manually."
+        fi
+    fi
+fi
