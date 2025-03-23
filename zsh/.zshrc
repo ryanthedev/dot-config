@@ -95,6 +95,8 @@ export PATH=$PATH:/opt/homebrew/bin
 export PATH=$PATH:/usr/local/go/bin
 # custom
 export PATH=$PATH:$HOME/.config/bin
+# nvim
+export PATH=$PATH:$HOME/.nvim/nvim-macos-arm64/bin
 # tmux
 export TMUX_CONF=~/.config/tmux/tmux.conf
 
