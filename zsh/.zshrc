@@ -95,8 +95,18 @@ export PATH=$PATH:/opt/homebrew/bin
 export PATH=$PATH:/usr/local/go/bin
 # custom
 export PATH=$PATH:$HOME/.config/bin
+# nvim
+export PATH=$PATH:$HOME/.nvim/nvim-macos-arm64/bin
 # tmux
 export TMUX_CONF=~/.config/tmux/tmux.conf
+
+
+# ~/.tmux/plugins
+export PATH=$HOME/.tmux/plugins/tmux-session-wizard/bin:$PATH
+# ~/.config/tmux/plugins
+export PATH=$HOME/.config/tmux/plugins/tmux-session-wizard/bin:$PATH
+
+
 
 # NVM
 export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
@@ -125,6 +135,8 @@ export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || pr
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 alias k=kubectl
 alias vim=nvim
+alias p=python3
+alias pp=pip3
 
 # alias code='open -a "Visual Studio Code" --args --user-data-dir=$HOME/.config/vscode'
 
@@ -136,3 +148,4 @@ eval "$(zoxide init zsh)"
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 [ -s ~/.luaver/luaver ] && . ~/.luaver/luaver
 [ -s ~/.luaver/completions/luaver.bash ] && . ~/.luaver/completions/luaver.bash
+eval "$(~/.local/bin/mise activate)"
