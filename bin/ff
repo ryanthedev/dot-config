@@ -19,6 +19,8 @@ show_help() {
 # Default: respect .gitignore
 RESPECT_GITIGNORE=true
 SEARCH_STRING=""
+DEBUG=false
+QUIET=true
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -43,89 +45,168 @@ command_exists() {
     command -v "$1" &> /dev/null
 }
 
+# Debug logging
+log_debug() {
+    if [[ "$DEBUG" == "true" ]]; then
+        echo "[DEBUG] $1" >&2
+    fi
+}
+
+# Show a status message
+status_msg() {
+    if [[ "$QUIET" != "true" ]]; then
+        echo "$1" >&2
+    fi
+}
+
 # Check if required commands exist
 if ! command_exists fzf; then
-    echo "Error: fzf is not installed. Please install it first."
-    echo "https://github.com/junegunn/fzf#installation"
+    echo "Error: fzf is not installed. Please install it first." >&2
+    echo "https://github.com/junegunn/fzf#installation" >&2
     exit 1
 fi
 
-if ! command_exists rg || ! command_exists grep; then
-    echo "Warning: ripgrep (rg) is recommended for better performance."
-    echo "Falling back to grep, which might be slower."
-fi
+# Main execution
+log_debug "Starting search"
 
-# Determine search command based on available tools and respect_gitignore setting
+# Create a temporary file for the selection
+TEMP_FILE=$(mktemp)
+log_debug "Created temporary file: $TEMP_FILE"
+
+# Determine search command
 if command_exists rg; then
     if $RESPECT_GITIGNORE; then
         FIND_CMD="rg --files"
     else
         FIND_CMD="rg --files --no-ignore"
     fi
+    log_debug "Using ripgrep (rg) for file search"
 else
     if $RESPECT_GITIGNORE && [ -f .gitignore ]; then
         FIND_CMD="find . -type f | grep -v -f <(git ls-files --ignored --exclude-standard --others)"
     else
         FIND_CMD="find . -type f"
     fi
+    log_debug "Using find for file search"
 fi
 
-# Search for the string in the files
-search_files() {
-    local query="$1"
-    if [ -z "$query" ]; then
-        # When no search string is provided
-        eval "$FIND_CMD" | fzf --ansi \
-            --preview 'if [ -f {} ]; then bat --style=numbers --color=always {} 2>/dev/null || cat {}; else echo "File not found: {}"; fi' \
-            --preview-window 'down:70%:wrap' \
-            --layout=reverse
-    else
-        if command_exists rg; then
-            # Use rg's --files-with-matches option and pipe directly to fzf
-            # This avoids potential issues with ANSI color codes and special characters
-            eval "$FIND_CMD" | xargs -r -I{} bash -c "if [ -f \"{}\" ]; then rg --files-with-matches --no-messages \"$query\" \"{}\" 2>/dev/null; fi" | 
-                fzf --ansi \
-                    --preview "if [ -f {} ]; then rg --color=always -n \"$query\" {} 2>/dev/null; else echo 'File not found: {}'; fi" \
-                    --preview-window 'down:70%:wrap' \
-                    --layout=reverse
-        else
-            # Use --color=never for the listing to avoid ANSI color issues
-            eval "$FIND_CMD" | xargs -r -I{} bash -c "if [ -f \"{}\" ]; then grep -l \"$query\" \"{}\" 2>/dev/null; fi" | 
-                fzf --ansi \
-                    --preview "if [ -f {} ]; then grep --color=always -n \"$query\" {} 2>/dev/null; else echo 'File not found: {}'; fi" \
-                    --preview-window 'down:70%:wrap' \
-                    --layout=reverse
-        fi
-    fi
-}
+# Run the search command and fzf selection
+log_debug "Starting file search"
+status_msg "Searching for files..."
 
-# Main execution
-if $RESPECT_GITIGNORE; then
-    echo "Searching with respect to .gitignore"
+if [ -z "$SEARCH_STRING" ]; then
+    # No search string provided
+    status_msg "Loading file list for browsing..."
+    eval "$FIND_CMD" | fzf --ansi \
+        --preview 'if [ -f {} ]; then bat --style=numbers --color=always {} 2>/dev/null || cat {}; else echo "File not found: {}"; fi' \
+        --preview-window 'down:70%:wrap' \
+        --layout=reverse > "$TEMP_FILE"
 else
-    echo "Searching all files (ignoring .gitignore)"
-fi
-
-# Perform the search
-selected_file=$(search_files "$SEARCH_STRING")
-
-# Open the selected file if any
-if [ -n "$selected_file" ]; then
-    # Check if we can open with VS Code
-    if command_exists code; then
-        # Use code --reuse-window to open in the current VS Code window
-        code --reuse-window "$selected_file"
+    # Search string provided
+    status_msg "Searching for \"$SEARCH_STRING\" in files..."
+    
+    if command_exists rg; then
+        # Capture both filename and line number with ripgrep
+        rg --line-number --with-filename --no-heading --color=never "$SEARCH_STRING" \
+            | fzf --ansi \
+                --delimiter : \
+                --preview "rg --color=always -n \"$SEARCH_STRING\" {1} 2>/dev/null || echo 'No matches found in file.'" \
+                --preview-window 'down:70%:wrap' \
+                --layout=reverse > "$TEMP_FILE"
     else
-        # Fall back to other editors if VS Code is not available
-        if [ -n "$EDITOR" ]; then
-            $EDITOR "$selected_file"
-        elif command_exists vim; then
-            vim "$selected_file"
-        elif command_exists nano; then
-            nano "$selected_file"
-        else
-            echo "Selected file: $selected_file"
-            echo "No editor found. Please open the file manually."
-        fi
+        # Fallback to grep with line numbers
+        find . -type f -exec grep -l "$SEARCH_STRING" {} \; 2>/dev/null \
+            | xargs -r grep --line-number --with-filename --color=never "$SEARCH_STRING" \
+            | fzf --ansi \
+                --delimiter : \
+                --preview "grep --color=always -n \"$SEARCH_STRING\" {1} 2>/dev/null || echo 'No matches found in file.'" \
+                --preview-window 'down:70%:wrap' \
+                --layout=reverse > "$TEMP_FILE"
     fi
 fi
+
+# Read the selected file from the temp file
+SELECTED_ITEM=$(cat "$TEMP_FILE")
+rm "$TEMP_FILE"
+
+log_debug "Raw selected item: '$SELECTED_ITEM'"
+
+# Check if an item was selected
+if [ -z "$SELECTED_ITEM" ]; then
+    status_msg "No file selected."
+    exit 0
+fi
+
+# Parse the selection into file and line number
+# Format will be: filename:linenumber:match
+SELECTED_FILE=$(echo "$SELECTED_ITEM" | cut -d':' -f1)
+SELECTED_LINE=$(echo "$SELECTED_ITEM" | cut -d':' -f2)
+
+log_debug "Selected file: '$SELECTED_FILE'"
+log_debug "Selected line: '$SELECTED_LINE'"
+
+# Check if the file exists
+if [ ! -f "$SELECTED_FILE" ]; then
+    # If we have search string, maybe we just have filename without line
+    if [ -n "$SEARCH_STRING" ]; then
+        # Try using the whole selection as filename
+        SELECTED_FILE="$SELECTED_ITEM"
+        SELECTED_LINE=""
+        
+        if [ ! -f "$SELECTED_FILE" ]; then
+            echo "Error: Selected file does not exist: '$SELECTED_FILE'" >&2
+            exit 1
+        fi
+    else
+        echo "Error: Selected file does not exist: '$SELECTED_FILE'" >&2
+        exit 1
+    fi
+fi
+
+log_debug "File exists: '$SELECTED_FILE'"
+
+# Open the selected file
+if command_exists code; then
+    log_debug "Opening with VS Code: '$SELECTED_FILE'"
+    
+    # Open file at specific line if available
+    if [ -n "$SELECTED_LINE" ]; then
+        log_debug "Opening at line: $SELECTED_LINE"
+        code --reuse-window --goto "$SELECTED_FILE:$SELECTED_LINE"
+    else
+        code --reuse-window "$SELECTED_FILE"
+    fi
+    
+    exit_code=$?
+    log_debug "VS Code exit code: $exit_code"
+    
+    # Only display the filepath in quiet mode
+    if [[ "$QUIET" == "true" ]]; then
+        if [ -n "$SELECTED_LINE" ]; then
+            echo "$SELECTED_FILE:$SELECTED_LINE"
+        else
+            echo "$SELECTED_FILE"
+        fi
+    elif [ $exit_code -ne 0 ]; then
+        status_msg "Error: Failed to open file with VS Code (exit code: $exit_code)"
+    else
+        status_msg "File opened successfully with VS Code"
+    fi
+else
+    # Fall back to other editors
+    if [ -n "$EDITOR" ]; then
+        status_msg "Opening with $EDITOR..."
+        $EDITOR "$SELECTED_FILE"
+    elif command_exists vim; then
+        status_msg "Opening with vim..."
+        vim "$SELECTED_FILE"
+    elif command_exists nano; then
+        status_msg "Opening with nano..."
+        nano "$SELECTED_FILE"
+    else
+        status_msg "Selected file: $SELECTED_FILE"
+        status_msg "No editor found. Please open the file manually."
+    fi
+fi
+
+log_debug "Script completed"
