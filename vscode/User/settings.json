@@ -15,18 +15,6 @@
     "git.openRepositoryInParentFolders": "never",
     "azureFunctions.showProjectWarning": false,
     "workbench.editor.pinnedTabsOnSeparateRow": true,
-    "terminal.integrated.defaultProfile.osx": "tmux-shell",
-    "terminal.integrated.profiles.osx": {
-        "tmux-shell": {
-            "path": "tmux",
-            "args": [
-                "new-session",
-                "-A",
-                "-s",
-                "vscode:${workspaceFolder}"
-            ]
-        }
-    },
     "vim.leader": "<space>",
     "vim.normalModeKeyBindingsNonRecursive": [
         // {
@@ -101,5 +89,8 @@
         }
     ],
     "redhat.telemetry.enabled": false,
-    "bicep.enableSurveys": false
+    "bicep.enableSurveys": false,
+    "[json]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    }
 }

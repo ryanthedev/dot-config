@@ -143,9 +143,22 @@ alias pp=pip3
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-eval "$(zoxide init zsh)"
+if command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init zsh)"
+fi
+
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 [ -s ~/.luaver/luaver ] && . ~/.luaver/luaver
 [ -s ~/.luaver/completions/luaver.bash ] && . ~/.luaver/completions/luaver.bash
-eval "$(~/.local/bin/mise activate)"
+
+if [ -x ~/.local/bin/mise ]; then
+  eval "$(~/.local/bin/mise activate)"
+fi
+
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/Users/RHayden/.gcloud/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/RHayden/.gcloud/google-cloud-sdk/path.zsh.inc'; fi
+
+# The next line enables shell command completion for gcloud.
+if [ -f '/Users/RHayden/.gcloud/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/RHayden/.gcloud/google-cloud-sdk/completion.zsh.inc'; fi
