@@ -92,5 +92,6 @@
     "bicep.enableSurveys": false,
     "[json]": {
         "editor.defaultFormatter": "vscode.json-language-features"
-    }
+    },
+    "security.workspace.trust.untrustedFiles": "open"
 }

@@ -96,7 +96,7 @@ export PATH=$PATH:/usr/local/go/bin
 # custom
 export PATH=$PATH:$HOME/.config/bin
 # nvim
-export PATH=$PATH:$HOME/.nvim/nvim-macos-arm64/bin
+export PATH=$PATH:$HOME/.nvim/bin
 # tmux
 export TMUX_CONF=~/.config/tmux/tmux.conf
 
