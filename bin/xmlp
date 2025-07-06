@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+# hub-bs.py
+# Usage: cat input.json | python3 hub-bs.py
+import sys
+import html
+import xml.dom.minidom
+
+def char_hex_info(s):
+    return [(c, hex(ord(c))) for c in s]
+
+def main():
+    # Read dirty XML string from stdin
+    input_str = sys.stdin.read()
+
+    # Clean input in three clear steps
+    # 1. Remove all line endings
+    input_str = input_str.replace('\n', '').replace('\r', '')
+    # 2. Trim leading/trailing whitespace
+    input_str = input_str.strip()
+    # 3. Remove all double and single quotes from both ends
+    input_str = input_str.strip('"\'')
+
+    # Only now, replace escaped quotes (for JSON-escaped XML)
+    if '\\"' in input_str or '\"' in input_str:
+        input_str = input_str.replace('\\"', '"').replace('\"', '"')
+
+    unescaped = html.unescape(input_str)
+
+    # Pretty print XML
+    try:
+        dom = xml.dom.minidom.parseString(unescaped)
+        pretty_xml = dom.toprettyxml(indent='  ')
+        print(pretty_xml)
+    except Exception as e:
+        print(f'Error parsing XML: {e}', file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()

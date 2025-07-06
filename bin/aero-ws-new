@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+#
+# Move the focused window to a new workspace matching prefix-<n> (using dashes),
+# even if the current workspace has no “-<index>” yet, and assign it to the focused monitor.
+set -euo pipefail
+
+# 1. Get the currently focused workspace name (e.g. “main” or “main-2”)
+current_ws=$(aerospace list-workspaces --focused --json | jq -r '.[0].workspace')
+
+# 2. If there's a “-N” suffix, split; otherwise treat index as 0
+if [[ "$current_ws" == *-* ]]; then
+  prefix=${current_ws%-*}
+  index=${current_ws##*-}
+else
+  prefix=$current_ws
+  index=0
+fi
+
+# 3. Compute next index and new workspace name
+new_index=$(( index + 1 ))
+new_ws="${prefix}-${new_index}"
+
+# 4. Get the actual focused monitor ID
+monitor_id=$(aerospace list-monitors --focused --json | jq -r '.[0]."monitor-name"')
+
+# --- Debug logging ---
+echo "DEBUG: current_ws = $current_ws"
+echo "DEBUG: prefix     = $prefix"
+echo "DEBUG: index      = $index"
+echo "DEBUG: new_ws     = $new_ws"
+echo "DEBUG: monitor_id = $monitor_id"
+
+# 5. Move the focused window into the new workspace
+aerospace move-node-to-workspace "$new_ws"  # 
+
+# 6. Assign that workspace to the same focused monitor
+aerospace move-workspace-to-monitor --workspace "$new_ws" $monitor_id

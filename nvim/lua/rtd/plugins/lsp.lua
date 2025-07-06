@@ -4,7 +4,7 @@ local on_lsp_attach = function(client, bufnr)
   vim.keymap.set("n", "go", function()
     telescope.lsp_type_definitions()
   end, opts)
-  vim.keymap.set("n", "gr", function()
+  vim.keymap.set("n", "gR", function()
     telescope.lsp_references()
   end, opts)
   vim.keymap.set("n", "gi", function()
@@ -66,6 +66,12 @@ return {
 		"williamboman/mason.nvim",
 		lazy = false,
 		config = true,
+    opts = {
+      registries = {
+          "github:mason-org/mason-registry",
+          "github:Crashdummyy/mason-registry",
+      },
+    }
 	},
 	-- Autocompletion
 	{
@@ -100,6 +106,9 @@ return {
 					{ name = "luasnip" },
 					{ name = "buffer" },
 					{ name = "nvim_lsp_signature_help" },
+          per_filetype = {
+            codecompanion = { "codecompanion" },
+          }
 				},
 				window = {
 					completion = cmp.config.window.bordered(),
@@ -169,7 +178,6 @@ return {
   {
   "seblj/roslyn.nvim",
   ft = "cs",
-  commit = "633a61c",
   -- enabled = false,
   opts = {
     config = {

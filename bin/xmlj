@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+import sys
+import json
+import xml.dom.minidom
+import re
+
+def main():
+    # Read XML from stdin
+    xml_str = sys.stdin.read()
+    # Minify XML using xml.dom.minidom
+    try:
+        dom = xml.dom.minidom.parseString(xml_str)
+        minified_xml = dom.toxml()
+        # Remove whitespace between tags
+        minified_xml = re.sub(r'>\s+<', '><', minified_xml)
+    except Exception as e:
+        print(f'Error parsing XML: {e}', file=sys.stderr)
+        sys.exit(1)
+    # Escape for JSON (replace special chars)
+    # Output as a JSON object with key 'bs'
+    print(json.dumps(minified_xml))
+
+if __name__ == '__main__':
+    main()

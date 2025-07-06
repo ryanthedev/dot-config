@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# ~/.config/bin/apoon-cycle (apoc)
+# Cycle through the session file workspaces (next or prev) for the focused monitor
+
+monitor_id=$(aerospace list-monitors --focused --json | jq -r '.[0]."monitor-id"')
+APOON_DIR="$HOME/.apoon"
+SESSION_FILE="$APOON_DIR/${monitor_id}_apoon_session"
+STATE_FILE="$APOON_DIR/apoon-cycle-${monitor_id}.state"
+
+if [ ! -f "$SESSION_FILE" ]; then
+  echo "No session file found."
+  exit 1
+fi
+
+count=$(wc -l < "$SESSION_FILE")
+if [ "$count" -eq 0 ]; then
+  echo "No workspaces in session file."
+  exit 1
+fi
+
+direction="next"
+if [ "$1" = "prev" ]; then
+  direction="prev"
+fi
+
+# Read last index
+if [ -f "$STATE_FILE" ]; then
+  idx=$(cat "$STATE_FILE")
+else
+  idx=1
+fi
+
+if [ "$direction" = "next" ]; then
+  idx=$((idx + 1))
+  [ "$idx" -gt "$count" ] && idx=1
+else
+  idx=$((idx - 1))
+  [ "$idx" -lt 1 ] && idx=$count
+fi
+
+echo "$idx" > "$STATE_FILE"
+
+ws_line=$(sed -n "${idx}p" "$SESSION_FILE")
+ws_name=$(echo "$ws_line" | awk -F: '{print $1}')
+
+aerospace move-workspace-to-monitor --workspace "$ws_name" "$monitor_id"
+aerospace workspace "$ws_name"
+echo "Cycled to $ws_name (line $idx)"

@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# ~/.config/bin/apoon-edit (apoe)
+# Edit the session file: show workspace IDs with preferred titles, allow reordering/deleting, then update session file with new order
+
+monitor_id=$(aerospace list-monitors --focused --json | jq -r '.[0]."monitor-id"')
+echo "[DEBUG] monitor_id: $monitor_id"
+APOON_DIR="$HOME/.apoon"
+SESSION_FILE="$APOON_DIR/${monitor_id}_apoon_session"
+echo "[DEBUG] SESSION_FILE: $SESSION_FILE"
+
+[ -f "$SESSION_FILE" ] || touch "$SESSION_FILE"
+
+# Get all current workspace ids for this monitor
+current_ws_json=$(aerospace list-workspaces --monitor "$monitor_id" --json)
+echo "[DEBUG] current_ws_json: $current_ws_json"
+current_workspaces=($(printf '%s\n' "$current_ws_json" | jq -r '.[].workspace'))
+echo "[DEBUG] current_workspaces: ${current_workspaces[*]}"
+
+# Remove any workspaces from the session file that no longer exist
+if [ -f "$SESSION_FILE" ]; then
+  tmpfile=$(mktemp)
+  while IFS= read -r ws_id; do
+    for existing in "${current_workspaces[@]}"; do
+      if [[ "$ws_id" == "$existing" ]]; then
+        echo "$ws_id" >> "$tmpfile"
+        break
+      fi
+    done
+  done < "$SESSION_FILE"
+  mv "$tmpfile" "$SESSION_FILE"
+  echo "[DEBUG] Cleaned up session file: $SESSION_FILE"
+fi
+
+# Build a temp file with workspace id and preferred title
+editfile=$(mktemp)
+echo "[DEBUG] editfile: $editfile"
+while IFS= read -r ws_id || [ -n "$ws_id" ]; do
+  echo "[DEBUG] Processing ws_id: '$ws_id'"
+  title=$(get-preferred-title.sh "$ws_id" < /dev/null)
+  echo "[DEBUG] $ws_id: $title"
+  printf '%s: %s\n' "$ws_id" "$title" >> "$editfile"
+done < "$SESSION_FILE"
+echo "[DEBUG] Contents of $editfile before editing:"
+cat "$editfile"
+
+# DEBUG: print all lines in session file
+cat "$SESSION_FILE" | while IFS= read -r ws_id || [ -n "$ws_id" ]; do echo "[DEBUG] SESSION_FILE ws_id: '$ws_id'"; done
+
+# Open in vi for editing
+${EDITOR:-vi} "$editfile"
+
+# After editing, update session file with new order (only valid workspace ids)
+# Only update if the file was actually changed (check mtime)
+if cmp -s "$editfile" <(while IFS= read -r ws_id; do title=$(get-preferred-title.sh "$ws_id"); printf '%s: %s\n' "$ws_id" "$title"; done < "$SESSION_FILE"); then
+  echo "[DEBUG] No changes made in editor. Session file not updated."
+  rm -f "$editfile"
+  exit 0
+fi
+
+echo "[DEBUG] Contents of $editfile after editing:"
+cat "$editfile"
+
+> "$SESSION_FILE"
+while IFS= read -r line; do
+  ws_id=$(echo "$line" | awk -F: '{print $1}')
+  # Only keep if still a valid workspace
+  for existing in "${current_workspaces[@]}"; do
+    if [[ "$ws_id" == "$existing" ]]; then
+      echo "$ws_id" >> "$SESSION_FILE"
+      break
+    fi
+  done
+  # skip lines that don't match a valid workspace
+  # (user can delete lines in editor)
+done < "$editfile"
+
+echo "[DEBUG] Updated session file: $SESSION_FILE"
+cat "$SESSION_FILE"
+rm -f "$editfile"

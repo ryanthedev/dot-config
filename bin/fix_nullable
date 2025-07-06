@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+import re, sys
+from pathlib import Path
+
+# types to skip (built-in value types)
+SKIP = {
+    "int", "bool", "decimal", "DateTime", "double",
+    "float", "long", "short", "byte", "uint", "ulong",
+    "ushort", "char", "object"
+}
+
+prop_re = re.compile(
+    r'^(?P<indent>\s*)public\s+'
+    r'(?P<type>[A-Za-z0-9_<>, ]+?)\s+'
+    r'(?P<name>[A-Za-z0-9_]+)\s*\{\s*get;\s*set;\s*\}\s*$'
+)
+
+def fix_file(path: Path):
+    changed = False
+    out = []
+    for line in path.read_text().splitlines(keepends=True):
+        m = prop_re.match(line)
+        if m:
+            t = m.group("type").strip()
+            # skip if already nullable or skip type
+            if not t.endswith('?') and t.split('<',1)[0] not in SKIP:
+                indent, name = m.group("indent"), m.group("name")
+                line = f"{indent}public {t}? {name} {{ get; set; }}\n"
+                changed = True
+        out.append(line)
+    if changed:
+        path.write_text("".join(out))
+        print(f"✔ Updated {path}")
+
+if __name__=='__main__':
+    root = Path(sys.argv[1] if len(sys.argv)>1 else '.')
+    for cs in root.rglob('*.cs'):
+        fix_file(cs)

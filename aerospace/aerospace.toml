@@ -1,0 +1,86 @@
+# Reference: https://github.com/i3/i3/blob/next/etc/config
+
+# i3 doesn't have "normalizations" feature that why we disable them here.
+# But the feature is very helpful.
+# Normalizations eliminate all sorts of weird tree configurations that don't make sense.
+# Give normalizations a chance and enable them back.
+enable-normalization-flatten-containers = false
+enable-normalization-opposite-orientation-for-nested-containers = false
+
+# Mouse follows focus when focused monitor changes
+on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
+
+after-startup-command = [
+  'exec-and-forget borders active_color=0xffe1e3e4 inactive_color=0xff494d64 width=5.0'
+]
+
+[workspace-to-monitor-force-assignment]
+    main = 'C49HG9x'                            # Monitor sequence number from left to right. 1-based indexing
+    bottom = '^built-in retina display$'  # Case insensitive regex match
+    top = '^asus va27ehe$' 
+
+[[on-window-detected]]
+    if.app-name-regex-substring = 'kitty'
+    if.window-title-regex-substring = 'KittyPopup'
+    run = ['layout floating']
+
+[mode.main.binding]
+    ctrl-shift-enter = '''exec-and-forget osascript -e '
+    do shell script "open -na /Applications/Google\\ Chrome.app --args --profile-directory=\"Profile 1\" --new-window"'
+    '''
+    shift-alt-enter = '''exec-and-forget osascript -e '
+    do shell script "open -na /Applications/Google\\ Chrome.app --args --profile-directory=\"Profile 2\" --new-window"'
+    '''
+    cmd-enter = 'exec-and-forget open -na kitty'
+    cmd-h = 'focus --boundaries all-monitors-outer-frame --boundaries-action wrap-around-all-monitors left'
+    cmd-j = 'focus --boundaries all-monitors-outer-frame --boundaries-action wrap-around-all-monitors down'
+    cmd-k = 'focus --boundaries all-monitors-outer-frame --boundaries-action wrap-around-all-monitors up'
+    cmd-l = 'focus --boundaries all-monitors-outer-frame --boundaries-action wrap-around-all-monitors right'
+    cmd-ctrl-h = 'move left'
+    cmd-ctrl-j = 'move down'
+    cmd-ctrl-k = 'move up'
+    cmd-ctrl-l = 'move right'
+    cmd-shift-h = 'move-node-to-monitor --focus-follows-window left'
+    cmd-shift-j = 'move-node-to-monitor --focus-follows-window down'
+    cmd-shift-k = 'move-node-to-monitor --focus-follows-window up'
+    cmd-shift-l = 'move-node-to-monitor --focus-follows-window right'
+    alt-f = 'fullscreen'
+    alt-s = 'layout v_accordion'
+    alt-w = 'layout h_accordion'
+    alt-e = 'layout tiles horizontal vertical'
+    alt-shift-space = 'layout floating tiling'
+    cmd-shift-c = 'exec-and-forget aero-ws-new'
+    cmd-shift-n = 'exec-and-forget aero-ws-next'
+    cmd-shift-r = 'exec-and-forget aero-ws-prev'
+    alt-shift-r = 'reload-config'
+    alt-r = 'mode resize'
+    cmd-1 = 'exec-and-forget apo j 1'
+    cmd-2 = 'exec-and-forget apo j 2'
+    cmd-3 = 'exec-and-forget apo j 3'
+    cmd-4 = 'exec-and-forget apo j 4'
+    cmd-5 = 'exec-and-forget apo j 5'
+    cmd-6 = 'exec-and-forget apo j 6'
+    cmd-7 = 'exec-and-forget apo j 7'
+    cmd-8 = 'exec-and-forget apo j 8'
+    cmd-9 = 'exec-and-forget apo j 9'
+    cmd-t = 'exec-and-forget apo a'
+    cmd-u = 'exec-and-forget apo e'
+    alt-tab = 'exec-and-forget apo c next'
+    alt-shift-tab = 'exec-and-forget apo c prev'
+    cmd-0 = 'exec-and-forget kitten quick-access-terminal'
+
+[mode.resize.binding]
+    h = 'resize width -50'
+    j = 'resize height +50'
+    k = 'resize height -50'
+    l = 'resize width +50'
+    enter = 'mode main'
+    esc = 'mode main'
+
+[gaps]
+inner.horizontal = 10
+inner.vertical   = 10
+outer.left       = 10
+outer.bottom     = 10
+outer.top        = 10
+outer.right      = 10
