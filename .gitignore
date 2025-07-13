@@ -13,9 +13,11 @@ nvim/lazy-lock.json
 nvim/plugin/
 !snippets/
 !zsh/
+zsh/.env
 !i3/
 !randy/
 !rofi/
 !readme.md
 !vscode/
 !.gitignore
+!ghostty/

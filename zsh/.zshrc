@@ -167,3 +167,11 @@ if [ -f '/Users/RHayden/.gcloud/google-cloud-sdk/path.zsh.inc' ]; then . '/Users
 # The next line enables shell command completion for gcloud.
 if [ -f '/Users/RHayden/.gcloud/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/RHayden/.gcloud/google-cloud-sdk/completion.zsh.inc'; fi
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+
+# Load local .env file if it exists
+if [ -f .env ]; then
+    set -a  # Automatically export all variables
+    source .env
+    set +a  # Stop auto-exporting
+fi
