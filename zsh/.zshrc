@@ -170,8 +170,8 @@ if [ -f '/Users/RHayden/.gcloud/google-cloud-sdk/completion.zsh.inc' ]; then . '
 
 
 # Load local .env file if it exists
-if [ -f .env ]; then
+if [ -f $HOME/.config/zsh/.env ]; then
     set -a  # Automatically export all variables
-    source .env
+    source $HOME/.config/zsh/.env
     set +a  # Stop auto-exporting
 fi

@@ -1,3 +1,11 @@
 #!/bin/zsh
 source ~/.zshrc
+# Load local .env file if it exists
+if [ -f $HOME/.config/aerospace/.env ]; then
+    set -a  # Automatically export all variables
+    source $HOME/.config/aerospace/.env
+    set +a  # Stop auto-exporting
+fi
+
+export AEROSPACE_CONFIG=$HOME/.config/aerospace/aerospace-1.toml
 open -a "AeroSpace"

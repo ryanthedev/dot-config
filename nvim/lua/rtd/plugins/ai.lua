@@ -1,21 +1,54 @@
+local function load_env(path)
+  local env = {}
+  if vim.fn.filereadable(path) ~= 1 then
+    return env
+  end
+  local lines = vim.fn.readfile(path)
+  for _, line in ipairs(lines) do
+    local trimmed = line:match("^%s*(.-)%s*$")
+    if trimmed ~= "" and not trimmed:match("^#") then
+      local key, value = trimmed:match("^([^=]+)=(.*)$")
+      if key then
+        key = key:match("^%s*(.-)%s*$")
+        value = value:match("^%s*(.-)%s*$")
+        env[key] = value
+      end
+    end
+  end
+  return env
+end
+
 return {
   {
     "olimorris/codecompanion.nvim",
-    opts = {},
     dependencies = {
       "nvim-lua/plenary.nvim",
       "nvim-treesitter/nvim-treesitter",
     },
     opts = {
+      adapters = {
+        dynamic = function()
+          local env = load_env(vim.fn.expand("~") .. "/.config/nvim/.env")
+          local base_adapter = env.ADAPTER
+          local model = env.MODEL
+          return require("codecompanion.adapters").extend(base_adapter, {
+            schema = {
+              model = {
+                default = model,
+              },
+            },
+          })
+        end,
+      },
       strategies = {
         chat = {
-          adapter = "copilot",
+          adapter = "dynamic",
         },
         inline = {
-          adapter = "copilot",
+          adapter = "dynamic",
         },
         cmd = {
-          adapter = "copilot",
+          adapter = "dynamic",
         }
       }
     }

@@ -3,7 +3,7 @@ keybind = global:cmd+grave_accent=toggle_quick_terminal
 
 # Font settings
 font-family = "Berkeley Mono Trial"
-font-size = 17
+font-size = 20
 
 # Window settings
 background-opacity = 0.98

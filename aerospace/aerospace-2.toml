@@ -15,9 +15,8 @@ after-startup-command = [
 ]
 
 [workspace-to-monitor-force-assignment]
-    main = 'C49HG9x'                            # Monitor sequence number from left to right. 1-based indexing
-    bottom = '^built-in retina display$'  # Case insensitive regex match
-    top = '^asus va27ehe$' 
+    main = 'C49HG9x (2)'                            # Monitor sequence number from left to right. 1-based indexing
+    top = 'C49HG9x (1)' 
 
 [[on-window-detected]]
     if.app-name-regex-substring = 'kitty'
