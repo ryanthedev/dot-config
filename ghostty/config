@@ -1,8 +1,7 @@
 keybind = global:cmd+grave_accent=toggle_quick_terminal
 
-
 # Font settings
-font-family = "Berkeley Mono Trial"
+font-family = "Berkeley Mono"
 font-size = 20
 
 # Window settings

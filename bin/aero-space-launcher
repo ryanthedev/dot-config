@@ -7,5 +7,6 @@ if [ -f $HOME/.config/aerospace/.env ]; then
     set +a  # Stop auto-exporting
 fi
 
-export AEROSPACE_CONFIG=$HOME/.config/aerospace/aerospace-1.toml
+rm $HOME/.config/aerospace/aerospace.toml
+cp $AEROSPACE_CONFIG $HOME/.config/aerospace/aerospace.toml
 open -a "AeroSpace"

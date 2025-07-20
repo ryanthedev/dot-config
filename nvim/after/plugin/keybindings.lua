@@ -15,7 +15,7 @@ nnoremap("<leader>nh", ":nohl<CR>")
 nnoremap("x", '"_x')
 
 -- increment/decrement numbers
-nnoremap("<leader>+", "<C-a>") -- increment
+nnoremap("<leader>=", "<C-a>") -- increment
 nnoremap("<leader>-", "<C-x>") -- decrement
 
 -- window management
@@ -60,7 +60,9 @@ nnoremap("<C-u>", "<C-u><cr>zz")
 ----------------------
 
 -- nvim-tree
-nnoremap("<leader>e", ":NvimTreeToggle<cr>") -- toggle file explorer
+-- nnoremap("<leader>e", ":NvimTreeToggle<cr>") -- toggle file explorer
+-- oil
+nnoremap("<leader>e", ":Oil --float .") -- toggle file explorer
 
 -- telescope
 nnoremap("<leader>ff", "<cmd>Telescope find_files show_untracked=true<cr>") -- find files within current working directory, respects .gitignore

@@ -44,6 +44,7 @@ after-startup-command = [
     cmd-shift-k = 'move-node-to-monitor --focus-follows-window up'
     cmd-shift-l = 'move-node-to-monitor --focus-follows-window right'
     alt-f = 'fullscreen'
+    alt-t = 'tiling'
     alt-s = 'layout v_accordion'
     alt-w = 'layout h_accordion'
     alt-e = 'layout tiles horizontal vertical'
