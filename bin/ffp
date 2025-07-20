@@ -1,0 +1,4 @@
+#!/bin/bash
+# ffp: wrapper for ff with -i and -c options
+dirname=$(dirname "$0")
+"$dirname/ff" -i -c "$@"

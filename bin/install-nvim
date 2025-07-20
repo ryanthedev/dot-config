@@ -1,0 +1,87 @@
+#!/bin/bash
+
+# Script to install the latest stable Neovim release on macOS (ARM64)
+# Downloads from GitHub, extracts, and sets up Neovim in $HOME/.nvim
+
+# Exit on any error
+set -e
+
+# Variables
+NVIM_URL="https://github.com/neovim/neovim/releases/download/stable/nvim-macos-arm64.tar.gz"
+NVIM_TAR="nvim-macos-arm64.tar.gz"
+NVIM_DIR="nvim-macos-arm64"
+INSTALL_DIR="$HOME/.nvim"
+TEMP_DIR="$(mktemp -d)"
+
+# Function to check if a command is available
+check_command() {
+  if ! command -v "$1" &> /dev/null; then
+    echo "Error: $1 is required but not installed."
+    exit 1
+  fi
+}
+
+# Check for required tools
+check_command curl
+check_command tar
+check_command xattr
+
+# Step 1: Download the latest stable Neovim tarball
+echo "Downloading Neovim from $NVIM_URL..."
+curl -L -o "$TEMP_DIR/$NVIM_TAR" "$NVIM_URL" || {
+  echo "Error: Failed to download Neovim tarball."
+  exit 1
+}
+
+# Step 2: Clear quarantine attributes to avoid "unknown developer" warning
+echo "Clearing quarantine attributes..."
+xattr -c "$TEMP_DIR/$NVIM_TAR" || {
+  echo "Warning: Failed to clear quarantine attributes. Continuing..."
+}
+
+# Step 3: Extract the tarball
+echo "Extracting $NVIM_TAR..."
+tar xzvf "$TEMP_DIR/$NVIM_TAR" -C "$TEMP_DIR" || {
+  echo "Error: Failed to extract tarball."
+  exit 1
+}
+
+# Step 4: Remove existing Neovim binary directory if it exists
+if [ -d "$INSTALL_DIR/bin" ]; then
+  echo "Removing existing Neovim binary directory at $INSTALL_DIR/bin..."
+  rm -rf "$INSTALL_DIR/bin" || {
+    echo "Error: Failed to remove existing Neovim binary directory."
+    exit 1
+  }
+fi
+
+# Step 5: Move extracted files to $HOME/.nvim
+echo "Moving Neovim files to $INSTALL_DIR..."
+mkdir -p "$INSTALL_DIR"
+mv "$TEMP_DIR/$NVIM_DIR"/* "$INSTALL_DIR/" || {
+  echo "Error: Failed to move Neovim files to $INSTALL_DIR."
+  exit 1
+}
+
+# Step 6: Clean up temporary files
+echo "Cleaning up temporary files..."
+rm -rf "$TEMP_DIR" || {
+  echo "Warning: Failed to clean up temporary files."
+}
+
+# Verify installation
+if [ -f "$INSTALL_DIR/bin/nvim" ]; then
+  echo "Neovim installed successfully at $INSTALL_DIR/bin/nvim"
+  echo "To use Neovim, ensure $INSTALL_DIR/bin is in your PATH."
+  echo "You can add it by appending the following to your ~/.zshrc or ~/.bashrc:"
+  echo "export PATH=\"$INSTALL_DIR/bin:\$PATH\""
+else
+  echo "Error: Neovim installation failed. Binary not found."
+  exit 1
+fi
+
+# Optional: Print Neovim version
+echo "Verifying Neovim version..."
+"$INSTALL_DIR/bin/nvim" --version | head -n 1
+
+echo "Installation complete!"

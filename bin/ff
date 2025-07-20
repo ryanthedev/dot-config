@@ -21,12 +21,17 @@ RESPECT_GITIGNORE=true
 SEARCH_STRING=""
 DEBUG=false
 QUIET=true
+COPY_PATH=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -i|--ignore-gitignore)
             RESPECT_GITIGNORE=false
+            shift
+            ;;
+        -c|--copy)
+            COPY_PATH=true
             shift
             ;;
         -h|--help)
@@ -139,11 +144,17 @@ fi
 
 # Parse the selection into file and line number
 # Format will be: filename:linenumber:match
-SELECTED_FILE=$(echo "$SELECTED_ITEM" | cut -d':' -f1)
-SELECTED_LINE=$(echo "$SELECTED_ITEM" | cut -d':' -f2)
+IFS=':' read -r SELECTED_FILE SELECTED_LINE REST <<< "$SELECTED_ITEM"
 
-log_debug "Selected file: '$SELECTED_FILE'"
-log_debug "Selected line: '$SELECTED_LINE'"
+# Only treat as line number if SELECTED_LINE is a number
+if [[ -n "$SELECTED_LINE" && "$SELECTED_LINE" =~ ^[0-9]+$ ]]; then
+  log_debug "Selected file: '$SELECTED_FILE'"
+  log_debug "Selected line: '$SELECTED_LINE'"
+else
+  SELECTED_FILE="$SELECTED_ITEM"
+  SELECTED_LINE=""
+  log_debug "Selected file (no line number): '$SELECTED_FILE'"
+fi
 
 # Check if the file exists
 if [ ! -f "$SELECTED_FILE" ]; then
@@ -163,7 +174,14 @@ if [ ! -f "$SELECTED_FILE" ]; then
     fi
 fi
 
+# After checking if file exists and before opening/copying
 log_debug "File exists: '$SELECTED_FILE'"
+
+if [ "$COPY_PATH" = true ]; then
+    echo -n "$SELECTED_FILE" | pbcopy
+    status_msg "Copied file path to clipboard: $SELECTED_FILE"
+    exit 0
+fi
 
 # Open the selected file
 if command_exists code; then

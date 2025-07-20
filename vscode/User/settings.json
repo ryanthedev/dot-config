@@ -99,5 +99,9 @@
     "terminal.integrated.shellIntegration.enabled": true,
     "terminal.integrated.shellIntegration.decorationsEnabled": "both",
     "terminal.integrated.shellIntegration.history": 100,
-    "github.copilot.nextEditSuggestions.enabled": true
+    "github.copilot.nextEditSuggestions.enabled": true,
+    "security.workspace.trust.untrustedFiles": "open",
+    "[xml]": {
+        "editor.defaultFormatter": "PrateekMahendrakar.prettyxml"
+    }
 }

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# ~/.config/bin/aero-ws-pick
+# FZF picker for workspaces on the focused monitor, with tagging
+
+set -e
+
+monitor_id=$(aerospace list-monitors --focused --json | jq -r '.[0]."monitor-id"')
+ws_json=$(aerospace list-workspaces --monitor "$monitor_id" --json)
+workspaces=($(echo "$ws_json" | jq -r '.[].workspace'))
+
+selected=$(printf '%s\n' "${workspaces[@]}" | fzf --prompt="Pick workspace to tag: ")
+
+if [[ -z "$selected" ]]; then
+  echo "No workspace selected. Exiting."
+  exit 0
+fi
+
+read -rp "Tag this workspace as number (1-9): " number
+if ! [[ "$number" =~ ^[1-9]$ ]]; then
+  echo "Invalid number."
+  exit 1
+fi
+
+~/.config/bin/aero-ws-tag "$number" "$selected"

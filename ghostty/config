@@ -1,0 +1,38 @@
+keybind = global:cmd+grave_accent=toggle_quick_terminal
+
+
+# Font settings
+font-family = "Berkeley Mono Trial"
+font-size = 20
+
+# Window settings
+background-opacity = 0.98
+window-decoration = none
+macos-non-native-fullscreen = true
+
+# Colors
+background = #121212
+foreground = #BFBFBF
+cursor-color = #666666
+
+# Color palette (equivalent to color0 to color15 in Kitty)
+palette = 0=#232323
+palette = 1=#FF5454
+palette = 2=#00CC7A
+palette = 3=#FFD700
+palette = 4=#FF7431
+palette = 5=#00BFFF
+palette = 6=#48D1CC
+palette = 7=#BFBFBF
+palette = 8=#767C77
+palette = 9=#FF1A75
+palette = 10=#1AFFA3
+palette = 11=#FFFF00
+palette = 12=#FFAA54
+palette = 13=#28C9FF
+palette = 14=#09FFF2
+palette = 15=#F9F9F9
+
+# Selection colors
+selection-background = #404040
+selection-foreground = #BFBFBF

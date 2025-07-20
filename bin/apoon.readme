@@ -1,0 +1,53 @@
+# apoon Utility Suite
+
+## Overview
+
+The `apoon` suite provides a set of scripts for bookmarking, managing, and quickly switching between aerospace workspaces on a per-monitor basis. It is designed for use with the Aerospace window manager and integrates with fzf and other utilities for a smooth workflow.
+
+## apoon-add
+
+`apoon-add` bookmarks the currently focused workspace for the currently focused monitor. It works as follows:
+
+- The session file is stored at `~/.apoon/{monitor_id}_apoon_session`, where `{monitor_id}` is the numeric ID of the currently focused monitor (as reported by `aerospace list-monitors`).
+- The session file contains an ordered list of workspace IDs (one per line) for that monitor.
+- When you run `apoon-add`:
+  - It creates the `~/.apoon/` directory if it does not exist.
+  - It creates the session file for the current monitor if it does not exist.
+  - It removes any workspace IDs from the session file that no longer exist for the current monitor.
+  - It adds the currently focused workspace ID to the end of the session file, ensuring no duplicates.
+
+## apoon-edit
+
+`apoon-edit` allows you to reorder or remove bookmarked workspaces for the current monitor:
+
+- It reads the session file for the currently focused monitor from `~/.apoon/{monitor_id}_apoon_session`.
+- It removes any workspaces from the session file that no longer exist for the monitor.
+- It creates a temporary file listing each workspace ID and its preferred window title (using `get-preferred-title.sh`).
+- The temporary file is opened in your `$EDITOR` (or `vi` by default). You can reorder or delete lines as desired.
+- When you save and exit the editor (e.g., with `:wq` in vi), the script updates the session file to match the new order and removes any invalid workspaces.
+- If you quit the editor without saving, the session file is not updated.
+
+This workflow allows you to curate and reorder your workspace bookmarks easily.
+
+## apoon-pick
+
+`apoon-pick` lets you interactively pick a workspace for the current monitor:
+
+- Reads the session file for the currently focused monitor from `~/.apoon/{monitor_id}_apoon_session`.
+- For each workspace, displays its ID and preferred window title (using `get-preferred-title.sh`) in an fzf picker.
+- When you select a workspace, it is moved to and focused on the current monitor.
+
+## get-preferred-title.sh
+
+`get-preferred-title.sh` is a helper script used by other apoon utilities:
+
+- Given a workspace ID, it queries Aerospace for the windows in that workspace.
+- It prints the preferred window title, prioritizing Code, then kitty, then Chrome, then any window, or (empty) if none.
+- Used by `apoon-edit` and `apoon-pick` to provide context in UI pickers and editors.
+
+## Planned/Related Scripts
+
+- `apoon-cycle`: Cycle through bookmarked workspaces for the current monitor.
+- `apoon-jump`: Jump to a workspace by its position in the session file.
+
+As new features or scripts are added, this README will be updated to reflect their usage and behavior.

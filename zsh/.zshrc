@@ -95,8 +95,10 @@ export PATH=$PATH:/opt/homebrew/bin
 export PATH=$PATH:/usr/local/go/bin
 # custom
 export PATH=$PATH:$HOME/.config/bin
+# kitty
+export PATH=$PATH:/Applications/kitty.app/Contents/MacOS
 # nvim
-export PATH=$PATH:$HOME/.nvim/nvim-macos-arm64/bin
+export PATH=$PATH:$HOME/.nvim/bin
 # tmux
 export TMUX_CONF=~/.config/tmux/tmux.conf
 
@@ -150,6 +152,8 @@ if command -v zoxide >/dev/null 2>&1; then
   eval "$(zoxide init zsh)"
 fi
 
+unsetopt HUP  # Keep jobs running after exiting shell.
+unsetopt CHECK_JOBS  # Don't report on jobs when shell exit.
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 [ -s ~/.luaver/luaver ] && . ~/.luaver/luaver
@@ -165,3 +169,12 @@ if [ -f '/Users/RHayden/.gcloud/google-cloud-sdk/path.zsh.inc' ]; then . '/Users
 
 # The next line enables shell command completion for gcloud.
 if [ -f '/Users/RHayden/.gcloud/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/RHayden/.gcloud/google-cloud-sdk/completion.zsh.inc'; fi
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+
+# Load local .env file if it exists
+if [ -f $HOME/.config/zsh/.env ]; then
+    set -a  # Automatically export all variables
+    source $HOME/.config/zsh/.env
+    set +a  # Stop auto-exporting
+fi

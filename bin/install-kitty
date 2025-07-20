@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -e
+
+# -------- CONFIG --------
+REPO="kovidgoyal/kitty"
+API="https://api.github.com/repos/$REPO/releases/latest"
+TMPDIR="$(mktemp -d)"
+MOUNT="$TMPDIR/mount"
+# Decide install dir: prefer /Applications if writable, else ~/Applications + shim
+if [ -d /Applications -a -w /Applications ]; then
+  INSTALL_DIR="/Applications"
+  SHIM=""
+  echo "[INIT] Will install into /Applications"
+else
+  INSTALL_DIR="$HOME/Applications"
+  SHIM="$HOME/bin/kitty"
+  echo "[INIT] /Applications not writable, installing into $INSTALL_DIR"
+  mkdir -p "$INSTALL_DIR"
+fi
+# ------------------------
+
+echo "[1/11] Checking commands…"
+for cmd in curl hdiutil xattr; do
+  command -v $cmd >/dev/null || { echo "✗ $cmd missing"; exit 1; }
+  echo "✓ $cmd"
+done
+
+echo "[2/11] Fetching latest tag…"
+TAG=$(curl -s $API | grep '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/')
+echo "→ tag = $TAG"
+
+echo "[3/11] Resolving DMG URL…"
+DMG_URL=$(curl -s $API | grep "browser_download_url.*\\.dmg" | head -1 | cut -d '"' -f4)
+echo "→ DMG = $DMG_URL"
+
+echo "[4/11] Downloading to $TMPDIR/kitty.dmg…"
+curl -L -o "$TMPDIR/kitty.dmg" "$DMG_URL"
+echo "✓ downloaded"
+
+echo "[5/11] Clearing quarantine…"
+xattr -c "$TMPDIR/kitty.dmg" || echo "(!) xattr failed, continuing"
+
+echo "[6/11] Mounting DMG…"
+mkdir -p "$MOUNT"
+hdiutil attach "$TMPDIR/kitty.dmg" -mountpoint "$MOUNT" -nobrowse -quiet \
+  && echo "✓ mounted at $MOUNT" \
+  || { echo "✗ mount failed"; ls -lh "$TMPDIR/kitty.dmg"; exit 1; }
+
+echo "[7/11] DMG contents:"
+ls -1 "$MOUNT"
+
+echo "[8/11] Copying kitty.app → $INSTALL_DIR"
+cp -R "$MOUNT/kitty.app" "$INSTALL_DIR/" && echo "✓ copied"
+
+echo "[9/11] Unmounting & cleaning…"
+hdiutil detach "$MOUNT" -quiet
+rm -rf "$TMPDIR"
+echo "✓ cleanup done"
+
+if [ -n "$SHIM" ]; then
+  echo "[10/11] Creating shim…"
+  mkdir -p "$(dirname "$SHIM")"
+  ln -sf "$INSTALL_DIR/kitty.app/Contents/MacOS/kitty" "$SHIM"
+  echo "✓ shim at $SHIM → $INSTALL_DIR/kitty.app/Contents/MacOS/kitty"
+  echo "⚠️  Make sure '$HOME/bin' is in your PATH:"
+  echo "    export PATH=\"\$HOME/bin:\$PATH\"  # add this to ~/.zshrc"
+fi
+
+echo "[11/11] ✅ kitty v${TAG} installed to $INSTALL_DIR/kitty.app"

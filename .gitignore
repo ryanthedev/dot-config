@@ -1,5 +1,7 @@
 /*
 /*/
+*/.env*
+!aerospace/
 !bin/
 !polybar/
 !skhd/
@@ -18,3 +20,4 @@ nvim/plugin/
 !readme.md
 !vscode/
 !.gitignore
+!ghostty/
