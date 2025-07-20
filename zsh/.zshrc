@@ -141,6 +141,9 @@ alias pp=pip3
 # alias code='open -a "Visual Studio Code" --args --user-data-dir=$HOME/.config/vscode'
 
 
+# VSCode shell integration
+[[ "$TERM_PROGRAM" == "vscode" ]] && . "/Applications/Visual Studio Code.app/Contents/Resources/app/out/vs/workbench/contrib/terminal/common/scripts/shellIntegration-rc.zsh"
+
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 if command -v zoxide >/dev/null 2>&1; then

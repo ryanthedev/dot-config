@@ -4,6 +4,8 @@
     "rest-client.previewColumn": "current",
     "rest-client.showResponseInDifferentTab": false,
     "editor.hover.sticky": true,
+    "editor.fontFamily": "Berkeley Mono",
+    "editor.fontSize": "16",
     "workbench.colorTheme": "Gruvbox Dark Hard",
     "window.systemColorTheme": "dark",
     "hediet.vscode-drawio.theme": "dark",
@@ -92,5 +94,10 @@
     "bicep.enableSurveys": false,
     "[json]": {
         "editor.defaultFormatter": "vscode.json-language-features"
-    }
+    },
+    "terminal.integrated.defaultProfile.osx": "zsh",
+    "terminal.integrated.shellIntegration.enabled": true,
+    "terminal.integrated.shellIntegration.decorationsEnabled": "both",
+    "terminal.integrated.shellIntegration.history": 100,
+    "github.copilot.nextEditSuggestions.enabled": true
 }
