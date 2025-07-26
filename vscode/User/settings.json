@@ -103,5 +103,8 @@
     "security.workspace.trust.untrustedFiles": "open",
     "[xml]": {
         "editor.defaultFormatter": "PrateekMahendrakar.prettyxml"
+    },
+    "[html]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
     }
 }

@@ -35,4 +35,3 @@ palette = 15=#F9F9F9
 # Selection colors
 selection-background = #404040
 selection-foreground = #BFBFBF
-keybind = shift+enter=text:\n

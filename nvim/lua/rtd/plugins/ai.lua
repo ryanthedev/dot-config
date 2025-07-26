@@ -29,9 +29,19 @@ return {
       adapters = {
         dynamic = function()
           local env = load_env(vim.fn.expand("~") .. "/.config/nvim/.env")
-          local base_adapter = env.ADAPTER
-          local model = env.MODEL
-          return require("codecompanion.adapters").extend(base_adapter, {
+          local selected_adapter = vim.g.codecompanion_adapter or env.ADAPTER or "anthropic"  -- Fallback to anthropic if nothing set
+          local upper_adapter = selected_adapter:upper()
+          local model = env[upper_adapter .. "_MODEL"] or "default-model"  -- Adapter-specific model
+          local api_key = env[upper_adapter .. "_API_KEY"]  -- Adapter-specific API key
+
+          if not api_key then
+            error("API key not found in .env for " .. selected_adapter)
+          end
+
+          return require("codecompanion.adapters").extend(selected_adapter, {
+            env = {
+              api_key = api_key,
+            },
             schema = {
               model = {
                 default = model,
