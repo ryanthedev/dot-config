@@ -2,6 +2,7 @@
 /*/
 */.env*
 !aerospace/
+aerospace/aerospace.toml
 !bin/
 !polybar/
 !skhd/
