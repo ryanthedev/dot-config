@@ -14,6 +14,11 @@ after-startup-command = [
   'exec-and-forget borders active_color=0xff00ffff inactive_color=0xffff00ff width=8.0'
 ]
 
+# Notify Sketchybar about workspace change
+exec-on-workspace-change = ['/bin/bash', '-c',
+    'sketchybar --trigger aerospace_workspace_change FOCUSED_WORKSPACE=$AEROSPACE_FOCUSED_WORKSPACE'
+]
+
 [workspace-to-monitor-force-assignment]
     top = 'secondary'                            # Monitor sequence number from left to right. 1-based indexing
     main = 'main'                            # Monitor sequence number from left to right. 1-based indexing
@@ -81,5 +86,5 @@ inner.horizontal = 10
 inner.vertical   = 10
 outer.left       = 10
 outer.bottom     = 10
-outer.top        = 10
+outer.top        = 40
 outer.right      = 10
