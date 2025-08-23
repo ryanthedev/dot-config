@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+
+# ao: Fuzzy switch to any workspace on the currently focused monitor using fzf
+# Shows a single preferred window title for each workspace in the picker, and all window titles in the preview
+
+# 1) Get focused monitor’s ID (for use in commands)
+echo "[DEBUG] Getting focused monitor ID..."
+monitor_id=$(aerospace list-monitors --focused --json 2>&1 | jq -r '.[0]."monitor-id"')
+echo "[DEBUG] monitor_id: $monitor_id"
+
+# 2) Get all workspaces for the focused monitor
+echo "[DEBUG] Getting workspaces for monitor $monitor_id..."
+ws_json=$(aerospace list-workspaces --monitor "$monitor_id" --json 2>&1)
+echo "[DEBUG] ws_json: $ws_json"
+
+# 3) Build a list of workspace entries with a single preferred window title for each
+fzf_entries=()
+workspaces=($(printf '%s\n' "$ws_json" | jq -r '.[].workspace'))
+echo "[DEBUG] workspaces: ${workspaces[*]}"
+preview_data=$(mktemp)
+for ws_name in "${workspaces[@]}"; do
+  echo "[DEBUG] Listing windows for workspace: $ws_name"
+  windows_json=$(aerospace list-windows --workspace "$ws_name" --json 2>/dev/null)
+  echo -e "$ws_name\t$windows_json" >> "$preview_data"
+  echo "[DEBUG] windows_json for $ws_name: $windows_json"
+
+  # Find preferred window for picker line
+  preferred_title=$(printf '%s\n' "$windows_json" | jq -r '.[] | select(."app-name"=="Code") | "[Code] " + .["window-title"]' | head -n1)
+  [ -z "$preferred_title" ] && preferred_title=$(printf '%s\n' "$windows_json" | jq -r '.[] | select(."app-name"=="kitty") | "[kitty] " + .["window-title"]' | head -n1)
+  [ -z "$preferred_title" ] && preferred_title=$(printf '%s\n' "$windows_json" | jq -r '.[] | select(."app-name"=="Google Chrome") | "[Google Chrome] " + .["window-title"]' | head -n1)
+  [ -z "$preferred_title" ] && preferred_title=$(printf '%s\n' "$windows_json" | jq -r '.[] | "[" + .["app-name"] + "] " + .["window-title"]' | head -n1)
+  [ -z "$preferred_title" ] && preferred_title="(empty)"
+  echo "[DEBUG] preferred_title for $ws_name: $preferred_title"
+
+  entry="$ws_name: $preferred_title"
+  fzf_entries+=("$entry")
+done
+
+# 4) Use fzf to pick a workspace, showing all window titles in the preview
+echo "[DEBUG] Launching fzf for workspace selection..."
+selected=$(printf '%s\n' "${fzf_entries[@]}" | \
+  fzf --prompt="> " \
+      --preview='python3 $HOME/.config/bin/ao_preview.py "{}"' \
+      --preview-window=up:10:wrap)
+echo "[DEBUG] fzf selected: $selected"
+
+rm -f "$preview_data"
+
+if [[ -z "$selected" ]]; then
+  echo "No workspace selected. Exiting."
+  exit 0
+fi
+
+# 5) Extract workspace name from selection
+ws_name=$(echo "$selected" | awk -F: '{print $1}')
+echo "[DEBUG] Extracted ws_name: $ws_name"
+
+# 5.5) If running inside Kitty Quick Access Terminal, send fire-and-forget command
+if [[ -n "$KITTY_WINDOW_ID" && -n "$KITTY_LISTEN_ON" ]]; then
+  echo "[DEBUG] KITTY_WINDOW_ID is set: $KITTY_WINDOW_ID"
+  echo "[DEBUG] KITTY_LISTEN_ON is set: $KITTY_LISTEN_ON"
+  # Query kitty for the current window title
+  window_title=$(kitty @ ls | jq -r '.. | objects | select(.id? == env.KITTY_WINDOW_ID) | .title' 2>/dev/null)
+  echo "[DEBUG] kitty window title: $window_title"
+  if [[ "$window_title" =~ [Qq]uick ]]; then
+    echo "[DEBUG] Quick Access detected, sending kitten quick-access-terminal command"
+    kitten quick-access-terminal &
+  else
+    echo "[DEBUG] Not a Quick Access window, skipping kitten command"
+  fi
+else
+  echo "[DEBUG] Not running inside Kitty or missing env vars, skipping kitten command"
+fi
+
+# 6) Move the selected workspace to the focused monitor and focus it
+# echo "[DEBUG] Moving workspace $ws_name to monitor $monitor_id..."
+# aerospace move-workspace-to-monitor --workspace "$ws_name" "$monitor_id"
+echo "[DEBUG] Focusing workspace $ws_name..."
+aerospace workspace "$ws_name"

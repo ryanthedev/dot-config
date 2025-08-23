@@ -51,6 +51,9 @@ opt.iskeyword:append("-") -- consider string-string as whole word
 -- set leader key to space
 vim.g.mapleader = " "
 
-
+-- GUI font configuration (for Neovide, VimR, etc.)
+if vim.fn.has("gui_running") == 1 or vim.g.neovide then
+  vim.o.guifont = "BerkeleyMono Nerd Font:h14"
+end
 
 vim.diagnostic.config({virtual_text=false})

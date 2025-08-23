@@ -4,7 +4,7 @@
     "rest-client.previewColumn": "current",
     "rest-client.showResponseInDifferentTab": false,
     "editor.hover.sticky": true,
-    "editor.fontFamily": "Berkeley Mono",
+    "editor.fontFamily": "BerkeleyMono Nerd Font",
     "editor.fontSize": "16",
     "workbench.colorTheme": "Gruvbox Dark Hard",
     "window.systemColorTheme": "dark",
@@ -99,6 +99,7 @@
     "terminal.integrated.shellIntegration.enabled": true,
     "terminal.integrated.shellIntegration.decorationsEnabled": "both",
     "terminal.integrated.shellIntegration.history": 100,
+    "terminal.integrated.fontFamily": "BerkeleyMono Nerd Font",
     "github.copilot.nextEditSuggestions.enabled": true,
     "security.workspace.trust.untrustedFiles": "open",
     "[xml]": {

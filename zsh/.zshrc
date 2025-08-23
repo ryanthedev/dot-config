@@ -138,6 +138,8 @@ export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || pr
 alias k=kubectl
 alias vim=nvim
 alias p=python3
+alias python=python3
+alias pip=pip3
 alias pp=pip3
 
 # alias code='open -a "Visual Studio Code" --args --user-data-dir=$HOME/.config/vscode'

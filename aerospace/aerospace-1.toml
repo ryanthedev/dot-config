@@ -11,7 +11,8 @@ enable-normalization-opposite-orientation-for-nested-containers = false
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 
 after-startup-command = [
-  'exec-and-forget borders active_color=0xff00ffff inactive_color=0xffff00ff width=8.0'
+  'exec-and-forget borders active_color=0xff00ffff inactive_color=0xffff00ff width=8.0',
+  'exec-and-forget sketchybar'
 ]
 
 # Notify Sketchybar about workspace change
@@ -54,24 +55,24 @@ exec-on-workspace-change = ['/bin/bash', '-c',
     alt-w = 'layout h_accordion'
     alt-e = 'layout tiles horizontal vertical'
     alt-shift-space = 'layout floating tiling'
-    cmd-shift-c = 'exec-and-forget aero-ws-new'
-    cmd-shift-n = 'exec-and-forget aero-ws-next'
-    cmd-shift-r = 'exec-and-forget aero-ws-prev'
+    cmd-shift-c = 'exec-and-forget ao new'
+    cmd-shift-n = 'exec-and-forget ao next'
+    cmd-shift-r = 'exec-and-forget ao prev'
     alt-shift-r = 'reload-config'
     alt-r = 'mode resize'
-    cmd-1 = 'exec-and-forget apo j 1'
-    cmd-2 = 'exec-and-forget apo j 2'
-    cmd-3 = 'exec-and-forget apo j 3'
-    cmd-4 = 'exec-and-forget apo j 4'
-    cmd-5 = 'exec-and-forget apo j 5'
-    cmd-6 = 'exec-and-forget apo j 6'
-    cmd-7 = 'exec-and-forget apo j 7'
-    cmd-8 = 'exec-and-forget apo j 8'
-    cmd-9 = 'exec-and-forget apo j 9'
-    cmd-t = 'exec-and-forget apo a'
-    cmd-u = 'exec-and-forget apo e'
-    alt-tab = 'exec-and-forget apo c next'
-    alt-shift-tab = 'exec-and-forget apo c prev'
+    cmd-1 = 'exec-and-forget ao jump 1'
+    cmd-2 = 'exec-and-forget ao jump 2'
+    cmd-3 = 'exec-and-forget ao jump 3'
+    cmd-4 = 'exec-and-forget ao jump 4'
+    cmd-5 = 'exec-and-forget ao jump 5'
+    cmd-6 = 'exec-and-forget ao jump 6'
+    cmd-7 = 'exec-and-forget ao jump 7'
+    cmd-8 = 'exec-and-forget ao jump 8'
+    cmd-9 = 'exec-and-forget ao jump 9'
+    cmd-t = 'exec-and-forget ao add'
+    cmd-u = 'exec-and-forget ao edit'
+    alt-tab = 'exec-and-forget ao cycle next'
+    alt-shift-tab = 'exec-and-forget ao cycle prev'
 
 [mode.resize.binding]
     h = 'resize width -50'
@@ -86,5 +87,5 @@ inner.horizontal = 10
 inner.vertical   = 10
 outer.left       = 10
 outer.bottom     = 10
-outer.top        = 40
+outer.top        = 45
 outer.right      = 10

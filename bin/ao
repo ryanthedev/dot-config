@@ -1,79 +1,733 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
+"""
+ao - Unified AeroSpace workspace manager with Harpoon-like functionality
+"""
+import subprocess
+import os
+import sys
+import json
+import argparse
+from pathlib import Path
+from typing import List, Dict, Optional, Any
 
-# ao: Fuzzy switch to any workspace on the currently focused monitor using fzf
-# Shows a single preferred window title for each workspace in the picker, and all window titles in the preview
+class AeroSpaceManager:
+    def __init__(self):
+        self.apoon_dir = Path.home() / ".apoon"
+        self.apoon_dir.mkdir(exist_ok=True)
+        self.debug_mode = os.environ.get('AO_DEBUG', '').lower() in ('1', 'true', 'yes')
+    
+    def debug(self, msg: str):
+        if self.debug_mode:
+            print(f"[DEBUG] {msg}", file=sys.stderr)
+    
+    def run(self, cmd: List[str]) -> Optional[str]:
+        """Run a command and return output or None on error"""
+        self.debug(f"Running: {' '.join(cmd)}")
+        try:
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+            return result.stdout.strip()
+        except subprocess.CalledProcessError as e:
+            self.debug(f"Error: {e.stderr.strip()}")
+            return None
+    
+    def get_focused_monitor(self) -> Dict[str, Any]:
+        """Get the focused monitor info"""
+        out = self.run(["aerospace", "list-monitors", "--focused", "--json"])
+        if not out:
+            sys.exit("Could not get focused monitor.")
+        try:
+            monitors = json.loads(out)
+            if not monitors:
+                sys.exit("No focused monitor found.")
+            return monitors[0]
+        except (json.JSONDecodeError, IndexError, KeyError) as e:
+            sys.exit(f"Error parsing monitor: {e}")
+    
+    def get_focused_workspace(self) -> Optional[str]:
+        """Get the currently focused workspace name"""
+        out = self.run(["aerospace", "list-workspaces", "--focused", "--json"])
+        if not out:
+            return None
+        try:
+            return json.loads(out)[0]["workspace"]
+        except Exception as e:
+            self.debug(f"Error parsing focused workspace: {e}")
+            return None
+    
+    def get_monitor_workspaces(self, monitor_id: int) -> List[str]:
+        """Get all workspaces for a monitor"""
+        out = self.run(["aerospace", "list-workspaces", "--monitor", str(monitor_id), "--json"])
+        if not out:
+            return []
+        try:
+            return [ws["workspace"] for ws in json.loads(out)]
+        except Exception as e:
+            self.debug(f"Error parsing workspaces: {e}")
+            return []
+    
+    def get_workspace_windows(self, workspace: str) -> List[Dict[str, Any]]:
+        """Get windows in a workspace"""
+        out = self.run(["aerospace", "list-windows", "--workspace", workspace, "--json"])
+        if not out:
+            return []
+        try:
+            return json.loads(out)
+        except Exception as e:
+            self.debug(f"Error parsing windows: {e}")
+            return []
+    
+    def move_workspace_to_monitor(self, workspace: str, monitor_id: int) -> bool:
+        """Safely move a workspace to a specific monitor"""
+        self.debug(f"Attempting to move workspace {workspace} to monitor {monitor_id}")
+        
+        # Try with monitor ID first (most reliable)
+        result = self.run(["aerospace", "move-workspace-to-monitor", "--workspace", workspace, str(monitor_id)])
+        if result is not None:
+            self.debug(f"Successfully moved workspace {workspace} to monitor {monitor_id}")
+            return True
+        
+        # If that fails, get monitor info and try with name
+        out = self.run(["aerospace", "list-monitors", "--json"])
+        if out:
+            try:
+                monitors = json.loads(out)
+                for m in monitors:
+                    if m.get("monitor-id") == monitor_id:
+                        monitor_name = m.get("monitor-name", "")
+                        if monitor_name:
+                            self.debug(f"Retrying with monitor name: {monitor_name}")
+                            # Try with quoted name for names with spaces
+                            result = self.run(["aerospace", "move-workspace-to-monitor", "--workspace", workspace, f'"{monitor_name}"'])
+                            if result is not None:
+                                self.debug(f"Successfully moved workspace using monitor name")
+                                return True
+            except Exception as e:
+                self.debug(f"Error getting monitor info: {e}")
+        
+        self.debug(f"Failed to move workspace {workspace} to monitor {monitor_id}")
+        return False
+    
+    def get_session_file(self, monitor_id: int) -> Path:
+        """Get the session file path for a monitor"""
+        return self.apoon_dir / f"{monitor_id}_apoon_session"
+    
+    def clean_session_file(self, session_file: Path, valid_workspaces: List[str]):
+        """Clean up session file to only contain valid workspaces"""
+        if not session_file.exists():
+            return
+        
+        valid_set = set(valid_workspaces)
+        with session_file.open() as f:
+            lines = [line.strip() for line in f if line.strip()]
+        
+        cleaned = [ws for ws in lines if ws in valid_set]
+        with session_file.open("w") as f:
+            for ws in cleaned:
+                f.write(ws + "\n")
+        self.debug(f"Cleaned up session file: {session_file}")
+    
+    def cmd_switch(self, args):
+        """Fuzzy switch to any workspace (default behavior)"""
+        monitor = self.get_focused_monitor()
+        monitor_id = monitor["monitor-id"]
+        workspaces = self.get_monitor_workspaces(monitor_id)
+        
+        if not workspaces:
+            print("No workspaces found.")
+            return
+        
+        # Build fzf entries with window titles
+        fzf_entries = []
+        for ws_name in workspaces:
+            windows = self.get_workspace_windows(ws_name)
+            
+            # Find preferred window title
+            preferred_title = None
+            for priority_app in ["Code", "kitty", "Google Chrome"]:
+                for win in windows:
+                    if win.get("app-name") == priority_app:
+                        preferred_title = f"[{priority_app}] {win.get('window-title', '')}"
+                        break
+                if preferred_title:
+                    break
+            
+            if not preferred_title and windows:
+                win = windows[0]
+                preferred_title = f"[{win.get('app-name', '')}] {win.get('window-title', '')}"
+            
+            if not preferred_title:
+                preferred_title = "(empty)"
+            
+            entry = f"{ws_name}: {preferred_title}"
+            fzf_entries.append(entry)
+        
+        # Use fzf to select
+        try:
+            fzf_process = subprocess.Popen(
+                ["fzf", "--prompt=> ", "--preview-window=up:10:wrap"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                text=True
+            )
+            selected, _ = fzf_process.communicate("\n".join(fzf_entries))
+            selected = selected.strip()
+        except FileNotFoundError:
+            print("Error: fzf not found. Please install fzf.")
+            sys.exit(1)
+        
+        if not selected:
+            print("No workspace selected.")
+            return
+        
+        # Extract workspace name
+        ws_name = selected.split(":")[0]
+        
+        # Check if in Kitty Quick Access Terminal
+        if os.environ.get("KITTY_WINDOW_ID") and os.environ.get("KITTY_LISTEN_ON"):
+            try:
+                # Try to close quick access terminal
+                subprocess.run(["kitten", "quick-access-terminal"], check=False)
+            except:
+                pass
+        
+        # Switch to the workspace
+        self.run(["aerospace", "workspace", ws_name])
+    
+    def cmd_new(self, args):
+        """Move focused window to a new indexed workspace (e.g., main -> main-1)"""
+        current_ws = self.get_focused_workspace()
+        if not current_ws:
+            print("No focused workspace found.")
+            return
+        
+        # Parse prefix and index
+        if "-" in current_ws:
+            prefix, index_str = current_ws.rsplit("-", 1)
+            try:
+                index = int(index_str)
+            except ValueError:
+                prefix = current_ws
+                index = 0
+        else:
+            prefix = current_ws
+            index = 0
+        
+        # Create new workspace name
+        new_index = index + 1
+        new_ws = f"{prefix}-{new_index}"
+        
+        # Get monitor info
+        monitor = self.get_focused_monitor()
+        monitor_id = monitor["monitor-id"]
+        monitor_name = monitor["monitor-name"]
+        
+        self.debug(f"Moving window from {current_ws} to {new_ws} on monitor {monitor_id} ({monitor_name})")
+        
+        # Move window to new workspace
+        result = self.run(["aerospace", "move-node-to-workspace", new_ws])
+        if result is None:
+            print(f"Failed to move window to workspace {new_ws}")
+            return
+        
+        # Assign workspace to monitor
+        if not self.move_workspace_to_monitor(new_ws, monitor_id):
+            print(f"Warning: Could not assign workspace {new_ws} to monitor {monitor_id}")
+        
+        # Verify the workspace is on the correct monitor
+        monitor_workspaces = self.get_monitor_workspaces(monitor_id)
+        if new_ws in monitor_workspaces:
+            self.debug(f"Successfully created workspace {new_ws} on monitor {monitor_id}")
+        else:
+            print(f"Error: Workspace {new_ws} was not created on the expected monitor")
+    
+    def cmd_next(self, args):
+        """Navigate to next workspace with same prefix"""
+        current_ws = self.get_focused_workspace()
+        if not current_ws:
+            print("No focused workspace found.")
+            return
+        
+        monitor = self.get_focused_monitor()
+        workspaces = self.get_monitor_workspaces(monitor["monitor-id"])
+        
+        # Find next workspace
+        try:
+            current_idx = workspaces.index(current_ws)
+            next_idx = (current_idx + 1) % len(workspaces)
+            next_ws = workspaces[next_idx]
+            self.run(["aerospace", "workspace", next_ws])
+        except ValueError:
+            print(f"Current workspace {current_ws} not found in monitor workspaces.")
+    
+    def cmd_prev(self, args):
+        """Navigate to previous workspace with same prefix"""
+        current_ws = self.get_focused_workspace()
+        if not current_ws:
+            print("No focused workspace found.")
+            return
+        
+        monitor = self.get_focused_monitor()
+        workspaces = self.get_monitor_workspaces(monitor["monitor-id"])
+        
+        # Find previous workspace
+        try:
+            current_idx = workspaces.index(current_ws)
+            prev_idx = (current_idx - 1) % len(workspaces)
+            prev_ws = workspaces[prev_idx]
+            self.run(["aerospace", "workspace", prev_ws])
+        except ValueError:
+            print(f"Current workspace {current_ws} not found in monitor workspaces.")
+    
+    def cmd_add(self, args):
+        """Add current workspace to Harpoon-like session"""
+        monitor = self.get_focused_monitor()
+        monitor_id = monitor["monitor-id"]
+        workspaces = self.get_monitor_workspaces(monitor_id)
+        
+        session_file = self.get_session_file(monitor_id)
+        
+        # Clean up session file
+        self.clean_session_file(session_file, workspaces)
+        
+        focused_ws = self.get_focused_workspace()
+        if not focused_ws:
+            print("No focused workspace found.")
+            return
+        
+        # Read existing session
+        if session_file.exists():
+            with session_file.open() as f:
+                session_lines = [line.strip() for line in f if line.strip()]
+        else:
+            session_lines = []
+        
+        # Add if not present
+        if focused_ws not in session_lines:
+            with session_file.open("a") as f:
+                f.write(focused_ws + "\n")
+            print(f"Added workspace '{focused_ws}' to session")
+        else:
+            print(f"Workspace '{focused_ws}' already in session")
+    
+    def cmd_jump(self, args):
+        """Jump to workspace by number (1-9) in session"""
+        if not args.number:
+            print("Usage: ao jump <number>")
+            return
+        
+        try:
+            number = int(args.number)
+        except ValueError:
+            print("Number must be an integer.")
+            return
+        
+        monitor = self.get_focused_monitor()
+        monitor_id = monitor["monitor-id"]
+        session_file = self.get_session_file(monitor_id)
+        
+        if not session_file.exists():
+            print("No session file found. Use 'ao add' to add workspaces.")
+            return
+        
+        with session_file.open() as f:
+            workspaces = [line.strip() for line in f if line.strip()]
+        
+        if number < 1 or number > len(workspaces):
+            print(f"No workspace at position {number}. Session has {len(workspaces)} workspaces.")
+            return
+        
+        ws_name = workspaces[number - 1]
+        
+        # Move workspace to monitor and focus
+        if not self.move_workspace_to_monitor(ws_name, monitor_id):
+            print(f"Warning: Could not move workspace {ws_name} to monitor {monitor_id}")
+        
+        self.run(["aerospace", "workspace", ws_name])
+        print(f"Jumped to workspace '{ws_name}'")
+    
+    def cmd_list(self, args):
+        """List workspaces in current session"""
+        monitor = self.get_focused_monitor()
+        monitor_id = monitor["monitor-id"]
+        session_file = self.get_session_file(monitor_id)
+        
+        if not session_file.exists():
+            print("No session file found. Use 'ao add' to add workspaces.")
+            return
+        
+        with session_file.open() as f:
+            workspaces = [line.strip() for line in f if line.strip()]
+        
+        if not workspaces:
+            print("Session is empty. Use 'ao add' to add workspaces.")
+            return
+        
+        current_ws = self.get_focused_workspace()
+        
+        print(f"Session for monitor {monitor_id}:")
+        for i, ws in enumerate(workspaces, 1):
+            marker = " *" if ws == current_ws else ""
+            print(f"  {i}. {ws}{marker}")
+    
+    def cmd_edit(self, args):
+        """Edit the session file in your editor"""
+        monitor = self.get_focused_monitor()
+        monitor_id = monitor["monitor-id"]
+        session_file = self.get_session_file(monitor_id)
+        
+        editor = os.environ.get("EDITOR", "vim")
+        
+        if not session_file.exists():
+            session_file.touch()
+        
+        subprocess.run([editor, str(session_file)])
+        
+        # Clean up after editing
+        workspaces = self.get_monitor_workspaces(monitor_id)
+        self.clean_session_file(session_file, workspaces)
+    
+    def cmd_cycle(self, args):
+        """Cycle through workspaces in session"""
+        monitor = self.get_focused_monitor()
+        monitor_id = monitor["monitor-id"]
+        session_file = self.get_session_file(monitor_id)
+        
+        if not session_file.exists():
+            print("No session file found. Use 'ao add' to add workspaces.")
+            return
+        
+        with session_file.open() as f:
+            workspaces = [line.strip() for line in f if line.strip()]
+        
+        if not workspaces:
+            print("Session is empty. Use 'ao add' to add workspaces.")
+            return
+        
+        current_ws = self.get_focused_workspace()
+        
+        # Check if we're going backwards
+        reverse = getattr(args, 'direction', None) == 'prev'
+        
+        # Find next/prev workspace in session
+        try:
+            current_idx = workspaces.index(current_ws)
+            if reverse:
+                next_idx = (current_idx - 1) % len(workspaces)
+            else:
+                next_idx = (current_idx + 1) % len(workspaces)
+        except ValueError:
+            # Current workspace not in session, go to first/last
+            next_idx = len(workspaces) - 1 if reverse else 0
+        
+        next_ws = workspaces[next_idx]
+        
+        # Move workspace to monitor and focus
+        if not self.move_workspace_to_monitor(next_ws, monitor_id):
+            print(f"Warning: Could not move workspace {next_ws} to monitor {monitor_id}")
+        
+        self.run(["aerospace", "workspace", next_ws])
+        print(f"Cycled to workspace '{next_ws}'")
+    
+    def cmd_clear(self, args):
+        """Clear the session for current monitor"""
+        monitor = self.get_focused_monitor()
+        monitor_id = monitor["monitor-id"]
+        session_file = self.get_session_file(monitor_id)
+        
+        if session_file.exists():
+            session_file.unlink()
+            print(f"Cleared session for monitor {monitor_id}")
+        else:
+            print("No session to clear.")
+    
+    def cmd_move_next(self, args):
+        """Move focused window to next workspace"""
+        current_ws = self.get_focused_workspace()
+        if not current_ws:
+            print("No focused workspace found.")
+            return
+        
+        monitor = self.get_focused_monitor()
+        monitor_id = monitor["monitor-id"]
+        workspaces = self.get_monitor_workspaces(monitor_id)
+        
+        if len(workspaces) < 2:
+            print("Need at least 2 workspaces to move between.")
+            return
+        
+        # Find next workspace
+        try:
+            current_idx = workspaces.index(current_ws)
+            next_idx = (current_idx + 1) % len(workspaces)
+            next_ws = workspaces[next_idx]
+            
+            self.debug(f"Moving window from {current_ws} to {next_ws}")
+            result = self.run(["aerospace", "move-node-to-workspace", next_ws])
+            if result is None:
+                print(f"Failed to move window to workspace {next_ws}")
+            else:
+                print(f"Moved window to workspace '{next_ws}'")
+                # Optionally follow the window
+                if getattr(args, 'follow', False):
+                    self.run(["aerospace", "workspace", next_ws])
+        except ValueError:
+            print(f"Current workspace {current_ws} not found in monitor workspaces.")
+    
+    def cmd_move_prev(self, args):
+        """Move focused window to previous workspace"""
+        current_ws = self.get_focused_workspace()
+        if not current_ws:
+            print("No focused workspace found.")
+            return
+        
+        monitor = self.get_focused_monitor()
+        monitor_id = monitor["monitor-id"]
+        workspaces = self.get_monitor_workspaces(monitor_id)
+        
+        if len(workspaces) < 2:
+            print("Need at least 2 workspaces to move between.")
+            return
+        
+        # Find previous workspace
+        try:
+            current_idx = workspaces.index(current_ws)
+            prev_idx = (current_idx - 1) % len(workspaces)
+            prev_ws = workspaces[prev_idx]
+            
+            self.debug(f"Moving window from {current_ws} to {prev_ws}")
+            result = self.run(["aerospace", "move-node-to-workspace", prev_ws])
+            if result is None:
+                print(f"Failed to move window to workspace {prev_ws}")
+            else:
+                print(f"Moved window to workspace '{prev_ws}'")
+                # Optionally follow the window
+                if getattr(args, 'follow', False):
+                    self.run(["aerospace", "workspace", prev_ws])
+        except ValueError:
+            print(f"Current workspace {current_ws} not found in monitor workspaces.")
+    
+    def cmd_move(self, args):
+        """Move a window to any workspace using fzf"""
+        current_ws = self.get_focused_workspace()
+        if not current_ws:
+            print("No focused workspace found.")
+            return
+        
+        monitor = self.get_focused_monitor()
+        monitor_id = monitor["monitor-id"]
+        
+        # Get windows in current workspace
+        windows = self.get_workspace_windows(current_ws)
+        if not windows:
+            print("No windows in current workspace.")
+            return
+        
+        # If there's only one window, use it directly
+        if len(windows) == 1:
+            selected_window = windows[0]
+            print(f"Using only window: [{selected_window.get('app-name', '')}] {selected_window.get('window-title', '')}")
+        else:
+            # Build fzf entries for window selection
+            window_entries = []
+            for win in windows:
+                app_name = win.get("app-name", "Unknown")
+                window_title = win.get("window-title", "")
+                window_id = win.get("window-id", "")
+                entry = f"{window_id}|[{app_name}] {window_title}"
+                window_entries.append(entry)
+            
+            # Select window with fzf
+            try:
+                fzf_process = subprocess.Popen(
+                    ["fzf", "--prompt=Select window> ", "--preview-window=hidden"],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    text=True
+                )
+                selected, _ = fzf_process.communicate("\n".join(window_entries))
+                selected = selected.strip()
+            except FileNotFoundError:
+                print("Error: fzf not found. Please install fzf.")
+                return
+            
+            if not selected:
+                print("No window selected.")
+                return
+            
+            # Extract window ID
+            window_id = int(selected.split("|")[0])
+            selected_window = next((w for w in windows if w.get("window-id") == window_id), None)
+            if not selected_window:
+                print("Window not found.")
+                return
+        
+        # Now select target workspace
+        workspaces = self.get_monitor_workspaces(monitor_id)
+        
+        # Build fzf entries for workspace selection
+        fzf_entries = []
+        for ws_name in workspaces:
+            if ws_name == current_ws:
+                continue  # Skip current workspace
+            
+            windows = self.get_workspace_windows(ws_name)
+            
+            # Find preferred window title for display
+            preferred_title = None
+            for priority_app in ["Code", "kitty", "Google Chrome"]:
+                for win in windows:
+                    if win.get("app-name") == priority_app:
+                        preferred_title = f"[{priority_app}] {win.get('window-title', '')}"
+                        break
+                if preferred_title:
+                    break
+            
+            if not preferred_title and windows:
+                win = windows[0]
+                preferred_title = f"[{win.get('app-name', '')}] {win.get('window-title', '')}"
+            
+            if not preferred_title:
+                preferred_title = "(empty)"
+            
+            entry = f"{ws_name}: {preferred_title}"
+            fzf_entries.append(entry)
+        
+        if not fzf_entries:
+            print("No other workspaces available.")
+            return
+        
+        # Use fzf to select target workspace
+        try:
+            fzf_process = subprocess.Popen(
+                ["fzf", "--prompt=Move to workspace> ", "--preview-window=up:10:wrap"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                text=True
+            )
+            selected, _ = fzf_process.communicate("\n".join(fzf_entries))
+            selected = selected.strip()
+        except FileNotFoundError:
+            print("Error: fzf not found. Please install fzf.")
+            return
+        
+        if not selected:
+            print("No workspace selected.")
+            return
+        
+        # Extract workspace name
+        target_ws = selected.split(":")[0]
+        
+        # Focus the window first (in case multiple windows and we selected one)
+        window_id = selected_window.get("window-id")
+        if window_id:
+            self.run(["aerospace", "focus", "--window-id", str(window_id)])
+        
+        # Move the window
+        self.debug(f"Moving window to workspace {target_ws}")
+        result = self.run(["aerospace", "move-node-to-workspace", target_ws])
+        if result is None:
+            print(f"Failed to move window to workspace {target_ws}")
+        else:
+            print(f"Moved window to workspace '{target_ws}'")
+            # Optionally follow the window
+            if getattr(args, 'follow', False):
+                self.run(["aerospace", "workspace", target_ws])
 
-# 1) Get focused monitor’s ID (for use in commands)
-echo "[DEBUG] Getting focused monitor ID..."
-monitor_id=$(aerospace list-monitors --focused --json 2>&1 | jq -r '.[0]."monitor-id"')
-echo "[DEBUG] monitor_id: $monitor_id"
+def main():
+    manager = AeroSpaceManager()
+    
+    parser = argparse.ArgumentParser(
+        description="ao - Unified AeroSpace workspace manager",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Commands:
+  (none)        Fuzzy switch to any workspace (default)
+  new           Move focused window to new indexed workspace
+  next          Navigate to next workspace
+  prev          Navigate to previous workspace
+  move          Move window to any workspace (with fzf)
+  move-next     Move focused window to next workspace
+  move-prev     Move focused window to previous workspace
+  add           Add current workspace to Harpoon session
+  jump N        Jump to workspace N in session (1-9)
+  list          List workspaces in session
+  edit          Edit session file in $EDITOR
+  cycle         Cycle through session workspaces
+  clear         Clear the session
 
-# 2) Get all workspaces for the focused monitor
-echo "[DEBUG] Getting workspaces for monitor $monitor_id..."
-ws_json=$(aerospace list-workspaces --monitor "$monitor_id" --json 2>&1)
-echo "[DEBUG] ws_json: $ws_json"
+Examples:
+  ao            # Fuzzy workspace switcher
+  ao new        # Create new indexed workspace (main -> main-1)
+  ao move       # Move window to any workspace with fzf
+  ao move-next  # Move window to next workspace
+  ao move-prev  # Move window to previous workspace
+  ao add        # Add current workspace to session
+  ao jump 1     # Jump to first workspace in session
+  ao list       # Show session workspaces
+  ao cycle      # Cycle through session
 
-# 3) Build a list of workspace entries with a single preferred window title for each
-fzf_entries=()
-workspaces=($(printf '%s\n' "$ws_json" | jq -r '.[].workspace'))
-echo "[DEBUG] workspaces: ${workspaces[*]}"
-preview_data=$(mktemp)
-for ws_name in "${workspaces[@]}"; do
-  echo "[DEBUG] Listing windows for workspace: $ws_name"
-  windows_json=$(aerospace list-windows --workspace "$ws_name" --json 2>/dev/null)
-  echo -e "$ws_name\t$windows_json" >> "$preview_data"
-  echo "[DEBUG] windows_json for $ws_name: $windows_json"
+Environment:
+  AO_DEBUG=1    Enable debug output
+  EDITOR        Editor for 'ao edit' (default: vim)
+"""
+    )
+    
+    subparsers = parser.add_subparsers(dest='command', help='Commands')
+    
+    # Add subcommands
+    subparsers.add_parser('new', help='Move to new indexed workspace')
+    subparsers.add_parser('next', help='Go to next workspace')
+    subparsers.add_parser('prev', help='Go to previous workspace')
+    
+    # Move commands
+    move_parser = subparsers.add_parser('move', help='Move window to any workspace')
+    move_parser.add_argument('--follow', '-f', action='store_true', help='Follow window to new workspace')
+    
+    move_next_parser = subparsers.add_parser('move-next', help='Move window to next workspace')
+    move_next_parser.add_argument('--follow', '-f', action='store_true', help='Follow window to new workspace')
+    
+    move_prev_parser = subparsers.add_parser('move-prev', help='Move window to previous workspace')
+    move_prev_parser.add_argument('--follow', '-f', action='store_true', help='Follow window to new workspace')
+    
+    subparsers.add_parser('add', help='Add current workspace to session')
+    
+    jump_parser = subparsers.add_parser('jump', help='Jump to workspace by number')
+    jump_parser.add_argument('number', help='Workspace number (1-9)')
+    
+    subparsers.add_parser('list', help='List session workspaces')
+    subparsers.add_parser('edit', help='Edit session file')
+    
+    cycle_parser = subparsers.add_parser('cycle', help='Cycle through session')
+    cycle_parser.add_argument('direction', nargs='?', choices=['next', 'prev'], default='next', help='Direction to cycle (default: next)')
+    
+    subparsers.add_parser('clear', help='Clear session')
+    
+    args = parser.parse_args()
+    
+    # Map commands to methods
+    command_map = {
+        None: manager.cmd_switch,  # Default
+        'new': manager.cmd_new,
+        'next': manager.cmd_next,
+        'prev': manager.cmd_prev,
+        'move': manager.cmd_move,
+        'move-next': manager.cmd_move_next,
+        'move-prev': manager.cmd_move_prev,
+        'add': manager.cmd_add,
+        'jump': manager.cmd_jump,
+        'list': manager.cmd_list,
+        'edit': manager.cmd_edit,
+        'cycle': manager.cmd_cycle,
+        'clear': manager.cmd_clear,
+    }
+    
+    # Execute command
+    command = args.command
+    if command in command_map:
+        command_map[command](args)
+    else:
+        # Default to switch if no command
+        manager.cmd_switch(args)
 
-  # Find preferred window for picker line
-  preferred_title=$(printf '%s\n' "$windows_json" | jq -r '.[] | select(."app-name"=="Code") | "[Code] " + .["window-title"]' | head -n1)
-  [ -z "$preferred_title" ] && preferred_title=$(printf '%s\n' "$windows_json" | jq -r '.[] | select(."app-name"=="kitty") | "[kitty] " + .["window-title"]' | head -n1)
-  [ -z "$preferred_title" ] && preferred_title=$(printf '%s\n' "$windows_json" | jq -r '.[] | select(."app-name"=="Google Chrome") | "[Google Chrome] " + .["window-title"]' | head -n1)
-  [ -z "$preferred_title" ] && preferred_title=$(printf '%s\n' "$windows_json" | jq -r '.[] | "[" + .["app-name"] + "] " + .["window-title"]' | head -n1)
-  [ -z "$preferred_title" ] && preferred_title="(empty)"
-  echo "[DEBUG] preferred_title for $ws_name: $preferred_title"
-
-  entry="$ws_name: $preferred_title"
-  fzf_entries+=("$entry")
-done
-
-# 4) Use fzf to pick a workspace, showing all window titles in the preview
-echo "[DEBUG] Launching fzf for workspace selection..."
-selected=$(printf '%s\n' "${fzf_entries[@]}" | \
-  fzf --prompt="> " \
-      --preview='python3 $HOME/.config/bin/ao_preview.py "{}"' \
-      --preview-window=up:10:wrap)
-echo "[DEBUG] fzf selected: $selected"
-
-rm -f "$preview_data"
-
-if [[ -z "$selected" ]]; then
-  echo "No workspace selected. Exiting."
-  exit 0
-fi
-
-# 5) Extract workspace name from selection
-ws_name=$(echo "$selected" | awk -F: '{print $1}')
-echo "[DEBUG] Extracted ws_name: $ws_name"
-
-# 5.5) If running inside Kitty Quick Access Terminal, send fire-and-forget command
-if [[ -n "$KITTY_WINDOW_ID" && -n "$KITTY_LISTEN_ON" ]]; then
-  echo "[DEBUG] KITTY_WINDOW_ID is set: $KITTY_WINDOW_ID"
-  echo "[DEBUG] KITTY_LISTEN_ON is set: $KITTY_LISTEN_ON"
-  # Query kitty for the current window title
-  window_title=$(kitty @ ls | jq -r '.. | objects | select(.id? == env.KITTY_WINDOW_ID) | .title' 2>/dev/null)
-  echo "[DEBUG] kitty window title: $window_title"
-  if [[ "$window_title" =~ [Qq]uick ]]; then
-    echo "[DEBUG] Quick Access detected, sending kitten quick-access-terminal command"
-    kitten quick-access-terminal &
-  else
-    echo "[DEBUG] Not a Quick Access window, skipping kitten command"
-  fi
-else
-  echo "[DEBUG] Not running inside Kitty or missing env vars, skipping kitten command"
-fi
-
-# 6) Move the selected workspace to the focused monitor and focus it
-# echo "[DEBUG] Moving workspace $ws_name to monitor $monitor_id..."
-# aerospace move-workspace-to-monitor --workspace "$ws_name" "$monitor_id"
-echo "[DEBUG] Focusing workspace $ws_name..."
-aerospace workspace "$ws_name"
+if __name__ == "__main__":
+    main()
