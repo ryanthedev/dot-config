@@ -35,4 +35,6 @@ palette = 15=#F9F9F9
 # Selection colors
 selection-background = #404040
 selection-foreground = #BFBFBF
-keybind = shift+enter=text:\n
+# Send newline on Shift+Enter for Claude CLI
+# keybind = shift+enter=text:\\\n\r
+keybind = shift+enter=text:\x1b\r
