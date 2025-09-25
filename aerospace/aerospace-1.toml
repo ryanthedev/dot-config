@@ -29,6 +29,15 @@ exec-on-workspace-change = ['/bin/bash', '-c',
 #     if.window-title-regex-substring = 'KittyPopup'
 #     run = ['layout floating']
 
+[[on-window-detected]]
+    if.app-name-regex-substring = 'ueli'
+    run = ['layout floating']
+
+[[on-window-detected]]
+  if.app-id = "com.anycubic.anycubicslicer"
+  if.window-title-regex-substring = "Print Finished"
+  run = ["layout floating"]
+
 [mode.main.binding]
     ctrl-shift-enter = '''exec-and-forget osascript -e '
     do shell script "open -na \"Google Chrome\" --args --profile-directory=\"Default\" --new-window"'
