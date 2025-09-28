@@ -126,21 +126,125 @@ class AeroSpaceManager:
                 f.write(ws + "\n")
         self.debug(f"Cleaned up session file: {session_file}")
     
+    def cmd_windows(self, args):
+        """Fuzzy select and focus any window across all workspaces (default behavior)"""
+        # Get all monitors
+        out = self.run(["aerospace", "list-monitors", "--json"])
+        if not out:
+            print("Could not get monitors.")
+            return
+
+        try:
+            all_monitors = json.loads(out)
+        except json.JSONDecodeError:
+            print("Error parsing monitors.")
+            return
+
+        # Build list of all windows across all workspaces
+        all_windows = []
+        for mon in all_monitors:
+            mon_id = mon["monitor-id"]
+            mon_name = mon.get("monitor-name", f"Monitor {mon_id}")
+            workspaces = self.get_monitor_workspaces(mon_id)
+
+            for ws_name in workspaces:
+                windows = self.get_workspace_windows(ws_name)
+
+                for win in windows:
+                    app_name = win.get("app-name", "Unknown")
+                    window_title = win.get("window-title", "")
+                    window_id = win.get("window-id", "")
+
+                    # Format: window_id|workspace|monitor_id|display_string
+                    display = f"[{app_name}] {window_title} - {ws_name} ({mon_name})"
+                    entry = f"{window_id}|{ws_name}|{mon_id}|{display}"
+                    all_windows.append(entry)
+
+        if not all_windows:
+            print("No windows found.")
+            return
+
+        # Use fzf to select
+        fzf_entries = [entry.split("|")[3] for entry in all_windows]
+        try:
+            fzf_process = subprocess.Popen(
+                ["fzf", "--prompt=Select window> ", "--preview-window=up:10:wrap"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                text=True
+            )
+            selected, _ = fzf_process.communicate("\n".join(fzf_entries))
+            selected = selected.strip()
+        except FileNotFoundError:
+            print("Error: fzf not found. Please install fzf.")
+            sys.exit(1)
+
+        if not selected:
+            print("No window selected.")
+            return
+
+        # Find the matching window entry
+        selected_entry = None
+        for entry in all_windows:
+            if entry.split("|")[3] == selected:
+                selected_entry = entry
+                break
+
+        if not selected_entry:
+            print("Error finding selected window.")
+            return
+
+        parts = selected_entry.split("|")
+        window_id = parts[0]
+        workspace = parts[1]
+        monitor_id = int(parts[2])
+
+        # Check if in Kitty Quick Access Terminal
+        if os.environ.get("KITTY_WINDOW_ID") and os.environ.get("KITTY_LISTEN_ON"):
+            try:
+                # Try to close quick access terminal
+                subprocess.run(["kitten", "quick-access-terminal"], check=False)
+            except:
+                pass
+
+        # First switch to the workspace (which will handle monitor switching)
+        self.run(["aerospace", "workspace", workspace])
+
+        # Then focus the specific window
+        self.run(["aerospace", "focus", "--window-id", window_id])
+
+        # Try to move mouse to window center using cliclick if available
+        try:
+            # Get window bounds to calculate center
+            out = self.run(["aerospace", "list-windows", "--window-id", window_id, "--json"])
+            if out:
+                windows = json.loads(out)
+                if windows and len(windows) > 0:
+                    frame = windows[0].get("frame")
+                    if frame:
+                        x = frame.get("x", 0) + frame.get("width", 0) // 2
+                        y = frame.get("y", 0) + frame.get("height", 0) // 2
+                        # Try to use cliclick to move mouse
+                        subprocess.run(["cliclick", f"m:{x},{y}"], check=False, capture_output=True)
+        except:
+            # If cliclick is not available or fails, that's okay
+            pass
+
     def cmd_switch(self, args):
-        """Fuzzy switch to any workspace (default behavior)"""
+        """Fuzzy switch to any workspace on current monitor"""
         monitor = self.get_focused_monitor()
         monitor_id = monitor["monitor-id"]
         workspaces = self.get_monitor_workspaces(monitor_id)
-        
+
         if not workspaces:
             print("No workspaces found.")
             return
-        
+
         # Build fzf entries with window titles
         fzf_entries = []
         for ws_name in workspaces:
             windows = self.get_workspace_windows(ws_name)
-            
+
             # Find preferred window title
             preferred_title = None
             for priority_app in ["Code", "kitty", "Google Chrome"]:
@@ -150,17 +254,17 @@ class AeroSpaceManager:
                         break
                 if preferred_title:
                     break
-            
+
             if not preferred_title and windows:
                 win = windows[0]
                 preferred_title = f"[{win.get('app-name', '')}] {win.get('window-title', '')}"
-            
+
             if not preferred_title:
                 preferred_title = "(empty)"
-            
+
             entry = f"{ws_name}: {preferred_title}"
             fzf_entries.append(entry)
-        
+
         # Use fzf to select
         try:
             fzf_process = subprocess.Popen(
@@ -174,14 +278,14 @@ class AeroSpaceManager:
         except FileNotFoundError:
             print("Error: fzf not found. Please install fzf.")
             sys.exit(1)
-        
+
         if not selected:
             print("No workspace selected.")
             return
-        
+
         # Extract workspace name
         ws_name = selected.split(":")[0]
-        
+
         # Check if in Kitty Quick Access Terminal
         if os.environ.get("KITTY_WINDOW_ID") and os.environ.get("KITTY_LISTEN_ON"):
             try:
@@ -189,7 +293,7 @@ class AeroSpaceManager:
                 subprocess.run(["kitten", "quick-access-terminal"], check=False)
             except:
                 pass
-        
+
         # Switch to the workspace
         self.run(["aerospace", "workspace", ws_name])
     
@@ -799,7 +903,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Commands:
-  (none)        Fuzzy switch to any workspace (default)
+  (none)        Fuzzy select any window across all workspaces (default)
+  switch        Fuzzy switch to workspace on current monitor
   new           Move focused window to new indexed workspace
   next          Navigate to next workspace
   prev          Navigate to previous workspace
@@ -815,7 +920,8 @@ Commands:
   clear         Clear the session
 
 Examples:
-  ao            # Fuzzy workspace switcher
+  ao            # Fuzzy window selector (all workspaces)
+  ao switch     # Fuzzy workspace switcher (current monitor)
   ao new        # Create new indexed workspace (main -> main-1)
   ao move       # Move window to workspace on current monitor
   ao move-any   # Move window to workspace on any monitor
@@ -833,8 +939,9 @@ Environment:
     )
     
     subparsers = parser.add_subparsers(dest='command', help='Commands')
-    
+
     # Add subcommands
+    subparsers.add_parser('switch', help='Fuzzy switch to workspace on current monitor')
     subparsers.add_parser('new', help='Move to new indexed workspace')
     subparsers.add_parser('next', help='Go to next workspace')
     subparsers.add_parser('prev', help='Go to previous workspace')
@@ -869,7 +976,8 @@ Environment:
     
     # Map commands to methods
     command_map = {
-        None: manager.cmd_switch,  # Default
+        None: manager.cmd_windows,  # Default - select any window
+        'switch': manager.cmd_switch,
         'new': manager.cmd_new,
         'next': manager.cmd_next,
         'prev': manager.cmd_prev,
@@ -884,14 +992,14 @@ Environment:
         'cycle': manager.cmd_cycle,
         'clear': manager.cmd_clear,
     }
-    
+
     # Execute command
     command = args.command
     if command in command_map:
         command_map[command](args)
     else:
-        # Default to switch if no command
-        manager.cmd_switch(args)
+        # Default to windows if no command
+        manager.cmd_windows(args)
 
 if __name__ == "__main__":
     main()
