@@ -107,5 +107,17 @@
     },
     "[html]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "chat.instructionsFilesLocations": {
+        ".github/instructions": true,
+        "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-collections-post-response.instructions.md": true,
+        "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-collections-pre-request.instructions.md": true,
+        "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-folder-post-response.instructions.md": true,
+        "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-folder-pre-request.instructions.md": true,
+        "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-http-request-post-response.instructions.md": true,
+        "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-http-request-pre-request.instructions.md": true
+    },
+    "[javascript]": {
+        "editor.defaultFormatter": "vscode.typescript-language-features"
     }
 }
