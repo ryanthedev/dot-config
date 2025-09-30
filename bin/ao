@@ -474,21 +474,221 @@ class AeroSpaceManager:
             print(f"  {i}. {ws}{marker}")
     
     def cmd_edit(self, args):
-        """Edit the session file in your editor"""
-        monitor = self.get_focused_monitor()
-        monitor_id = monitor["monitor-id"]
-        session_file = self.get_session_file(monitor_id)
-        
+        """Edit workspace layout across all monitors"""
+        import tempfile
+        import re
+
+        # Get all monitors
+        out = self.run(["aerospace", "list-monitors", "--json"])
+        if not out:
+            print("Could not get monitors.")
+            return
+
+        try:
+            all_monitors = json.loads(out)
+        except json.JSONDecodeError:
+            print("Error parsing monitors.")
+            return
+
+        # Build current state
+        current_state = {}
+        file_content = []
+        file_content.append("# AeroSpace Layout Editor")
+        file_content.append("# - You can remove windows (they will be closed)")
+        file_content.append("# - You can add new workspace names")
+        file_content.append("# - You can move workspaces between monitors")
+        file_content.append("# - You CANNOT add/remove monitors or add windows")
+        file_content.append("# - Lines starting with # are ignored")
+        file_content.append("")
+
+        for mon in all_monitors:
+            mon_id = mon["monitor-id"]
+            mon_name = mon.get("monitor-name", f"Monitor {mon_id}")
+
+            # Store monitor info
+            current_state[mon_id] = {
+                "name": mon_name,
+                "workspaces": {},
+                "original_workspaces": []
+            }
+
+            # Add monitor header
+            file_content.append(f"Monitor {mon_id}: {mon_name}")
+
+            # Get workspaces for this monitor
+            workspaces = self.get_monitor_workspaces(mon_id)
+            current_state[mon_id]["original_workspaces"] = workspaces.copy()
+
+            if not workspaces:
+                file_content.append("  (no workspaces)")
+
+            for ws_name in workspaces:
+                file_content.append(f"  {ws_name}:")
+
+                # Get windows for this workspace
+                windows = self.get_workspace_windows(ws_name)
+                current_state[mon_id]["workspaces"][ws_name] = []
+
+                if not windows:
+                    file_content.append("    (empty)")
+                else:
+                    for win in windows:
+                        app_name = win.get("app-name", "Unknown")
+                        window_title = win.get("window-title", "")
+                        window_id = win.get("window-id", "")
+
+                        # Store window info
+                        current_state[mon_id]["workspaces"][ws_name].append(window_id)
+
+                        # Add window line
+                        file_content.append(f"    - [{app_name}] {window_title} (id: {window_id})")
+
+            file_content.append("")
+
+        # Write to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            temp_path = f.name
+            f.write("\n".join(file_content))
+
+        # Open in editor
         editor = os.environ.get("EDITOR", "vim")
-        
-        if not session_file.exists():
-            session_file.touch()
-        
-        subprocess.run([editor, str(session_file)])
-        
-        # Clean up after editing
-        workspaces = self.get_monitor_workspaces(monitor_id)
-        self.clean_session_file(session_file, workspaces)
+        subprocess.run([editor, temp_path])
+
+        # Read back the edited file
+        try:
+            with open(temp_path, 'r') as f:
+                edited_lines = f.readlines()
+        finally:
+            os.unlink(temp_path)
+
+        # Parse edited file
+        new_state = {}
+        current_monitor = None
+        current_workspace = None
+
+        monitor_pattern = re.compile(r'^Monitor (\d+):')
+        workspace_pattern = re.compile(r'^  ([^\s#].*):$')
+        window_pattern = re.compile(r'^    - .*\(id: (\d+)\)$')
+        empty_workspace_pattern = re.compile(r'^    \(empty\)$')
+
+        for line in edited_lines:
+            line = line.rstrip('\n')
+
+            # Skip comments and empty lines
+            if line.startswith('#') or not line.strip():
+                continue
+
+            # Check for monitor
+            mon_match = monitor_pattern.match(line)
+            if mon_match:
+                current_monitor = int(mon_match.group(1))
+                if current_monitor not in new_state:
+                    new_state[current_monitor] = {"workspaces": {}}
+                current_workspace = None
+                continue
+
+            # Check for workspace
+            ws_match = workspace_pattern.match(line)
+            if ws_match and current_monitor is not None:
+                current_workspace = ws_match.group(1).strip()
+                new_state[current_monitor]["workspaces"][current_workspace] = []
+                continue
+
+            # Check for window
+            win_match = window_pattern.match(line)
+            if win_match and current_workspace is not None:
+                window_id = int(win_match.group(1))
+                new_state[current_monitor]["workspaces"][current_workspace].append(window_id)
+                continue
+
+            # Check for empty workspace marker
+            if empty_workspace_pattern.match(line) and current_workspace is not None:
+                # Workspace remains empty
+                continue
+
+        # Apply changes
+        changes_made = []
+
+        # Collect all windows in new state (across all workspaces)
+        all_new_windows = set()
+        for new_mon_id, new_mon_data in new_state.items():
+            for ws_name, windows in new_mon_data["workspaces"].items():
+                all_new_windows.update(windows)
+
+        # 1. Move windows to different workspaces
+        for mon_id, mon_data in current_state.items():
+            for ws_name, original_windows in mon_data["workspaces"].items():
+                new_windows = []
+                # Find where this workspace ended up
+                for new_mon_id, new_mon_data in new_state.items():
+                    if ws_name in new_mon_data["workspaces"]:
+                        new_windows = new_mon_data["workspaces"][ws_name]
+                        break
+
+                # Find windows that were moved out of this workspace
+                for win_id in original_windows:
+                    if win_id not in new_windows:
+                        # Check if window was moved to a different workspace
+                        new_workspace = None
+                        new_monitor = None
+                        for new_mon_id, new_mon_data in new_state.items():
+                            for new_ws_name, new_ws_windows in new_mon_data["workspaces"].items():
+                                if win_id in new_ws_windows and new_ws_name != ws_name:
+                                    new_workspace = new_ws_name
+                                    new_monitor = new_mon_id
+                                    break
+                            if new_workspace:
+                                break
+
+                        if new_workspace:
+                            # Move window to new workspace
+                            self.debug(f"Moving window {win_id} from {ws_name} to {new_workspace}")
+                            # Focus the window first
+                            self.run(["aerospace", "focus", "--window-id", str(win_id)])
+                            # Move it
+                            result = self.run(["aerospace", "move-node-to-workspace", new_workspace])
+                            if result is not None:
+                                changes_made.append(f"Moved window {win_id} from '{ws_name}' to '{new_workspace}'")
+                        elif win_id not in all_new_windows:
+                            # Window was removed entirely - close it
+                            self.debug(f"Closing window {win_id}")
+                            result = self.run(["aerospace", "close", "--window-id", str(win_id)])
+                            if result is not None:
+                                changes_made.append(f"Closed window {win_id}")
+
+        # 2. Move workspaces to different monitors
+        for mon_id, mon_data in new_state.items():
+            for ws_name in mon_data["workspaces"].keys():
+                # Find original monitor for this workspace
+                original_monitor = None
+                for orig_mon_id, orig_data in current_state.items():
+                    if ws_name in orig_data["workspaces"]:
+                        original_monitor = orig_mon_id
+                        break
+
+                # If workspace moved to a different monitor or is new
+                if original_monitor != mon_id:
+                    if original_monitor is None:
+                        # New workspace - create it
+                        self.debug(f"Creating new workspace {ws_name} on monitor {mon_id}")
+                        # Create by moving to it (it will be created if it doesn't exist)
+                        self.run(["aerospace", "workspace", ws_name])
+                        # Then ensure it's on the right monitor
+                        if self.move_workspace_to_monitor(ws_name, mon_id):
+                            changes_made.append(f"Created workspace '{ws_name}' on monitor {mon_id}")
+                    else:
+                        # Existing workspace - move it
+                        self.debug(f"Moving workspace {ws_name} from monitor {original_monitor} to {mon_id}")
+                        if self.move_workspace_to_monitor(ws_name, mon_id):
+                            changes_made.append(f"Moved workspace '{ws_name}' from monitor {original_monitor} to {mon_id}")
+
+        # Report changes
+        if changes_made:
+            print("Changes applied:")
+            for change in changes_made:
+                print(f"  - {change}")
+        else:
+            print("No changes detected.")
     
     def cmd_cycle(self, args):
         """Cycle through workspaces in session"""
@@ -915,7 +1115,7 @@ Commands:
   add           Add current workspace to Harpoon session
   jump N        Jump to workspace N in session (1-9)
   list          List workspaces in session
-  edit          Edit session file in $EDITOR
+  edit          Edit workspace layout (manage windows/workspaces across monitors)
   cycle         Cycle through session workspaces
   clear         Clear the session
 
@@ -965,8 +1165,8 @@ Environment:
     jump_parser.add_argument('number', help='Workspace number (1-9)')
     
     subparsers.add_parser('list', help='List session workspaces')
-    subparsers.add_parser('edit', help='Edit session file')
-    
+    subparsers.add_parser('edit', help='Edit workspace layout across all monitors')
+
     cycle_parser = subparsers.add_parser('cycle', help='Cycle through session')
     cycle_parser.add_argument('direction', nargs='?', choices=['next', 'prev'], default='next', help='Direction to cycle (default: next)')
     
