@@ -16,7 +16,7 @@ after-startup-command = [
 
 [workspace-to-monitor-force-assignment]
     main = '^C49HG9.*' 
-    left = '^Built.*'                            # Monitor sequence number from left to right. 1-based indexing
+    right = '^Built.*'                            # Monitor sequence number from left to right. 1-based indexing
     top = '^ASUS.*' 
 
 [[on-window-detected]]
