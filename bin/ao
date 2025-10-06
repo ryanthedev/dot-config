@@ -810,6 +810,14 @@ class AeroSpaceManager:
         except ValueError:
             print(f"Current workspace {current_ws} not found in monitor workspaces.")
     
+    def cmd_mouse(self, args):
+        """Move mouse to center of active window"""
+        result = self.run(["aerospace", "move-mouse", "window-lazy-center"])
+        if result is None:
+            print("Failed to move mouse to active window.")
+        else:
+            print("Moved mouse to active window center")
+
     def cmd_move_any(self, args):
         """Move a window to any workspace on any monitor using fzf"""
         current_ws = self.get_focused_workspace()
@@ -1112,6 +1120,7 @@ Commands:
   move-any      Move window to any workspace on any monitor (with fzf)
   move-next     Move focused window to next workspace
   move-prev     Move focused window to previous workspace
+  mouse         Move mouse to center of active window
   add           Add current workspace to Harpoon session
   jump N        Jump to workspace N in session (1-9)
   list          List workspaces in session
@@ -1127,6 +1136,7 @@ Examples:
   ao move-any   # Move window to workspace on any monitor
   ao move-next  # Move window to next workspace
   ao move-prev  # Move window to previous workspace
+  ao mouse      # Move mouse to active window center
   ao add        # Add current workspace to session
   ao jump 1     # Jump to first workspace in session
   ao list       # Show session workspaces
@@ -1159,6 +1169,8 @@ Environment:
     move_prev_parser = subparsers.add_parser('move-prev', help='Move window to previous workspace')
     move_prev_parser.add_argument('--follow', '-f', action='store_true', help='Follow window to new workspace')
     
+    subparsers.add_parser('mouse', help='Move mouse to center of active window')
+
     subparsers.add_parser('add', help='Add current workspace to session')
     
     jump_parser = subparsers.add_parser('jump', help='Jump to workspace by number')
@@ -1185,6 +1197,7 @@ Environment:
         'move-any': manager.cmd_move_any,
         'move-next': manager.cmd_move_next,
         'move-prev': manager.cmd_move_prev,
+        'mouse': manager.cmd_mouse,
         'add': manager.cmd_add,
         'jump': manager.cmd_jump,
         'list': manager.cmd_list,

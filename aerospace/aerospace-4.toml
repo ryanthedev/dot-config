@@ -7,8 +7,7 @@
 enable-normalization-flatten-containers = false
 enable-normalization-opposite-orientation-for-nested-containers = false
 
-# Mouse follows focus when focused monitor changes
-on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
+on-focus-changed = ['move-mouse window-lazy-center'] # Mouse lazily follows any focus (window or workspace)
 
 after-startup-command = [
   'exec-and-forget borders active_color=0xff00ffff inactive_color=0xffff00ff width=8.0'
@@ -70,6 +69,7 @@ after-startup-command = [
     cmd-9 = 'exec-and-forget ao jump 9'
     cmd-t = 'exec-and-forget ao add'
     cmd-u = 'exec-and-forget ao edit'
+    cmd-m = 'exec-and-forget ao mouse'
     alt-tab = 'exec-and-forget ao cycle next'
     alt-shift-tab = 'exec-and-forget ao cycle prev'
 
