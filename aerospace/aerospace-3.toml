@@ -32,7 +32,7 @@ after-startup-command = [
     do shell script "open -na /Applications/Google\\ Chrome.app --args --profile-directory=\"Profile 1\" --new-window"'
     '''
     shift-alt-enter = '''exec-and-forget osascript -e '
-    do shell script "open -na /Applications/Google\\ Chrome.app --args --profile-directory=\"Profile 2\" --new-window"'
+    do shell script "open -na /Applications/Google\\ Chrome.app --args --profile-directory=\"Default\" --new-window"'
     '''
     cmd-enter = 'exec-and-forget TMUX= && open -na ghostty'
     cmd-h = 'focus --boundaries all-monitors-outer-frame --boundaries-action wrap-around-all-monitors left'
