@@ -976,6 +976,152 @@ class AeroSpaceManager:
         if getattr(args, 'follow', False):
             self.run(["aerospace", "workspace", target_ws])
 
+    def cmd_move_workspace(self, args):
+        """Move a workspace to a different monitor using fzf"""
+        # Get all monitors
+        out = self.run(["aerospace", "list-monitors", "--json"])
+        if not out:
+            print("Could not get monitors.")
+            return
+
+        try:
+            all_monitors = json.loads(out)
+        except json.JSONDecodeError:
+            print("Error parsing monitors.")
+            return
+
+        if len(all_monitors) < 2:
+            print("Need at least 2 monitors to move workspaces between them.")
+            return
+
+        # Build list of all workspaces across all monitors for selection
+        all_workspaces = []
+        for mon in all_monitors:
+            mon_id = mon["monitor-id"]
+            mon_name = mon.get("monitor-name", f"Monitor {mon_id}")
+            workspaces = self.get_monitor_workspaces(mon_id)
+
+            for ws_name in workspaces:
+                windows = self.get_workspace_windows(ws_name)
+
+                # Find preferred window title for display
+                preferred_title = None
+                for priority_app in ["Code", "kitty", "Google Chrome"]:
+                    for win in windows:
+                        if win.get("app-name") == priority_app:
+                            preferred_title = f"[{priority_app}] {win.get('window-title', '')}"
+                            break
+                    if preferred_title:
+                        break
+
+                if not preferred_title and windows:
+                    win = windows[0]
+                    preferred_title = f"[{win.get('app-name', '')}] {win.get('window-title', '')}"
+
+                if not preferred_title:
+                    preferred_title = "(empty)"
+
+                # Format: workspace_name|current_monitor_id|display_string
+                entry = f"{ws_name}|{mon_id}|{ws_name} [{mon_name}]: {preferred_title}"
+                all_workspaces.append(entry)
+
+        if not all_workspaces:
+            print("No workspaces found.")
+            return
+
+        # Use fzf to select workspace
+        fzf_entries = [entry.split("|")[2] for entry in all_workspaces]
+        try:
+            fzf_process = subprocess.Popen(
+                ["fzf", "--prompt=Select workspace to move> ", "--preview-window=up:10:wrap"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                text=True
+            )
+            selected, _ = fzf_process.communicate("\n".join(fzf_entries))
+            selected = selected.strip()
+        except FileNotFoundError:
+            print("Error: fzf not found. Please install fzf.")
+            return
+
+        if not selected:
+            print("No workspace selected.")
+            return
+
+        # Find the matching workspace entry
+        selected_entry = None
+        for entry in all_workspaces:
+            if entry.split("|")[2] == selected:
+                selected_entry = entry
+                break
+
+        if not selected_entry:
+            print("Error finding selected workspace.")
+            return
+
+        parts = selected_entry.split("|")
+        workspace_name = parts[0]
+        current_monitor_id = int(parts[1])
+
+        # Build list of monitors for selection
+        monitor_entries = []
+        for mon in all_monitors:
+            mon_id = mon["monitor-id"]
+            mon_name = mon.get("monitor-name", f"Monitor {mon_id}")
+
+            # Mark current monitor
+            current_marker = " (current)" if mon_id == current_monitor_id else ""
+            entry = f"{mon_id}|Monitor {mon_id}: {mon_name}{current_marker}"
+            monitor_entries.append(entry)
+
+        # Use fzf to select target monitor
+        fzf_monitor_entries = [entry.split("|")[1] for entry in monitor_entries]
+        try:
+            fzf_process = subprocess.Popen(
+                ["fzf", "--prompt=Move to monitor> ", "--preview-window=hidden"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                text=True
+            )
+            selected_mon, _ = fzf_process.communicate("\n".join(fzf_monitor_entries))
+            selected_mon = selected_mon.strip()
+        except FileNotFoundError:
+            print("Error: fzf not found. Please install fzf.")
+            return
+
+        if not selected_mon:
+            print("No monitor selected.")
+            return
+
+        # Find the matching monitor entry
+        selected_monitor_entry = None
+        for entry in monitor_entries:
+            if entry.split("|")[1] == selected_mon:
+                selected_monitor_entry = entry
+                break
+
+        if not selected_monitor_entry:
+            print("Error finding selected monitor.")
+            return
+
+        target_monitor_id = int(selected_monitor_entry.split("|")[0])
+
+        # Check if already on target monitor
+        if current_monitor_id == target_monitor_id:
+            print(f"Workspace '{workspace_name}' is already on monitor {target_monitor_id}")
+            return
+
+        # Move the workspace to the target monitor
+        self.debug(f"Moving workspace {workspace_name} from monitor {current_monitor_id} to {target_monitor_id}")
+        if self.move_workspace_to_monitor(workspace_name, target_monitor_id):
+            print(f"Moved workspace '{workspace_name}' to monitor {target_monitor_id}")
+
+            # Optionally follow the workspace
+            if getattr(args, 'follow', False):
+                self.run(["aerospace", "workspace", workspace_name])
+        else:
+            print(f"Failed to move workspace '{workspace_name}' to monitor {target_monitor_id}")
+
     def cmd_move(self, args):
         """Move a window to any workspace using fzf"""
         current_ws = self.get_focused_workspace()
@@ -991,7 +1137,7 @@ class AeroSpaceManager:
         if not windows:
             print("No windows in current workspace.")
             return
-        
+
         # If there's only one window, use it directly
         if len(windows) == 1:
             selected_window = windows[0]
@@ -1005,7 +1151,7 @@ class AeroSpaceManager:
                 window_id = win.get("window-id", "")
                 entry = f"{window_id}|[{app_name}] {window_title}"
                 window_entries.append(entry)
-            
+
             # Select window with fzf
             try:
                 fzf_process = subprocess.Popen(
@@ -1019,29 +1165,29 @@ class AeroSpaceManager:
             except FileNotFoundError:
                 print("Error: fzf not found. Please install fzf.")
                 return
-            
+
             if not selected:
                 print("No window selected.")
                 return
-            
+
             # Extract window ID
             window_id = int(selected.split("|")[0])
             selected_window = next((w for w in windows if w.get("window-id") == window_id), None)
             if not selected_window:
                 print("Window not found.")
                 return
-        
+
         # Now select target workspace
         workspaces = self.get_monitor_workspaces(monitor_id)
-        
+
         # Build fzf entries for workspace selection
         fzf_entries = []
         for ws_name in workspaces:
             if ws_name == current_ws:
                 continue  # Skip current workspace
-            
+
             windows = self.get_workspace_windows(ws_name)
-            
+
             # Find preferred window title for display
             preferred_title = None
             for priority_app in ["Code", "kitty", "Google Chrome"]:
@@ -1051,21 +1197,21 @@ class AeroSpaceManager:
                         break
                 if preferred_title:
                     break
-            
+
             if not preferred_title and windows:
                 win = windows[0]
                 preferred_title = f"[{win.get('app-name', '')}] {win.get('window-title', '')}"
-            
+
             if not preferred_title:
                 preferred_title = "(empty)"
-            
+
             entry = f"{ws_name}: {preferred_title}"
             fzf_entries.append(entry)
-        
+
         if not fzf_entries:
             print("No other workspaces available.")
             return
-        
+
         # Use fzf to select target workspace
         try:
             fzf_process = subprocess.Popen(
@@ -1079,19 +1225,19 @@ class AeroSpaceManager:
         except FileNotFoundError:
             print("Error: fzf not found. Please install fzf.")
             return
-        
+
         if not selected:
             print("No workspace selected.")
             return
-        
+
         # Extract workspace name
         target_ws = selected.split(":")[0]
-        
+
         # Focus the window first (in case multiple windows and we selected one)
         window_id = selected_window.get("window-id")
         if window_id:
             self.run(["aerospace", "focus", "--window-id", str(window_id)])
-        
+
         # Move the window
         self.debug(f"Moving window to workspace {target_ws}")
         result = self.run(["aerospace", "move-node-to-workspace", target_ws])
@@ -1111,36 +1257,39 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Commands:
-  (none)        Fuzzy select any window across all workspaces (default)
-  switch        Fuzzy switch to workspace on current monitor
-  new           Move focused window to new indexed workspace
-  next          Navigate to next workspace
-  prev          Navigate to previous workspace
-  move          Move window to workspace on current monitor (with fzf)
-  move-any      Move window to any workspace on any monitor (with fzf)
-  move-next     Move focused window to next workspace
-  move-prev     Move focused window to previous workspace
-  mouse         Move mouse to center of active window
-  add           Add current workspace to Harpoon session
-  jump N        Jump to workspace N in session (1-9)
-  list          List workspaces in session
-  edit          Edit workspace layout (manage windows/workspaces across monitors)
-  cycle         Cycle through session workspaces
-  clear         Clear the session
+  (none)          Fuzzy select any window across all workspaces (default)
+  switch          Fuzzy switch to workspace on current monitor
+  new             Move focused window to new indexed workspace
+  next            Navigate to next workspace
+  prev            Navigate to previous workspace
+  move            Move window to workspace on current monitor (with fzf)
+  move-any        Move window to any workspace on any monitor (with fzf)
+  move-workspace  Move workspace to a different monitor (with fzf)
+  move-next       Move focused window to next workspace
+  move-prev       Move focused window to previous workspace
+  mouse           Move mouse to center of active window
+  add             Add current workspace to Harpoon session
+  jump N          Jump to workspace N in session (1-9)
+  list            List workspaces in session
+  edit            Edit workspace layout (manage windows/workspaces across monitors)
+  cycle           Cycle through session workspaces
+  clear           Clear the session
 
 Examples:
-  ao            # Fuzzy window selector (all workspaces)
-  ao switch     # Fuzzy workspace switcher (current monitor)
-  ao new        # Create new indexed workspace (main -> main-1)
-  ao move       # Move window to workspace on current monitor
-  ao move-any   # Move window to workspace on any monitor
-  ao move-next  # Move window to next workspace
-  ao move-prev  # Move window to previous workspace
-  ao mouse      # Move mouse to active window center
-  ao add        # Add current workspace to session
-  ao jump 1     # Jump to first workspace in session
-  ao list       # Show session workspaces
-  ao cycle      # Cycle through session
+  ao                     # Fuzzy window selector (all workspaces)
+  ao switch              # Fuzzy workspace switcher (current monitor)
+  ao new                 # Create new indexed workspace (main -> main-1)
+  ao move                # Move window to workspace on current monitor
+  ao move-any            # Move window to workspace on any monitor
+  ao move-workspace      # Move workspace to different monitor
+  ao move-workspace -f   # Move workspace and follow it
+  ao move-next           # Move window to next workspace
+  ao move-prev           # Move window to previous workspace
+  ao mouse               # Move mouse to active window center
+  ao add                 # Add current workspace to session
+  ao jump 1              # Jump to first workspace in session
+  ao list                # Show session workspaces
+  ao cycle               # Cycle through session
 
 Environment:
   AO_DEBUG=1    Enable debug output
@@ -1162,6 +1311,9 @@ Environment:
 
     move_any_parser = subparsers.add_parser('move-any', help='Move window to any workspace on any monitor')
     move_any_parser.add_argument('--follow', '-f', action='store_true', help='Follow window to new workspace')
+
+    move_workspace_parser = subparsers.add_parser('move-workspace', help='Move workspace to a different monitor')
+    move_workspace_parser.add_argument('--follow', '-f', action='store_true', help='Follow workspace after moving')
 
     move_next_parser = subparsers.add_parser('move-next', help='Move window to next workspace')
     move_next_parser.add_argument('--follow', '-f', action='store_true', help='Follow window to new workspace')
@@ -1195,6 +1347,7 @@ Environment:
         'prev': manager.cmd_prev,
         'move': manager.cmd_move,
         'move-any': manager.cmd_move_any,
+        'move-workspace': manager.cmd_move_workspace,
         'move-next': manager.cmd_move_next,
         'move-prev': manager.cmd_move_prev,
         'mouse': manager.cmd_mouse,
