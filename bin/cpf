@@ -1,0 +1,10 @@
+#!/bin/zsh
+
+# Copy full path to clipboard
+if [ $# -eq 0 ]; then
+    echo "Usage: cpf <file>"
+    exit 1
+fi
+
+realpath "$1" | tr -d '\n' | pbcopy
+echo "Copied to clipboard: $(realpath "$1")"

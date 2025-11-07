@@ -180,3 +180,6 @@ if [ -f $HOME/.config/zsh/.env ]; then
     source $HOME/.config/zsh/.env
     set +a  # Stop auto-exporting
 fi
+
+# Disable line wrap?
+tput rmam

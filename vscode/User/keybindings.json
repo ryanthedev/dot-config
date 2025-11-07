@@ -21,7 +21,15 @@
     "key": "cmd+t",
     "command": "multiCommand.minimizeTerminal",
     "when": "terminalFocus"
-  },
+},
+{
+    "key": "shift+enter",
+    "command": "workbench.action.terminal.sendSequence",
+    "args": {
+        "text": "\u001b\r"
+    },
+    "when": "terminalFocus"
+},
 
 
 ]
