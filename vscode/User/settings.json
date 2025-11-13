@@ -1,123 +1,166 @@
 {
-    "rest-client.previewResponsePanelTakeFocus": false,
-    "rest-client.previewResponseInUntitledDocument": true,
-    "rest-client.previewColumn": "current",
-    "rest-client.showResponseInDifferentTab": false,
-    "editor.hover.sticky": true,
-    "editor.fontFamily": "BerkeleyMono Nerd Font",
-    "editor.fontSize": "16",
-    "workbench.colorTheme": "Gruvbox Dark Hard",
-    "window.systemColorTheme": "dark",
-    "hediet.vscode-drawio.theme": "dark",
-    "markdown-mermaid.lightModeTheme": "dark",
-    "typescript.inlayHints.enumMemberValues.enabled": true,
-    "workbench.sideBar.location": "right",
-    "vim.useSystemClipboard": true,
-    "editor.lineNumbers": "relative",
-    "git.openRepositoryInParentFolders": "never",
-    "azureFunctions.showProjectWarning": false,
-    "workbench.editor.pinnedTabsOnSeparateRow": true,
-    "vim.leader": "<space>",
-    "vim.normalModeKeyBindingsNonRecursive": [
-        // {
-        //     "before": [ "d" ],
-        //     "after": [ "\"", "_", "d" ]
-        // },
-        // {
-        //     "before": [ "D" ],
-        //     "after": [ "\"", "_", "D" ]
-        // },
-        // {
-        //     "before": [ "d", "d" ],
-        //     "after": [ "\"", "_", "d", "d" ]
-        // }
-    ],
-    "vim.normalModeKeyBindings": [
-        {
-            "before": [
-                "<leader>",
-                "f",
-                "t"
-            ],
-            "commands": [
-                "pk.tabs",
-            ],
-            "silent": true
-        },
-        {
-            "before": [
-                "K"
-            ],
-            "commands": [
-                "editor.action.showHover",
-            ],
-            "silent": true
-        },
-        {
-            "before": [
-                "<leader>",
-                "c",
-                "r",
-                "n"
-            ],
-            "commands": [
-                {
-                    "command": "editor.action.codeAction",
-                    "args": {
-                        "kind": "refactor.extract.function"
-                    }
-                }
-            ],
-            "silent": true
-        },
-    ],
-    "workbench.iconTheme": "vscode-icons",
-    "[jsonc]": {
-        "editor.defaultFormatter": "vscode.json-language-features"
-    },
-    "multiCommand.commands": [
-        {
-            "command": "multiCommand.toggleFullScreenTerminal",
-            "sequence": [
-                "workbench.action.terminal.toggleTerminal",
-                "workbench.action.toggleMaximizedPanel"
-            ]
-        },
-        {
-            "command": "multiCommand.minimizeTerminal",
-            "sequence": [
-                "workbench.action.closePanel"
-            ]
-        }
-    ],
-    "redhat.telemetry.enabled": false,
-    "bicep.enableSurveys": false,
-    "[json]": {
-        "editor.defaultFormatter": "vscode.json-language-features"
-    },
-    "terminal.integrated.defaultProfile.osx": "zsh",
-    "terminal.integrated.shellIntegration.enabled": true,
-    "terminal.integrated.shellIntegration.decorationsEnabled": "both",
-    "terminal.integrated.shellIntegration.history": 100,
-    "terminal.integrated.fontFamily": "BerkeleyMono Nerd Font",
-    "github.copilot.nextEditSuggestions.enabled": true,
-    "security.workspace.trust.untrustedFiles": "open",
-    "[xml]": {
-        "editor.defaultFormatter": "PrateekMahendrakar.prettyxml"
-    },
-    "[html]": {
-        "editor.defaultFormatter": "esbenp.prettier-vscode"
-    },
-    "chat.instructionsFilesLocations": {
-        ".github/instructions": true,
-        "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-collections-post-response.instructions.md": true,
-        "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-collections-pre-request.instructions.md": true,
-        "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-folder-post-response.instructions.md": true,
-        "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-folder-pre-request.instructions.md": true,
-        "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-http-request-post-response.instructions.md": true,
-        "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-http-request-pre-request.instructions.md": true
-    },
-    "[javascript]": {
-        "editor.defaultFormatter": "vscode.typescript-language-features"
+  // -------------------------
+  // EDITOR
+  // -------------------------
+  "editor.fontFamily": "BerkeleyMono Nerd Font",
+  "editor.fontSize": "16",
+  "editor.hover.sticky": true,
+  "editor.lineNumbers": "relative",
+
+  // -------------------------
+  // WORKBENCH / UI
+  // -------------------------
+  "workbench.colorTheme": "Gruvbox Dark Hard",
+  "workbench.iconTheme": "vscode-icons",
+  "workbench.sideBar.location": "right",
+  "workbench.editor.pinnedTabsOnSeparateRow": true,
+  "window.systemColorTheme": "dark",
+
+  // -------------------------
+  // TERMINAL + TMUX
+  // -------------------------
+  "terminal.integrated.defaultProfile.osx": "tmux",
+
+  "terminal.integrated.profiles.osx": {
+    "tmux": {
+      "path": "tmux",
+      "args": ["new-session", "-A", "-s", "${workspaceFolderBasename}"]
     }
+  },
+
+  "terminal.integrated.fontFamily": "BerkeleyMono Nerd Font",
+  "terminal.integrated.fontSize": 20,
+  "terminal.integrated.lineHeight": 1.2,
+  "terminal.integrated.minimumContrastRatio": 7,
+  "terminal.integrated.cursorStyle": "line",
+  "terminal.integrated.cursorBlinking": true,
+  "terminal.integrated.enableImages": false,
+  "terminal.integrated.drawBoldTextInBrightColors": false,
+  "terminal.integrated.shellIntegration.enabled": true,
+  "terminal.integrated.shellIntegration.decorationsEnabled": "both",
+  "terminal.integrated.shellIntegration.history": 100,
+  "terminal.integrated.scrollback": 10000,
+  "terminal.integrated.smoothScrolling": true,
+  "terminal.integrated.inheritEnv": true,
+  "terminal.integrated.gpuAcceleration": "canvas",
+
+  // -------------------------
+  // VIM
+  // -------------------------
+  "vim.leader": "<space>",
+  "vim.useSystemClipboard": true,
+  "vim.debug": true,
+  "vim.trace": "verbose",
+  // DELETE/CHANGE → BLACK HOLE REGISTER
+  "vim.normalModeKeyBindingsNonRecursive": [
+    { "before": ["d"], "after": ["\"", "_", "d"] },
+    { "before": ["D"], "after": ["\"", "_", "D"] },
+    { "before": ["x"], "after": ["\"", "_", "x"] },
+    { "before": ["X"], "after": ["\"", "_", "X"] },
+    { "before": ["c"], "after": ["\"", "_", "c"] },
+    { "before": ["C"], "after": ["\"", "_", "C"] },
+    { "before": ["s"], "after": ["\"", "_", "s"] },
+    { "before": ["S"], "after": ["\"", "_", "S"] }
+  ],
+
+  "vim.visualModeKeyBindingsNonRecursive": [
+    { "before": ["d"], "after": ["\"", "_", "d"] },
+    { "before": ["x"], "after": ["\"", "_", "x"] },
+    { "before": ["c"], "after": ["\"", "_", "c"] }
+  ],
+
+  // CUSTOM VIM COMMANDS
+  "vim.normalModeKeyBindings": [
+    {
+      "before": ["<leader>", "f", "t"],
+      "commands": ["pk.tabs"],
+      "silent": true
+    },
+    {
+      "before": ["K"],
+      "commands": ["editor.action.showHover"],
+      "silent": true
+    },
+    {
+      "before": ["<leader>", "c", "r", "n"],
+      "commands": [
+        {
+          "command": "editor.action.codeAction",
+          "args": { "kind": "refactor.extract.function" }
+        }
+      ],
+      "silent": true
+    },
+    {
+      // PIN / UNPIN EDITOR TAB
+      "before": ["<leader>", "p"],
+      "commands": ["workbench.action.toggleEditorPin"],
+      "silent": true
+    }
+  ],
+
+  // -------------------------
+  // REST CLIENT
+  // -------------------------
+  "rest-client.previewColumn": "current",
+  "rest-client.previewResponsePanelTakeFocus": false,
+  "rest-client.previewResponseInUntitledDocument": true,
+  "rest-client.showResponseInDifferentTab": false,
+
+  // -------------------------
+  // MULTI-COMMAND
+  // -------------------------
+  "multiCommand.commands": [
+    {
+      "command": "multiCommand.toggleFullScreenTerminal",
+      "sequence": [
+        "workbench.action.terminal.toggleTerminal",
+        "workbench.action.toggleMaximizedPanel"
+      ]
+    },
+    {
+      "command": "multiCommand.minimizeTerminal",
+      "sequence": ["workbench.action.closePanel"]
+    }
+  ],
+
+  // -------------------------
+  // GIT / MISC
+  // -------------------------
+  "git.openRepositoryInParentFolders": "never",
+  "redhat.telemetry.enabled": false,
+  "bicep.enableSurveys": false,
+  "azureFunctions.showProjectWarning": false,
+  "security.workspace.trust.untrustedFiles": "open",
+
+  // -------------------------
+  // COPILOT / LANGUAGE TOOLS
+  // -------------------------
+  "github.copilot.nextEditSuggestions.enabled": true,
+  "typescript.inlayHints.enumMemberValues.enabled": true,
+  "markdown-mermaid.lightModeTheme": "dark",
+
+  // -------------------------
+  // FORMATTERS
+  // -------------------------
+  "[jsonc]": { "editor.defaultFormatter": "vscode.json-language-features" },
+  "[json]": { "editor.defaultFormatter": "vscode.json-language-features" },
+  "[xml]": { "editor.defaultFormatter": "PrateekMahendrakar.prettyxml" },
+  "[html]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[javascript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+
+  // -------------------------
+  // CHAT INSTRUCTION FILES
+  // -------------------------
+  "chat.instructionsFilesLocations": {
+    ".github/instructions": true,
+    "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-collections-post-response.instructions.md": true,
+    "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-collections-pre-request.instructions.md": true,
+    "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-folder-post-response.instructions.md": true,
+    "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-folder-pre-request.instructions.md": true,
+    "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-http-request-post-response.instructions.md": true,
+    "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-http-request-pre-request.instructions.md": true
+  }
 }

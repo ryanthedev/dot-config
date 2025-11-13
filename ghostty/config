@@ -38,3 +38,5 @@ selection-foreground = #BFBFBF
 # Send newline on Shift+Enter for Claude CLI
 # keybind = shift+enter=text:\\\n\r
 keybind = shift+enter=text:\x1b\r
+window-close-on-last-shell-exit = true
+

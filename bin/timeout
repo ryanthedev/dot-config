@@ -1,0 +1,271 @@
+#!/bin/bash
+# macOS drop-in replacement for GNU timeout
+# Supports the same arguments as GNU timeout for compatibility
+
+VERSION="1.0.0"
+
+show_help() {
+    cat <<'EOF'
+timeout - run a command with a time limit
+
+USAGE:
+    timeout [OPTION] DURATION COMMAND [ARG]...
+
+DESCRIPTION:
+    Start COMMAND, and kill it if still running after DURATION.
+
+DURATION:
+    Integer with optional suffix:
+        s for seconds (default)
+        m for minutes
+        h for hours
+        d for days
+
+OPTIONS:
+    -s, --signal=SIGNAL
+        Specify the signal to send on timeout (default: TERM)
+
+    -k, --kill-after=DURATION
+        Also send KILL signal after DURATION if process still running
+
+    --preserve-status
+        Exit with the status of COMMAND, even when the timeout is reached
+
+    --foreground
+        When not running under job control, run COMMAND in foreground
+        (this is the default behavior in this implementation)
+
+    -v, --verbose
+        Diagnose to stderr any signal sent upon timeout
+
+    --help
+        Display this help and exit
+
+    --version
+        Output version information and exit
+
+EXIT STATUS:
+    124 - if COMMAND times out (and --preserve-status is not specified)
+    125 - if timeout itself fails
+    126 - if COMMAND is found but cannot be invoked
+    127 - if COMMAND cannot be found
+    137 - if COMMAND is sent the KILL signal
+    Otherwise - the exit status of COMMAND
+
+EXAMPLES:
+    # Run command with 10 second timeout
+    timeout 10 long-running-command
+
+    # Run with 5 minute timeout
+    timeout 5m slow-command
+
+    # Send INT signal instead of TERM
+    timeout --signal=INT 30 my-command
+
+    # Send KILL after 5 seconds if TERM doesn't work
+    timeout -k 5 30 stubborn-command
+
+EOF
+}
+
+show_version() {
+    echo "timeout (macOS compatible) $VERSION"
+}
+
+# Parse duration string to seconds
+parse_duration() {
+    local duration="$1"
+    local value="${duration//[^0-9]/}"
+    local suffix="${duration//[0-9]/}"
+
+    if [[ -z "$value" ]]; then
+        echo "timeout: invalid time interval '$duration'" >&2
+        exit 125
+    fi
+
+    case "$suffix" in
+        ""|s) echo "$value" ;;
+        m) echo "$((value * 60))" ;;
+        h) echo "$((value * 3600))" ;;
+        d) echo "$((value * 86400))" ;;
+        *)
+            echo "timeout: invalid time interval '$duration'" >&2
+            exit 125
+            ;;
+    esac
+}
+
+# Convert signal name to number (common signals)
+signal_name_to_num() {
+    local sig="$1"
+    # Remove SIG prefix if present
+    sig="${sig#SIG}"
+    # Convert to uppercase (bash 3.2 compatible)
+    sig=$(echo "$sig" | tr '[:lower:]' '[:upper:]')
+
+    case "$sig" in
+        HUP|1) echo "1" ;;
+        INT|2) echo "2" ;;
+        QUIT|3) echo "3" ;;
+        KILL|9) echo "9" ;;
+        TERM|15) echo "15" ;;
+        [0-9]*) echo "$sig" ;;
+        *)
+            echo "timeout: invalid signal '$1'" >&2
+            exit 125
+            ;;
+    esac
+}
+
+# Default values
+signal="TERM"
+kill_after=""
+preserve_status=false
+verbose=false
+foreground=false
+
+# Parse options
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help)
+            show_help
+            exit 0
+            ;;
+        --version)
+            show_version
+            exit 0
+            ;;
+        -s)
+            signal="$2"
+            shift 2
+            ;;
+        --signal=*)
+            signal="${1#*=}"
+            shift
+            ;;
+        -k)
+            kill_after="$2"
+            shift 2
+            ;;
+        --kill-after=*)
+            kill_after="${1#*=}"
+            shift
+            ;;
+        --preserve-status)
+            preserve_status=true
+            shift
+            ;;
+        --foreground)
+            foreground=true
+            shift
+            ;;
+        -v|--verbose)
+            verbose=true
+            shift
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "timeout: unrecognized option '$1'" >&2
+            echo "Try 'timeout --help' for more information." >&2
+            exit 125
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+# Check if we have at least duration and command
+if [[ $# -lt 2 ]]; then
+    echo "timeout: missing operand" >&2
+    echo "Try 'timeout --help' for more information." >&2
+    exit 125
+fi
+
+duration="$1"
+shift
+command=("$@")
+
+# Parse durations
+timeout_seconds=$(parse_duration "$duration")
+if [[ -n "$kill_after" ]]; then
+    kill_after_seconds=$(parse_duration "$kill_after")
+fi
+
+# Validate signal
+signal_num=$(signal_name_to_num "$signal")
+
+# Check if command exists
+if ! command -v "${command[0]}" >/dev/null 2>&1 && ! [[ -x "${command[0]}" ]]; then
+    echo "timeout: failed to run command '${command[0]}': No such file or directory" >&2
+    exit 127
+fi
+
+# Start the command in background
+"${command[@]}" &
+child_pid=$!
+
+# Monitor process with timeout
+{
+    sleep "$timeout_seconds"
+
+    # Check if process still exists
+    if kill -0 "$child_pid" 2>/dev/null; then
+        if [[ "$verbose" = true ]]; then
+            echo "timeout: sending signal $signal to command '$child_pid'" >&2
+        fi
+
+        # Send the specified signal
+        kill -"$signal_num" "$child_pid" 2>/dev/null
+
+        # If kill-after is specified, wait and send KILL
+        if [[ -n "$kill_after" ]]; then
+            sleep "$kill_after_seconds"
+
+            if kill -0 "$child_pid" 2>/dev/null; then
+                if [[ "$verbose" = true ]]; then
+                    echo "timeout: sending signal KILL to command '$child_pid'" >&2
+                fi
+                kill -9 "$child_pid" 2>/dev/null
+            fi
+        fi
+    fi
+} &
+monitor_pid=$!
+
+# Wait for the command to complete
+wait "$child_pid" 2>/dev/null
+exit_code=$?
+
+# Kill the monitor process if command finished before timeout
+if kill -0 "$monitor_pid" 2>/dev/null; then
+    kill "$monitor_pid" 2>/dev/null
+    wait "$monitor_pid" 2>/dev/null
+
+    # Command completed before timeout
+    exit "$exit_code"
+fi
+
+# If we get here, the timeout was triggered
+# Check if command was killed
+if ! kill -0 "$child_pid" 2>/dev/null; then
+    # Wait for final status
+    wait "$child_pid" 2>/dev/null
+    cmd_exit=$?
+
+    if [[ "$preserve_status" = true ]]; then
+        exit "$cmd_exit"
+    fi
+
+    # Check if it was killed with KILL signal (exit 137 = 128 + 9)
+    if [[ "$cmd_exit" -eq 137 ]] || [[ -n "$kill_after" && "$cmd_exit" -eq 137 ]]; then
+        exit 137
+    fi
+
+    exit 124
+fi
+
+exit 124
