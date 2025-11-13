@@ -1,5 +1,21 @@
 // Place your key bindings in this file to override the defaults
 [
+    {
+        "key": "shift+enter",
+        "command": "workbench.action.terminal.sendSequence",
+        "when": "terminalFocus",
+        "args": {
+            "text": "\\\r\n"
+        }
+    },
+    {
+        "key": "ctrl+enter",
+        "command": "workbench.action.terminal.sendSequence",
+        "when": "terminalFocus",
+        "args": {
+            "text": "\\\r\n"
+        }
+    },
   {
     "key": "cmd+shift+1",
     "command": "workbench.action.closeActiveEditor"
