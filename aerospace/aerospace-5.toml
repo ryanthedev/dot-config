@@ -1,0 +1,83 @@
+# Reference: https://github.com/i3/i3/blob/next/etc/config
+
+# i3 doesn't have "normalizations" feature that why we disable them here.
+# But the feature is very helpful.
+# Normalizations eliminate all sorts of weird tree configurations that don't make sense.
+# Give normalizations a chance and enable them back.
+enable-normalization-flatten-containers = false
+enable-normalization-opposite-orientation-for-nested-containers = false
+
+# Set default layout to accordion (closest to tabbed layout)
+default-root-container-layout = 'accordion'
+default-root-container-orientation = 'horizontal'
+
+on-focus-changed = ['move-mouse window-lazy-center'] # Mouse lazily follows any focus (window or workspace)
+
+after-startup-command = [
+  'exec-and-forget borders active_color=0xff00ffff inactive_color=0xffff00ff width=8.0'
+]
+
+[workspace-to-monitor-force-assignment]
+    main = '^Built.*' 
+
+[mode.main.binding]
+    ctrl-shift-enter = '''exec-and-forget osascript -e '
+    do shell script "open -na /Applications/Google\\ Chrome.app --args --profile-directory=\"Profile 1\" --new-window"'
+    '''
+    shift-alt-enter = '''exec-and-forget osascript -e '
+    do shell script "open -na /Applications/Google\\ Chrome.app --args --profile-directory=\"Profile 2\" --new-window"'
+    '''
+    cmd-enter = 'exec-and-forget TMUX= && open -na ghostty'
+    cmd-h = 'focus --boundaries all-monitors-outer-frame --boundaries-action wrap-around-all-monitors left'
+    cmd-j = 'focus --boundaries all-monitors-outer-frame --boundaries-action wrap-around-all-monitors down'
+    cmd-k = 'focus --boundaries all-monitors-outer-frame --boundaries-action wrap-around-all-monitors up'
+    cmd-l = 'focus --boundaries all-monitors-outer-frame --boundaries-action wrap-around-all-monitors right'
+    cmd-ctrl-h = 'move left'
+    cmd-ctrl-j = 'move down'
+    cmd-ctrl-k = 'move up'
+    cmd-ctrl-l = 'move right'
+    cmd-shift-h = 'move-node-to-monitor --focus-follows-window left'
+    cmd-shift-j = 'move-node-to-monitor --focus-follows-window down'
+    cmd-shift-k = 'move-node-to-monitor --focus-follows-window up'
+    cmd-shift-l = 'move-node-to-monitor --focus-follows-window right'
+    alt-f = 'fullscreen'
+    alt-t = 'layout tiling'
+    alt-s = 'layout v_accordion'
+    alt-w = 'layout h_accordion'
+    alt-e = 'layout tiles horizontal vertical'
+    alt-shift-space = 'layout floating tiling'
+    cmd-shift-c = 'exec-and-forget ao new'
+    cmd-shift-n = 'exec-and-forget ao next'
+    cmd-shift-r = 'exec-and-forget ao prev'
+    alt-shift-r = 'reload-config'
+    alt-r = 'mode resize'
+    cmd-1 = 'exec-and-forget ao jump 1'
+    cmd-2 = 'exec-and-forget ao jump 2'
+    cmd-3 = 'exec-and-forget ao jump 3'
+    cmd-4 = 'exec-and-forget ao jump 4'
+    cmd-5 = 'exec-and-forget ao jump 5'
+    cmd-6 = 'exec-and-forget ao jump 6'
+    cmd-7 = 'exec-and-forget ao jump 7'
+    cmd-8 = 'exec-and-forget ao jump 8'
+    cmd-9 = 'exec-and-forget ao jump 9'
+    cmd-t = 'exec-and-forget ao add'
+    cmd-u = 'exec-and-forget ao edit'
+    cmd-m = 'exec-and-forget ao mouse'
+    alt-tab = 'exec-and-forget ao cycle next'
+    alt-shift-tab = 'exec-and-forget ao cycle prev'
+
+[mode.resize.binding]
+    h = 'resize width -50'
+    j = 'resize height +50'
+    k = 'resize height -50'
+    l = 'resize width +50'
+    enter = 'mode main'
+    esc = 'mode main'
+
+[gaps]
+inner.horizontal = 10
+inner.vertical   = 10
+outer.left       = 10
+outer.bottom     = 10
+outer.top        = 10
+outer.right      = 10
