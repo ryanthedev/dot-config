@@ -1,5 +1,10 @@
 keybind = global:cmd+grave_accent=toggle_quick_terminal
 
+# Quick terminal settings
+quick-terminal-screen = mouse
+quick-terminal-autohide = false
+quick-terminal-size = 60%
+
 # Font settings
 font-family = "BerkeleyMono Nerd Font"
 font-size = 20
@@ -38,5 +43,5 @@ selection-foreground = #BFBFBF
 # Send newline on Shift+Enter for Claude CLI
 # keybind = shift+enter=text:\\\n\r
 keybind = shift+enter=text:\x1b\r
-window-close-on-last-shell-exit = true
+quit-after-last-window-closed = true
 
