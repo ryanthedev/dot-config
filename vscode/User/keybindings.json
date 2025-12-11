@@ -46,6 +46,12 @@
     },
     "when": "terminalFocus"
 },
-
-
+{
+    "key": "ctrl+space",
+    "command": "workbench.action.terminal.sendSequence",
+    "when": "terminalFocus",
+    "args": {
+        "text": "\u0000"
+    }
+}
 ]
