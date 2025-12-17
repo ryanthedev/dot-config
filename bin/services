@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+# Dotfiles Service Manager
+# Manages launchd services stored in ~/.config/services/
+#
+# Usage: services <command> [service-name]
+#
+# Services are defined as plist files in ~/.config/services/plists/
+# and symlinked to ~/Library/LaunchAgents/ when installed.
+
+SERVICES_DIR="$HOME/.config/services"
+PLISTS_DIR="$SERVICES_DIR/plists"
+LOGS_DIR="$SERVICES_DIR/logs"
+LAUNCH_AGENTS="$HOME/Library/LaunchAgents"
+
+usage() {
+    echo "Dotfiles Service Manager"
+    echo ""
+    echo "Usage: services <command> [service-name]"
+    echo ""
+    echo "Commands:"
+    echo "  list              List all managed services"
+    echo "  status [name]     Check service status (all if no name)"
+    echo "  start <name>      Start a service"
+    echo "  stop <name>       Stop a service"
+    echo "  restart <name>    Restart a service"
+    echo "  logs <name>       Tail service logs"
+    echo "  install           Install all services (symlink + load)"
+    echo "  uninstall         Uninstall all services (unload + remove)"
+    echo ""
+    echo "Examples:"
+    echo "  services list"
+    echo "  services status sync-ueli-launchers"
+    echo "  services logs sync-ueli-launchers"
+    echo "  services restart sync-ueli-launchers"
+}
+
+get_label() {
+    local name="$1"
+    echo "com.r.$name"
+}
+
+list_services() {
+    echo "Managed services in $PLISTS_DIR:"
+    echo ""
+
+    local found=0
+    for plist in "$PLISTS_DIR"/*.plist; do
+        [ -f "$plist" ] || continue
+        found=1
+        local label=$(basename "$plist" .plist)
+        local name="${label#com.r.}"
+        local status="stopped"
+        if launchctl list "$label" &>/dev/null; then
+            status="running"
+        fi
+        printf "  %-30s [%s]\n" "$name" "$status"
+    done
+
+    if [ $found -eq 0 ]; then
+        echo "  (no services found)"
+    fi
+}
+
+status_service() {
+    local name="$1"
+    local label=$(get_label "$name")
+
+    if [ -z "$name" ]; then
+        list_services
+        return
+    fi
+
+    echo "Service: $name"
+    echo "Label:   $label"
+    echo "Plist:   $PLISTS_DIR/$label.plist"
+    echo "Log:     $LOGS_DIR/$name.log"
+    echo ""
+
+    if launchctl list "$label" &>/dev/null; then
+        echo "Status: RUNNING"
+        echo ""
+        launchctl list "$label" 2>/dev/null
+    else
+        echo "Status: STOPPED"
+    fi
+}
+
+start_service() {
+    local name="$1"
+    local label=$(get_label "$name")
+    local plist="$LAUNCH_AGENTS/$label.plist"
+
+    if [ -z "$name" ]; then
+        echo "Error: Please specify a service name"
+        return 1
+    fi
+
+    if [ ! -f "$plist" ] && [ ! -L "$plist" ]; then
+        echo "Error: Service not installed. Run 'services install' first."
+        return 1
+    fi
+
+    echo "Starting $name..."
+    launchctl load "$plist" 2>&1
+    echo "Done."
+}
+
+stop_service() {
+    local name="$1"
+    local label=$(get_label "$name")
+    local plist="$LAUNCH_AGENTS/$label.plist"
+
+    if [ -z "$name" ]; then
+        echo "Error: Please specify a service name"
+        return 1
+    fi
+
+    echo "Stopping $name..."
+    launchctl unload "$plist" 2>/dev/null
+    echo "Done."
+}
+
+restart_service() {
+    local name="$1"
+
+    if [ -z "$name" ]; then
+        echo "Error: Please specify a service name"
+        return 1
+    fi
+
+    stop_service "$name"
+    sleep 1
+    start_service "$name"
+}
+
+logs_service() {
+    local name="$1"
+
+    if [ -z "$name" ]; then
+        echo "Error: Please specify a service name"
+        return 1
+    fi
+
+    local log_file="$LOGS_DIR/$name.log"
+
+    if [ ! -f "$log_file" ]; then
+        echo "No log file found: $log_file"
+        echo ""
+        echo "The service may not have run yet, or logging may not be configured."
+        return 1
+    fi
+
+    echo "=== Logs for $name ==="
+    echo "File: $log_file"
+    echo "Press Ctrl+C to exit"
+    echo ""
+    tail -f "$log_file"
+}
+
+install_services() {
+    echo "Installing services..."
+    mkdir -p "$LAUNCH_AGENTS"
+    mkdir -p "$LOGS_DIR"
+
+    local count=0
+    for plist in "$PLISTS_DIR"/*.plist; do
+        [ -f "$plist" ] || continue
+        local filename=$(basename "$plist")
+        local target="$LAUNCH_AGENTS/$filename"
+        local label="${filename%.plist}"
+
+        # Unload if already loaded
+        launchctl unload "$target" 2>/dev/null
+
+        # Remove existing symlink or file
+        if [ -L "$target" ] || [ -f "$target" ]; then
+            rm "$target"
+        fi
+
+        # Create symlink
+        ln -s "$plist" "$target"
+        echo "  Linked: $filename"
+
+        # Load the service
+        launchctl load "$target"
+        echo "  Loaded: $filename"
+
+        count=$((count + 1))
+    done
+
+    echo ""
+    if [ $count -eq 0 ]; then
+        echo "No services found to install."
+    else
+        echo "Done! Installed $count service(s)."
+    fi
+}
+
+uninstall_services() {
+    echo "Uninstalling services..."
+
+    local count=0
+    for plist in "$PLISTS_DIR"/*.plist; do
+        [ -f "$plist" ] || continue
+        local filename=$(basename "$plist")
+        local target="$LAUNCH_AGENTS/$filename"
+
+        if [ -L "$target" ] || [ -f "$target" ]; then
+            launchctl unload "$target" 2>/dev/null
+            rm "$target"
+            echo "  Removed: $filename"
+            count=$((count + 1))
+        fi
+    done
+
+    echo ""
+    if [ $count -eq 0 ]; then
+        echo "No services were installed."
+    else
+        echo "Done! Uninstalled $count service(s)."
+    fi
+}
+
+# Main
+case "${1:-}" in
+    list)       list_services ;;
+    status)     status_service "$2" ;;
+    start)      start_service "$2" ;;
+    stop)       stop_service "$2" ;;
+    restart)    restart_service "$2" ;;
+    logs)       logs_service "$2" ;;
+    install)    install_services ;;
+    uninstall)  uninstall_services ;;
+    -h|--help)  usage ;;
+    *)          usage ;;
+esac
