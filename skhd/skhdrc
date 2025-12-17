@@ -144,3 +144,6 @@ cmd + alt - k : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bi
 
 # Reset cell ratios
 cmd + alt - 0 : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid resize reset --cells
+
+# App launcher (dalauncher)
+alt - space : open -na Ghostty --args -e /Users/r/.config/bin/dalauncher
