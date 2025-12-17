@@ -1,0 +1,70 @@
+#!/bin/bash
+
+# setup-claude-instructions.sh
+
+set -e
+
+PROJECT_ROOT="${1:-.}"
+CLAUDE_DIR="$PROJECT_ROOT/.claude"
+INSTRUCTIONS_FILE="$CLAUDE_DIR/instructions.md"
+BACKUP_SUFFIX=".backup.$(date +%Y%m%d_%H%M%S)"
+
+echo "Setting up Claude Code instructions in: $PROJECT_ROOT"
+
+# Create .claude directory if it doesn't exist
+if [ ! -d "$CLAUDE_DIR" ]; then
+    echo "Creating .claude directory..."
+    mkdir -p "$CLAUDE_DIR"
+else
+    echo ".claude directory already exists"
+fi
+
+# Backup existing instructions if present
+if [ -f "$INSTRUCTIONS_FILE" ]; then
+    echo "Found existing instructions.md, backing up..."
+    mv "$INSTRUCTIONS_FILE" "${INSTRUCTIONS_FILE}${BACKUP_SUFFIX}"
+    echo "Backed up to: instructions.md${BACKUP_SUFFIX}"
+fi
+
+# Create new instructions file
+cat > "$INSTRUCTIONS_FILE" << 'EOF'
+ultrathink
+
+# Development Guidelines
+
+## Priority: Build First, Validate Second
+- Focus on implementing working code that meets requirements
+- Skip comprehensive documentation unless explicitly requested
+- No e2e tests unless specifically asked
+
+## Testing Strategy
+- Write minimal unit tests only to validate core logic/assumptions
+- 3-5 targeted tests maximum per feature
+- It's acceptable to create temporary tests and delete them after validation
+- Tests should prove the approach works, not provide coverage
+
+## Logging Requirements
+- Use structured logging (JSON format preferred)
+- Log at critical decision points and state changes
+- Include relevant context: operation, input state, output state, errors
+- Examples:
+  - Before/after major transformations
+  - Error conditions with full context
+  - External API calls (request/response)
+
+## Documentation Research
+- ALWAYS search online for API docs, library usage examples
+- Run `--help`, `man`, or equivalent for CLI tools before using
+- Verify syntax and options rather than assuming
+- Check official docs for breaking changes
+
+## Response Style
+- Keep explanations concise
+- Code first, explanation after
+- No apologetic language or over-explaining
+EOF
+
+echo "✓ Created instructions.md with custom guidelines"
+echo ""
+echo "To revert to previous instructions:"
+echo "  mv ${INSTRUCTIONS_FILE}${BACKUP_SUFFIX} $INSTRUCTIONS_FILE"
