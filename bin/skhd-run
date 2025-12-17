@@ -1,0 +1,17 @@
+#!/bin/bash
+# Wrapper for skhd commands - logs output to help debug failures
+LOG="/tmp/skhd_commands.log"
+
+# Run command, capture output and exit code
+output=$("$@" 2>&1)
+code=$?
+
+# Only log if command failed or produced output
+if [[ $code -ne 0 || -n "$output" ]]; then
+    echo "[$(date '+%H:%M:%S')] $*" >> "$LOG"
+    [[ -n "$output" ]] && echo "$output" >> "$LOG"
+    [[ $code -ne 0 ]] && echo "exit: $code" >> "$LOG"
+    echo "" >> "$LOG"
+fi
+
+exit $code
