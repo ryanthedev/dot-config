@@ -6,7 +6,7 @@ font-size = 20
 
 # Window settings
 background-opacity = 0.98
-window-decoration = none
+window-decoration = true 
 macos-non-native-fullscreen = true
 
 # Colors
@@ -38,5 +38,4 @@ selection-foreground = #BFBFBF
 # Send newline on Shift+Enter for Claude CLI
 # keybind = shift+enter=text:\\\n\r
 keybind = shift+enter=text:\x1b\r
-window-close-on-last-shell-exit = true
 
