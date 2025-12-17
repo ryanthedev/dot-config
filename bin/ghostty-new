@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Opens a new Ghostty terminal window
+# Used by Ueli launcher integration (backup script, main launcher is .app)
+
+if [ ! -d "/Applications/Ghostty.app" ]; then
+    echo "Error: Ghostty is not installed in /Applications" >&2
+    exit 1
+fi
+open -na Ghostty

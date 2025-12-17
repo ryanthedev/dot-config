@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+# Sync Ueli Launchers - Chrome Profiles & Ghostty
+#
+# Reads Google Chrome's profile configuration and generates .app launchers
+# for each profile, plus a Ghostty launcher, in ~/.config/app-launchers/
+#
+# Usage: sync-ueli-launchers
+#
+# Run this whenever you:
+#   - Add or remove Chrome profiles
+#   - Rename Chrome profiles
+#
+# Generated apps can be launched via Ueli by typing the profile name
+
+set -e
+
+CHROME_STATE="$HOME/Library/Application Support/Google/Chrome/Local State"
+APP_DIR="$HOME/.config/app-launchers"
+TEMP_DIR=""
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+}
+
+cleanup() {
+    if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
+        rm -rf "$TEMP_DIR"
+    fi
+}
+trap cleanup EXIT
+
+log "Syncing Ueli launchers..."
+echo ""
+
+# Create temp directory for atomic replacement
+TEMP_DIR=$(mktemp -d)
+
+# Check if Chrome is installed
+if [ ! -f "$CHROME_STATE" ]; then
+    log "Error: Chrome Local State file not found" >&2
+    echo "Expected: $CHROME_STATE" >&2
+    echo "Is Google Chrome installed?" >&2
+    exit 1
+fi
+
+# Export for Python to use
+export CHROME_STATE
+export TEMP_DIR
+
+# Generate Chrome profile launchers
+python3 << 'PYTHON_SCRIPT'
+import json
+import os
+import subprocess
+import sys
+import shlex
+
+chrome_state = os.environ['CHROME_STATE']
+temp_dir = os.environ['TEMP_DIR']
+
+try:
+    with open(chrome_state, 'r') as f:
+        data = json.load(f)
+except FileNotFoundError:
+    print(f'Error: Chrome Local State file not found: {chrome_state}', file=sys.stderr)
+    sys.exit(1)
+except json.JSONDecodeError as e:
+    print(f'Error: Chrome Local State file is corrupted: {e}', file=sys.stderr)
+    sys.exit(1)
+
+profiles = data.get('profile', {}).get('info_cache', {})
+if not profiles:
+    print('Warning: No Chrome profiles found', file=sys.stderr)
+
+seen_names = {}
+created_count = 0
+
+for dir_name, info in profiles.items():
+    name = info.get('name', 'Unknown')
+
+    # Sanitize name for filename
+    safe_name = ''.join(c for c in name if c.isalnum() or c in ' -_').strip()
+
+    # Handle empty names after sanitization
+    if not safe_name:
+        safe_name = dir_name
+        print(f'Warning: Profile "{name}" has no valid characters, using "{dir_name}"')
+
+    # Handle name collisions
+    base_app_name = f'Chrome - {safe_name}'
+    if base_app_name in seen_names:
+        app_name = f'Chrome - {safe_name} ({dir_name})'
+        print(f'Warning: Duplicate name "{safe_name}", using "{app_name}"')
+    else:
+        app_name = base_app_name
+        seen_names[base_app_name] = dir_name
+
+    app_path = os.path.join(temp_dir, f'{app_name}.app')
+
+    # Shell-escape the directory name for safety
+    safe_dir = shlex.quote(dir_name)
+
+    # Create AppleScript app
+    script = f'''on run
+    do shell script "open -na 'Google Chrome' --args --profile-directory={safe_dir}"
+end run'''
+
+    try:
+        result = subprocess.run(
+            ['osacompile', '-o', app_path, '-e', script],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        print(f'  Created: {app_name}')
+        created_count += 1
+    except subprocess.CalledProcessError as e:
+        print(f'Error creating {app_name}.app: {e.stderr}', file=sys.stderr)
+        # Continue processing other profiles
+
+# Create Ghostty launcher
+ghostty_script = '''on run
+    do shell script "open -na Ghostty"
+end run'''
+ghostty_path = os.path.join(temp_dir, 'Ghostty New.app')
+
+try:
+    subprocess.run(
+        ['osacompile', '-o', ghostty_path, '-e', ghostty_script],
+        check=True,
+        capture_output=True,
+        text=True
+    )
+    print(f'  Created: Ghostty New')
+    created_count += 1
+except subprocess.CalledProcessError as e:
+    print(f'Error creating Ghostty New.app: {e.stderr}', file=sys.stderr)
+
+print(f'\nGenerated {created_count} launcher(s)')
+PYTHON_SCRIPT
+
+# Check if Python script succeeded
+PYTHON_EXIT=$?
+if [ $PYTHON_EXIT -ne 0 ]; then
+    log "Error: Failed to generate launcher apps" >&2
+    exit 1
+fi
+
+# Verify we have apps before replacing (Critical: prevents data loss)
+if [ -z "$(ls -A "$TEMP_DIR" 2>/dev/null)" ]; then
+    log "Error: No launcher apps were generated" >&2
+    exit 1
+fi
+
+# Atomic replacement: remove old apps only after confirming new ones exist
+mkdir -p "$APP_DIR"
+find "$APP_DIR" -maxdepth 1 -name "Chrome - *.app" -type d -exec rm -rf {} \;
+find "$APP_DIR" -maxdepth 1 -name "Ghostty New.app" -type d -exec rm -rf {} \;
+
+# Move new apps to final location
+mv "$TEMP_DIR"/*.app "$APP_DIR"/
+
+log "Done! Apps in: $APP_DIR"
