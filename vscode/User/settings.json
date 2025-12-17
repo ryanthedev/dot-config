@@ -162,5 +162,8 @@
     "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-folder-pre-request.instructions.md": true,
     "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-http-request-post-response.instructions.md": true,
     "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-http-request-pre-request.instructions.md": true
-  }
+  },
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "claudeCode.preferredLocation": "panel",
+  "go.toolsManagement.autoUpdate": true
 }
