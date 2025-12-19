@@ -34,17 +34,108 @@ load_config() {
 
 check_prerequisites() {
     info "Checking prerequisites..."
-    # TODO: implement
+
+    # Check homebrew
+    if ! command -v brew &>/dev/null; then
+        error "Homebrew is not installed. Install from https://brew.sh"
+        exit 1
+    fi
+    info "  Homebrew: OK"
+
+    # Check mss
+    if command -v mss &>/dev/null; then
+        if mss status 2>&1 | grep -q "Loading:.*Not loaded"; then
+            echo ""
+            warn "╔════════════════════════════════════════════════════════════╗"
+            warn "║  mss is installed but NOT LOADED                           ║"
+            warn "║                                                              ║"
+            warn "║  Run these commands to fix:                                  ║"
+            warn "║    sudo mss load                                             ║"
+            warn "║                                                              ║"
+            warn "║  This requires SIP to be partially disabled.                 ║"
+            warn "╚════════════════════════════════════════════════════════════╝"
+            echo ""
+        else
+            info "  mss: OK (loaded)"
+        fi
+    else
+        warn "  mss: not installed (optional, needed for theGrid)"
+    fi
 }
 
 cleanup_aerospace() {
     info "Cleaning up aerospace..."
-    # TODO: implement
+
+    local found=false
+
+    # Stop and remove launch agent
+    local plist="$LAUNCH_AGENTS/com.r.aerospace.plist"
+    if [[ -f "$plist" ]] || [[ -L "$plist" ]]; then
+        launchctl unload "$plist" 2>/dev/null || true
+        rm -f "$plist"
+        info "  Removed launch agent"
+        found=true
+    fi
+
+    # Also check for nikitabobko's default plist name
+    plist="$LAUNCH_AGENTS/bobko.aerospace.plist"
+    if [[ -f "$plist" ]] || [[ -L "$plist" ]]; then
+        launchctl unload "$plist" 2>/dev/null || true
+        rm -f "$plist"
+        info "  Removed bobko launch agent"
+        found=true
+    fi
+
+    # Brew uninstall
+    if brew list aerospace &>/dev/null; then
+        brew uninstall aerospace
+        info "  Uninstalled via brew"
+        found=true
+    fi
+
+    # Untap
+    if brew tap | grep -q "nikitabobko/tap"; then
+        brew untap nikitabobko/tap
+        info "  Untapped nikitabobko/tap"
+        found=true
+    fi
+
+    if [[ "$found" == "false" ]]; then
+        info "  Nothing to clean up"
+    fi
 }
 
 cleanup_yabai() {
     info "Cleaning up yabai..."
-    # TODO: implement
+
+    local found=false
+
+    # Stop and remove launch agent
+    local plist="$LAUNCH_AGENTS/com.koekeishiya.yabai.plist"
+    if [[ -f "$plist" ]] || [[ -L "$plist" ]]; then
+        launchctl unload "$plist" 2>/dev/null || true
+        rm -f "$plist"
+        info "  Removed launch agent"
+        found=true
+    fi
+
+    # Brew uninstall
+    if brew list yabai &>/dev/null; then
+        brew uninstall yabai
+        info "  Uninstalled via brew"
+        found=true
+    fi
+
+    # Untap
+    if brew tap | grep -q "koekeishiya/formulae"; then
+        brew untap koekeishiya/formulae
+        info "  Untapped koekeishiya/formulae"
+        found=true
+    fi
+
+    if [[ "$found" == "false" ]]; then
+        info "  Nothing to clean up"
+    fi
 }
 
 setup_skhd() {
