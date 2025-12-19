@@ -28,4 +28,5 @@ nvim/plugin/
 services/logs/
 !app-launchers/
 !.damachine.example
+!.doc/
 .damachine
