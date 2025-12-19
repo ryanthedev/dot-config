@@ -57,3 +57,17 @@ if vim.fn.has("gui_running") == 1 or vim.g.neovide then
 end
 
 vim.diagnostic.config({virtual_text=false})
+
+-- Auto-refresh log files every 2 seconds
+vim.api.nvim_create_autocmd({"BufRead", "BufNewFile"}, {
+  pattern = {"*.log", "*.jsonl"},
+  callback = function()
+    vim.opt_local.autoread = true
+    local timer = vim.loop.new_timer()
+    timer:start(2000, 2000, vim.schedule_wrap(function()
+      if vim.api.nvim_buf_is_valid(vim.api.nvim_get_current_buf()) then
+        vim.cmd("checktime")
+      end
+    end))
+  end
+})
