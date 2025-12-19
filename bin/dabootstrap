@@ -140,17 +140,200 @@ cleanup_yabai() {
 
 setup_skhd() {
     info "Setting up skhd-zig..."
-    # TODO: implement
+
+    # Install via brew if not present
+    if ! brew list skhd-zig &>/dev/null; then
+        info "  Installing skhd-zig via brew..."
+        brew tap jackielii/homebrew-skhd
+        brew install skhd-zig
+    else
+        info "  skhd-zig already installed"
+    fi
+
+    # Create/update launch agent
+    local plist="$LAUNCH_AGENTS/com.jackielii.skhd.plist"
+    local skhd_bin
+    skhd_bin="$(brew --prefix)/bin/skhd"
+
+    # Write plist
+    cat > "$plist" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.jackielii.skhd</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$skhd_bin</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/skhd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/skhd.err.log</string>
+</dict>
+</plist>
+EOF
+    info "  Created launch agent"
+
+    # Load service
+    launchctl unload "$plist" 2>/dev/null || true
+    launchctl load "$plist"
+    info "  Loaded skhd service"
 }
 
 setup_thegrid() {
     info "Setting up theGrid..."
-    # TODO: implement
+
+    if [[ "$THEGRID_DEV" == "true" ]]; then
+        setup_thegrid_dev
+    else
+        setup_thegrid_brew
+    fi
+}
+
+setup_thegrid_dev() {
+    info "  Dev mode enabled"
+
+    # Verify repo exists
+    if [[ -z "$THEGRID_REPO" ]]; then
+        error "THEGRID_DEV=true but THEGRID_REPO not set in .damachine"
+        exit 1
+    fi
+
+    local repo_path="${THEGRID_REPO/#\~/$HOME}"
+    if [[ ! -d "$repo_path" ]]; then
+        error "THEGRID_REPO does not exist: $repo_path"
+        exit 1
+    fi
+    info "  Using repo: $repo_path"
+
+    # Ensure services directory exists
+    mkdir -p "$SERVICES_PLISTS"
+    mkdir -p "$CONFIG_DIR/services/logs"
+
+    # Generate plist for dev mode
+    local plist="$SERVICES_PLISTS/com.r.thegrid-dev.plist"
+    cat > "$plist" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.r.thegrid-dev</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/make</string>
+        <string>dev</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>$repo_path</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>$CONFIG_DIR/services/logs/thegrid-dev.log</string>
+    <key>StandardErrorPath</key>
+    <string>$CONFIG_DIR/services/logs/thegrid-dev.log</string>
+</dict>
+</plist>
+EOF
+    info "  Generated plist"
+
+    # Stop brew version if running
+    if brew services list | grep -q "thegrid.*started"; then
+        brew services stop thegrid 2>/dev/null || true
+        info "  Stopped brew thegrid service"
+    fi
+
+    # Install via services manager
+    "$CONFIG_DIR/bin/services" install 2>/dev/null || true
+    info "  Installed via services manager"
+}
+
+setup_thegrid_brew() {
+    info "  Using brew install"
+
+    # Stop dev service if running
+    local dev_plist="$SERVICES_PLISTS/com.r.thegrid-dev.plist"
+    if [[ -f "$dev_plist" ]]; then
+        "$CONFIG_DIR/bin/services" stop thegrid-dev 2>/dev/null || true
+        rm -f "$dev_plist"
+        info "  Removed dev service"
+    fi
+
+    # Install via brew
+    if ! brew tap | grep -q "ryanthedev/thegrid"; then
+        brew tap ryanthedev/thegrid
+    fi
+
+    if ! brew list thegrid &>/dev/null; then
+        brew install thegrid
+        info "  Installed thegrid"
+    else
+        info "  thegrid already installed"
+    fi
+
+    # Start service
+    if ! brew services list | grep -q "thegrid.*started"; then
+        brew services start thegrid
+        info "  Started thegrid service"
+    else
+        info "  thegrid service already running"
+    fi
 }
 
 verify_status() {
     info "Verifying services..."
-    # TODO: implement
+    echo ""
+
+    # skhd
+    if launchctl list | grep -q "com.jackielii.skhd"; then
+        echo -e "  skhd-zig:    ${GREEN}running${NC}"
+    else
+        echo -e "  skhd-zig:    ${RED}not running${NC}"
+    fi
+
+    # theGrid
+    if [[ "$THEGRID_DEV" == "true" ]]; then
+        if launchctl list | grep -q "com.r.thegrid-dev"; then
+            echo -e "  theGrid-dev: ${GREEN}running${NC}"
+        else
+            echo -e "  theGrid-dev: ${RED}not running${NC}"
+        fi
+    else
+        if brew services list | grep -q "thegrid.*started"; then
+            echo -e "  theGrid:     ${GREEN}running${NC}"
+        else
+            echo -e "  theGrid:     ${RED}not running${NC}"
+        fi
+    fi
+
+    # mss
+    if command -v mss &>/dev/null; then
+        if mss status 2>&1 | grep -q "Loading:.*✓"; then
+            echo -e "  mss:         ${GREEN}loaded${NC}"
+        else
+            echo -e "  mss:         ${YELLOW}not loaded${NC}"
+        fi
+    fi
+
+    echo ""
 }
 
 main() {
