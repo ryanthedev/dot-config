@@ -1,0 +1,7 @@
+# Machine-specific configuration for dabootstrap
+# Copy to .damachine and customize for this machine
+
+# theGrid dev mode - run from local repo instead of brew
+# Uncomment on dev machines with theGrid source checkout
+# THEGRID_DEV=true
+# THEGRID_REPO="$HOME/repos/theGrid"

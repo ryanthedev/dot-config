@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# dabootstrap - Idempotent window management bootstrap for macOS
+# Sets up skhd-zig + theGrid, cleans up aerospace/yabai
+
+CONFIG_DIR="$HOME/.config"
+DAMACHINE="$CONFIG_DIR/.damachine"
+LAUNCH_AGENTS="$HOME/Library/LaunchAgents"
+SERVICES_PLISTS="$CONFIG_DIR/services/plists"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+info() { echo -e "${GREEN}[INFO]${NC} $1"; }
+warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+# Load machine-specific config
+load_config() {
+    THEGRID_DEV="${THEGRID_DEV:-false}"
+    THEGRID_REPO="${THEGRID_REPO:-}"
+
+    if [[ -f "$DAMACHINE" ]]; then
+        info "Loading config from $DAMACHINE"
+        source "$DAMACHINE"
+    else
+        info "No .damachine found, using defaults"
+    fi
+}
+
+check_prerequisites() {
+    info "Checking prerequisites..."
+    # TODO: implement
+}
+
+cleanup_aerospace() {
+    info "Cleaning up aerospace..."
+    # TODO: implement
+}
+
+cleanup_yabai() {
+    info "Cleaning up yabai..."
+    # TODO: implement
+}
+
+setup_skhd() {
+    info "Setting up skhd-zig..."
+    # TODO: implement
+}
+
+setup_thegrid() {
+    info "Setting up theGrid..."
+    # TODO: implement
+}
+
+verify_status() {
+    info "Verifying services..."
+    # TODO: implement
+}
+
+main() {
+    echo "=== dabootstrap ==="
+    echo ""
+
+    load_config
+    check_prerequisites
+    cleanup_aerospace
+    cleanup_yabai
+    setup_skhd
+    setup_thegrid
+    verify_status
+
+    echo ""
+    info "Bootstrap complete!"
+}
+
+main "$@"
