@@ -115,39 +115,39 @@
 cmd - return : open -na /Applications/Ghostty.app
 
 # Layout commands
-alt - a : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid layout reapply
-cmd - 2 : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid layout apply two-column
-cmd - 3 : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid layout apply three-column
+alt - a : /Users/r/.config/bin/skhd-run thegrid layout reapply
+cmd - 2 : /Users/r/.config/bin/skhd-run thegrid layout apply two-column
+cmd - 3 : /Users/r/.config/bin/skhd-run thegrid layout apply three-column
 
 # window cycling (within cell)
-cmd - h : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid focus prev -m
-cmd - l : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid focus next -m
+cmd - h : /Users/r/.config/bin/skhd-run thegrid focus prev -m
+cmd - l : /Users/r/.config/bin/skhd-run thegrid focus next -m
 
 # cell navigation (between cells, --extend for cross-monitor)
-cmd + shift - h : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid focus left --extend --mouse
-cmd + shift - l : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid focus right --extend -m
-cmd + shift - j : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid focus down --extend -m
-cmd + shift - k : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid focus up --extend -m
+cmd + shift - h : /Users/r/.config/bin/skhd-run thegrid focus left --extend --mouse
+cmd + shift - l : /Users/r/.config/bin/skhd-run thegrid focus right --extend -m
+cmd + shift - j : /Users/r/.config/bin/skhd-run thegrid focus down --extend -m
+cmd + shift - k : /Users/r/.config/bin/skhd-run thegrid focus up --extend -m
 
 # window movement (move window to adjacent cell, --extend for cross-monitor)
-cmd + ctrl - h : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid window move left --extend -m
-cmd + ctrl - l : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid window move right --extend -m
-cmd + ctrl - j : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid window move down --extend -m
-cmd + ctrl - k : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid window move up --extend -m
+cmd + ctrl - h : /Users/r/.config/bin/skhd-run thegrid window move left --extend -m
+cmd + ctrl - l : /Users/r/.config/bin/skhd-run thegrid window move right --extend -m
+cmd + ctrl - j : /Users/r/.config/bin/skhd-run thegrid window move down --extend -m
+cmd + ctrl - k : /Users/r/.config/bin/skhd-run thegrid window move up --extend -m
 
-ctrl + alt - h : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid window swap left -m
-ctrl + alt - l : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid window swap right -m
-ctrl + alt - j : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid window swap down -m
-ctrl + alt - k : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid window swap up -m
+ctrl + alt - h : /Users/r/.config/bin/skhd-run thegrid window swap left -m
+ctrl + alt - l : /Users/r/.config/bin/skhd-run thegrid window swap right -m
+ctrl + alt - j : /Users/r/.config/bin/skhd-run thegrid window swap down -m
+ctrl + alt - k : /Users/r/.config/bin/skhd-run thegrid window swap up -m
 
 # Cell boundary resize (keyboard)
-cmd + alt - h : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid resize cell left 0.01
-cmd + alt - l : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid resize cell right 0.01
-cmd + alt - j : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid resize grow 0.01 
-cmd + alt - k : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid resize shrink 0.01
+cmd + alt - h : /Users/r/.config/bin/skhd-run thegrid resize cell left 0.01
+cmd + alt - l : /Users/r/.config/bin/skhd-run thegrid resize cell right 0.01
+cmd + alt - j : /Users/r/.config/bin/skhd-run thegrid resize grow 0.01 
+cmd + alt - k : /Users/r/.config/bin/skhd-run thegrid resize shrink 0.01
 
 # Reset cell ratios
-cmd + alt - 0 : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid resize reset --cells
+cmd + alt - 0 : /Users/r/.config/bin/skhd-run thegrid resize reset --cells
 
 # App launcher (dalauncher) - controller mode handles spawning/toggling
 alt - space : /Users/r/.config/bin/dalauncher
