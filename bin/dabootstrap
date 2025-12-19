@@ -144,8 +144,14 @@ setup_skhd() {
     # Install via brew if not present
     if ! brew list skhd-zig &>/dev/null; then
         info "  Installing skhd-zig via brew..."
-        brew tap jackielii/homebrew-skhd
-        brew install skhd-zig
+        if ! brew tap jackielii/homebrew-skhd; then
+            error "Failed to tap jackielii/homebrew-skhd"
+            exit 1
+        fi
+        if ! brew install skhd-zig; then
+            error "Failed to install skhd-zig"
+            exit 1
+        fi
     else
         info "  skhd-zig already installed"
     fi
@@ -185,9 +191,13 @@ setup_skhd() {
 EOF
     info "  Created launch agent"
 
-    # Load service
+    # Reload service
     launchctl unload "$plist" 2>/dev/null || true
-    launchctl load "$plist"
+    sleep 0.5  # Allow launchd to fully terminate the old process
+    if ! launchctl load "$plist"; then
+        error "Failed to load skhd service"
+        exit 1
+    fi
     info "  Loaded skhd service"
 }
 
