@@ -23,6 +23,7 @@ nvim/plugin/
 !vscode/
 !.gitignore
 !ghostty/
+!thegrid/
 !services/
 services/logs/
 !app-launchers/

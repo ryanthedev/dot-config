@@ -1,0 +1,207 @@
+# ============================================================================
+# TheGrid Configuration
+# ============================================================================
+
+settings:
+  # Stack mode for windows in cells: "vertical", "horizontal", or "tabs"
+  defaultStackMode: tabs 
+
+  # Base unit in pixels for "Nx" padding syntax (e.g., "2x" = 2 * baseSpacing)
+  baseSpacing: 2
+
+  # Global padding around the screen edges [top, right, bottom, left]
+  # Supports: pixels (24), multiplier ("24x"), or array
+  padding: ["24x", "1x", "5x", "5x"]
+
+  # Gap between stacked windows within a cell
+  windowSpacing: "7x"
+
+# ============================================================================
+# Border Configuration
+# ============================================================================
+#
+# Borders are overlay windows drawn around application windows.
+# Effects like glow and shadow extend beyond the border stroke.
+#
+# Available properties for active/inactive:
+#   color        - Hex color "#RRGGBB" or "#RRGGBBAA"
+#   width        - Border stroke width in pixels (1-20, clamped)
+#   cornerRadius - Rounded corner radius in pixels (0-50)
+#   opacity      - Border stroke opacity 0.0-1.0 (0 = invisible stroke)
+#
+# Glow effect (soft halo around the border):
+#   glowRadius   - Blur radius in pixels (0 = disabled)
+#   glowColor    - Glow color (defaults to border color)
+#   glowOpacity  - Glow intensity 0.0-1.0
+#   glowSpread   - Multiplier for glow spread (default 1.0)
+#
+# Shadow effect (drop shadow behind the border):
+#   shadowRadius  - Blur radius in pixels (0 = disabled)
+#   shadowOffset  - [x, y] offset in pixels
+#   shadowColor   - Shadow color (default "#000000")
+#   shadowOpacity - Shadow intensity 0.0-1.0
+#
+# Animation (NOT YET IMPLEMENTED - config is parsed but not applied):
+#   animation:
+#     type: "pulse"           # Animation type
+#     duration: 2.0           # Seconds per cycle
+#     minOpacity: 0.3         # Minimum opacity during pulse
+#     maxOpacity: 1.0         # Maximum opacity during pulse
+#
+# ============================================================================
+borders:
+  # Master switch to enable/disable all window borders
+  enabled: true
+
+  # Active window border (the focused window)
+  active:
+    color: "#22c55e"
+    width: 5
+    cornerRadius: 12
+    opacity: 1.0
+
+    # Glow effect
+    glowRadius: 1
+    glowOpacity: 1 
+    glowColor: "#22c55e"
+    glowSpread: 1.0
+
+    # Shadow disabled
+    shadowRadius: 0
+
+    # Animation - NOT YET IMPLEMENTED
+    # animation:
+    #   type: "pulse"
+    #   duration: 2.0
+
+  # Inactive window borders
+  inactive:
+    enabled: true
+    color: "#22c55e"
+    width: 2
+    cornerRadius: 12
+    opacity: 0.4
+
+    # No glow for inactive
+    glowRadius: 0
+
+    # Shadow disabled
+    shadowRadius: 0
+
+# ============================================================================
+# Layouts
+# Define window arrangements using CSS Grid-like syntax
+# ============================================================================
+layouts:
+  - id: three-column
+    name: "Three Column"
+    description: "Left (tabs), Middle (65%), Right (vertical)"
+    grid:
+      # Column sizes: "1fr" = 1 fraction, "Npx" = pixels, "N%" = percentage
+      columns: ["1fr", "3.7fr", "1fr"]
+      rows: ["1fr"]
+    cells:
+      - id: left
+        # Column span: "start/end" (1-indexed, end is exclusive)
+        column: "1/2"
+        row: "1/2"
+        # How windows stack in this cell: "tabs", "vertical", "horizontal"
+        stackMode: tabs
+      - id: middle
+        column: "2/3"
+        row: "1/2"
+        stackMode: tabs
+      - id: right
+        column: "3/4"
+        row: "1/2"
+        stackMode: vertical
+
+  - id: three-column-tab
+    name: "Three Column Middle"
+    description: "Left (tabs), Middle (65%), Right (vertical)"
+    grid:
+      columns: ["1fr", "3.7fr", "1fr"]
+      rows: ["1fr"]
+    cells:
+      - id: left
+        column: "1/2"
+        row: "1/2"
+        stackMode: tabs
+      - id: middle
+        column: "2/3"
+        row: "1/2"
+        stackMode: tabs
+      - id: right
+        column: "3/4"
+        row: "1/2"
+        stackMode: tabs
+
+  - id: single-tabs
+    name: "Single Cell Tabs"
+    description: "One cell with all windows as tabs"
+    grid:
+      columns: ["1fr"]
+      rows: ["1fr"]
+    cells:
+      - id: main
+        column: "1/2"
+        row: "1/2"
+        stackMode: tabs
+
+  - id: two-column
+    name: "Two Column"
+    description: "50/50 split with tabs in each cell"
+    grid:
+      columns: ["1fr", "1fr"]
+      rows: ["1fr"]
+    cells:
+      - id: left
+        column: "1/2"
+        row: "1/2"
+        stackMode: tabs
+      - id: right
+        column: "2/3"
+        row: "1/2"
+        stackMode: tabs
+
+  - id: ide-ultra
+    name: "IDE Ultrawide"
+    grid:
+      # Mix of fixed pixels and fractions
+      columns: ["280px", "1fr", "1fr", "400px"]
+      rows: ["2fr", "1fr"]
+    cells:
+      - id: explorer
+        column: "1/2"
+        row: "1/3"  # Full height sidebar (spans both rows)
+        # Per-cell padding override [vertical, horizontal]
+        padding: [8, 4]
+      - id: editor-main
+        column: "2/3"
+        row: "1/2"
+        padding: "1x"
+      - id: editor-secondary
+        column: "3/4"
+        row: "1/2"
+        padding: "1x"
+      - id: terminal
+        column: "2/4"  # Spans both editor columns
+        row: "2/3"
+        padding: [4, 8]
+      - id: ai-chat
+        column: "4/5"
+        row: "1/3"  # Full height AI assistant
+        padding: 8
+
+# ============================================================================
+# Spaces
+# Configure layouts available per macOS Space
+# ============================================================================
+spaces:
+  # Space number as string key
+  "1":
+    name: "Main"
+    # List of layout IDs available for this space
+    layouts: ["single-tabs", "three-column", "two-column"]
+    # Layout to apply when switching to this space
+    defaultLayout: two-column
