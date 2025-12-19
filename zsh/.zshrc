@@ -183,3 +183,4 @@ fi
 
 # Disable line wrap?
 tput rmam
+export PATH="$HOME/.local/bin:$PATH"
