@@ -111,7 +111,11 @@
 # open mpv
 #cmd - m : open -na /Applications/mpv.app $(pbpaste)
 
-cmd - return : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid layout reapply
+# New terminal
+cmd - return : open -na /Applications/Ghostty.app
+
+# Layout commands
+alt - a : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid layout reapply
 cmd - 2 : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid layout apply two-column
 cmd - 3 : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid layout apply three-column
 
@@ -145,5 +149,5 @@ cmd + alt - k : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bi
 # Reset cell ratios
 cmd + alt - 0 : /Users/r/.config/bin/skhd-run /Users/r/repos/theGrid/grid-cli/bin/thegrid resize reset --cells
 
-# App launcher (dalauncher)
-alt - space : open -na Ghostty --args -e /Users/r/.config/bin/dalauncher
+# App launcher (dalauncher) - controller mode handles spawning/toggling
+alt - space : /Users/r/.config/bin/dalauncher
