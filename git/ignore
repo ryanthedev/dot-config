@@ -1,0 +1,19 @@
+# Claude Code local settings
+**/.claude/settings.local.json
+
+# macOS
+.DS_Store
+
+# Environment files
+.env
+.env.local
+
+# Editor directories
+.idea/
+.vscode/
+
+# Dependencies
+node_modules/
+
+# Build artifacts
+*.log
