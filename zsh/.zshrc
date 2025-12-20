@@ -1,3 +1,6 @@
+# Disable line wrap (must be before instant prompt to avoid console output warning)
+tput rmam 2>/dev/null
+
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.
@@ -112,7 +115,7 @@ export PATH=$HOME/.config/tmux/plugins/tmux-session-wizard/bin:$PATH
 
 # NVM
 export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" --no-use  # Defer node version activation
 
 # You may need to manually set your language environment
 # export LANG=en_US.UTF-8
@@ -151,7 +154,7 @@ alias pp=pip3
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 if command -v zoxide >/dev/null 2>&1; then
-  eval "$(zoxide init zsh)"
+  eval "$(zoxide init zsh 2>/dev/null)"
 fi
 
 unsetopt HUP  # Keep jobs running after exiting shell.
@@ -162,7 +165,7 @@ unsetopt CHECK_JOBS  # Don't report on jobs when shell exit.
 [ -s ~/.luaver/completions/luaver.bash ] && . ~/.luaver/completions/luaver.bash
 
 if [ -x ~/.local/bin/mise ]; then
-  eval "$(~/.local/bin/mise activate)"
+  eval "$(~/.local/bin/mise activate 2>/dev/null)"
 fi
 
 
@@ -181,6 +184,4 @@ if [ -f $HOME/.config/zsh/.env ]; then
     set +a  # Stop auto-exporting
 fi
 
-# Disable line wrap?
-tput rmam
 export PATH="$HOME/.local/bin:$PATH"
