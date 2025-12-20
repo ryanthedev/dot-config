@@ -114,11 +114,6 @@
 # New terminal
 cmd - return : open -na /Applications/Ghostty.app
 
-# Layout commands
-alt - a : /Users/r/.config/bin/skhd-run thegrid layout reapply
-cmd - 2 : /Users/r/.config/bin/skhd-run thegrid layout apply two-column
-cmd - 3 : /Users/r/.config/bin/skhd-run thegrid layout apply three-column
-
 # window cycling (within cell)
 cmd - h : /Users/r/.config/bin/skhd-run thegrid focus prev -m
 cmd - l : /Users/r/.config/bin/skhd-run thegrid focus next -m

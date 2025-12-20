@@ -86,27 +86,24 @@ plugins=(
 source $ZSH/oh-my-zsh.sh
 
 # User configuration
+typeset -U PATH  # Remove duplicate PATH entries
 
-# dotnet
-export DOTNET_ROOT=$HOME/.dotnet
-export PATH=$PATH:$DOTNET_ROOT:$DOTNET_ROOT/tools
+# Core paths
 export PATH=$PATH:/opt/homebrew/bin
-# go
-export PATH=$PATH:/usr/local/go/bin
-# custom
 export PATH=$PATH:$HOME/.config/bin
-# kitty
-export PATH=$PATH:/Applications/kitty.app/Contents/MacOS
-# nvim
-export PATH=$PATH:$HOME/.nvim/bin
+export PATH=$PATH:$HOME/.local/bin
+
+# Language runtimes (conditional - only if installed)
+[ -d /usr/local/go/bin ] && export PATH=$PATH:/usr/local/go/bin
+[ -d $HOME/.dotnet ] && export DOTNET_ROOT=$HOME/.dotnet && export PATH=$PATH:$DOTNET_ROOT:$DOTNET_ROOT/tools
+[ -d $HOME/.nvim/bin ] && export PATH=$PATH:$HOME/.nvim/bin
+
+# App-specific paths (conditional)
+[ -d /Applications/kitty.app ] && export PATH=$PATH:/Applications/kitty.app/Contents/MacOS
+
 # tmux
 export TMUX_CONF=~/.config/tmux/tmux.conf
-
-
-# ~/.tmux/plugins
-export PATH=$HOME/.tmux/plugins/tmux-session-wizard/bin:$PATH
-# ~/.config/tmux/plugins
-export PATH=$HOME/.config/tmux/plugins/tmux-session-wizard/bin:$PATH
+[ -d $HOME/.config/tmux/plugins/tmux-session-wizard ] && export PATH=$HOME/.config/tmux/plugins/tmux-session-wizard/bin:$PATH
 
 
 
@@ -157,22 +154,16 @@ fi
 unsetopt HUP  # Keep jobs running after exiting shell.
 unsetopt CHECK_JOBS  # Don't report on jobs when shell exit.
 
+# Tool activations (conditional - only if installed)
+[ -x ~/.local/bin/mise ] && eval "$(~/.local/bin/mise activate 2>/dev/null)"
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-[ -s ~/.luaver/luaver ] && . ~/.luaver/luaver
-[ -s ~/.luaver/completions/luaver.bash ] && . ~/.luaver/completions/luaver.bash
+[ -s ~/.luaver/luaver ] && source ~/.luaver/luaver
+[ -s ~/.luaver/completions/luaver.bash ] && source ~/.luaver/completions/luaver.bash
+[ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"
 
-if [ -x ~/.local/bin/mise ]; then
-  eval "$(~/.local/bin/mise activate 2>/dev/null)"
-fi
-
-
-# The next line updates PATH for the Google Cloud SDK.
-if [ -f '/Users/RHayden/.gcloud/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/RHayden/.gcloud/google-cloud-sdk/path.zsh.inc'; fi
-
-# The next line enables shell command completion for gcloud.
-if [ -f '/Users/RHayden/.gcloud/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/RHayden/.gcloud/google-cloud-sdk/completion.zsh.inc'; fi
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-
+# Google Cloud SDK (conditional)
+[ -f "$HOME/.gcloud/google-cloud-sdk/path.zsh.inc" ] && source "$HOME/.gcloud/google-cloud-sdk/path.zsh.inc"
+[ -f "$HOME/.gcloud/google-cloud-sdk/completion.zsh.inc" ] && source "$HOME/.gcloud/google-cloud-sdk/completion.zsh.inc"
 
 # Load local .env file if it exists
 if [ -f $HOME/.config/zsh/.env ]; then
@@ -180,5 +171,3 @@ if [ -f $HOME/.config/zsh/.env ]; then
     source $HOME/.config/zsh/.env
     set +a  # Stop auto-exporting
 fi
-
-export PATH="$HOME/.local/bin:$PATH"
