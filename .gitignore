@@ -26,7 +26,6 @@ nvim/plugin/
 !thegrid/
 !services/
 services/logs/
-!app-launchers/
 !.damachine.example
 !.doc/
 !dalauncher/
