@@ -1,0 +1,69 @@
+shell: /bin/zsh
+
+vars:
+  grid: thegrid
+
+defaults:
+  repeat: true
+  rate_limit: 50
+
+blacklist:
+  - "VMware Fusion"
+  - "Parallels Desktop"
+
+hotkeys:
+  # Navigation
+  cmd-h: $grid focus prev -m
+  cmd-l: $grid focus next -m
+  cmd+shift-h: $grid focus left --extend --mouse
+  cmd+shift-l: $grid focus right --extend -m
+  cmd+shift-j: $grid focus down --extend -m
+  cmd+shift-k: $grid focus up --extend -m
+
+  # Movement
+  cmd+ctrl-h: $grid window move left --extend -m
+  cmd+ctrl-l: $grid window move right --extend -m
+  cmd+ctrl-j: $grid window move down --extend -m
+  cmd+ctrl-k: $grid window move up --extend -m
+
+  # Swap
+  ctrl+alt-h: $grid window swap left -m
+  ctrl+alt-l: $grid window swap right -m
+  ctrl+alt-j: $grid window swap down -m
+  ctrl+alt-k: $grid window swap up -m
+
+  # Resize (faster rate for smooth resizing)
+  cmd+alt-h:
+    run: $grid resize cell left 0.01
+    rate_limit: 20
+  cmd+alt-l:
+    run: $grid resize cell right 0.01
+    rate_limit: 20
+  cmd+alt-j:
+    run: $grid resize grow 0.01
+    rate_limit: 20
+  cmd+alt-k:
+    run: $grid resize shrink 0.01
+    rate_limit: 20
+  cmd+alt-0: $grid resize reset --cells
+
+  # Layout
+  cmd-2: $grid layout apply two-column
+  cmd-3: $grid layout apply three-column
+  alt-a: $grid layout reapply
+
+  # Apps (no repeat for launchers)
+  cmd-return:
+    run: open -na /Applications/Ghostty.app
+    repeat: false
+  alt-space:
+    run: /Users/r/.config/bin/dalauncher
+    repeat: false
+
+apps:
+  Ghostty:
+    cmd-h: ~
+    cmd-l: ~
+  kitty:
+    cmd-h: ~
+    cmd-l: ~

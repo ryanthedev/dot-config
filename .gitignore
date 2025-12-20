@@ -29,4 +29,6 @@ services/logs/
 !app-launchers/
 !.damachine.example
 !.doc/
+!dalauncher/
+!mise/
 .damachine

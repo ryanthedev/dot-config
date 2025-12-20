@@ -1,0 +1,33 @@
+sources:
+  # Scan /Applications and /System/Applications
+  applications: true
+
+  # Chrome profiles from Local State
+  chrome:
+    enabled: true
+    state_file: ~/Library/Application Support/Google/Chrome/Local State
+
+# Custom actions
+actions:
+  - name: Ghostty New
+    command: open -na Ghostty
+    category: Apps
+
+  - name: Edit Dotfiles
+    command: code ~/.config
+    category: Dev
+
+  - name: Kill Port 3000
+    command: lsof -ti:3000 | xargs kill -9
+    category: Dev
+
+  - name: Kill Port 8080
+    command: lsof -ti:8080 | xargs kill -9
+    category: Dev
+
+# theGrid integration for window management
+thegrid:
+  path: /Users/r/repos/theGrid/grid-cli/bin/thegrid
+  window:
+    width: 600
+    height: 400
