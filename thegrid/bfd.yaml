@@ -1,7 +1,7 @@
 shell: /bin/zsh
 
 vars:
-  grid: thegrid
+  grid: ~/.local/bin/thegrid
 
 defaults:
   repeat: true

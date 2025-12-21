@@ -41,6 +41,13 @@ local autoCommands = {
 -- M.nvim_create_augroups(autoCommands)
 --
 --
+-- Treat .jsonl files as JSON
+vim.filetype.add({
+  extension = {
+    jsonl = "json",
+  },
+})
+
 vim.api.nvim_create_autocmd("FileType",  {
       pattern = { "json" },
       callback = function()

@@ -1,7 +1,7 @@
 keybind = global:cmd+grave_accent=toggle_quick_terminal
 
 # Quick terminal settings
-quick-terminal-screen = mouse
+quick-terminal-screen = macos-menu-bar
 quick-terminal-autohide = false
 quick-terminal-size = 60%
 
