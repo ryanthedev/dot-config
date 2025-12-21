@@ -23,6 +23,7 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; }
 load_config() {
     THEGRID_DEV="${THEGRID_DEV:-false}"
     THEGRID_REPO="${THEGRID_REPO:-}"
+    ULTRA_SKILLS_REPO="${ULTRA_SKILLS_REPO:-$HOME/repos/ultra-skills}"
 
     if [[ -f "$DAMACHINE" ]]; then
         info "Loading config from $DAMACHINE"
@@ -296,7 +297,8 @@ setup_thegrid_brew() {
         brew install thegrid
         info "  Installed thegrid"
     else
-        info "  thegrid already installed"
+        brew upgrade thegrid 2>/dev/null || true
+        info "  thegrid upgraded (or already latest)"
     fi
 
     # Start service
@@ -306,6 +308,46 @@ setup_thegrid_brew() {
     else
         info "  thegrid service already running"
     fi
+}
+
+setup_claude() {
+    info "Setting up Claude Code skills..."
+
+    local repo_path="${ULTRA_SKILLS_REPO/#\~/$HOME}"
+
+    # Check if ultra-skills repo exists
+    if [[ ! -d "$repo_path" ]]; then
+        warn "  ultra-skills repo not found at: $repo_path"
+        warn "  Skipping Claude skills setup"
+        return
+    fi
+
+    # Pull latest
+    info "  Pulling latest from ultra-skills..."
+    if git -C "$repo_path" pull --quiet 2>/dev/null; then
+        info "  Updated ultra-skills repo"
+    else
+        warn "  Could not pull ultra-skills (offline or not a git repo)"
+    fi
+
+    # Create directories
+    mkdir -p "$HOME/.claude/skills"
+    mkdir -p "$HOME/.claude/commands"
+
+    # Symlink all skills
+    local skills_dir="$repo_path/skills"
+    if [[ -d "$skills_dir" ]]; then
+        for skill in "$skills_dir"/*/; do
+            if [[ -d "$skill" ]]; then
+                local skill_name
+                skill_name=$(basename "$skill")
+                ln -sf "$skill" "$HOME/.claude/skills/$skill_name"
+                info "  Linked skill: $skill_name"
+            fi
+        done
+    fi
+
+    info "  Claude skills setup complete"
 }
 
 verify_status() {
@@ -356,6 +398,7 @@ main() {
     cleanup_yabai
     setup_skhd
     setup_thegrid
+    setup_claude
     verify_status
 
     echo ""
