@@ -64,10 +64,6 @@ return {
     }
   },
   {
-    "github/copilot.vim",
-    lazy = false,
-  },
-  {
     "echasnovski/mini.diff",
     config = function()
       local diff = require("mini.diff")

@@ -21,15 +21,15 @@ nnoremap("<leader>-", "<C-x>") -- decrement
 -- window management
 -- splits
 nnoremap("<leader>sv", "<C-w>v") -- split window vertically
-nnoremap("<leader>sh", "<C-w>s") -- split window horizontally
+nnoremap("<leader>ss", "<C-w>s") -- split window horizontally
 nnoremap("<leader>se", "<C-w>=") -- make split windows equal width & height
 nnoremap("<leader>sx", ":close<CR>") -- close current split window
-nnoremap("<leader>sh", "<C-w>h") -- move splt window focus left
-nnoremap("<leader>sl", "<C-w>l") -- move splt window focus right
-nnoremap("<leader>sj", "<C-w>j") -- move splt window focus down 
-nnoremap("<leader>sk", "<C-w>k") -- move splt window focus up 
-nnoremap("<leader>si", "<C-w><S->><C-w><S->>") -- increase split window focus size 
-nnoremap("<leader>sd", "<C-w><S-<><C-w><S-<>") -- decrease split window focus size 
+nnoremap("<leader>sh", "<C-w>h") -- move split window focus left
+nnoremap("<leader>sl", "<C-w>l") -- move split window focus right
+nnoremap("<leader>sj", "<C-w>j") -- move split window focus down
+nnoremap("<leader>sk", "<C-w>k") -- move split window focus up
+nnoremap("<leader>s>", "<C-w>>") -- increase split width
+nnoremap("<leader>s<", "<C-w><") -- decrease split width 
 -- tabs
 nnoremap("<leader>tn", ":tabnew<CR>") -- open new tab
 nnoremap("<leader>tx", ":tabclose<CR>") -- close current tab
@@ -84,34 +84,4 @@ nnoremap("<leader>rs", ":LspRestart<CR>") -- mapping to restart lsp if necessary
 
 -- preview files (netrw)
 nnoremap("<leader>pv", "<cmd>Ex<CR>")
-
--- debug
-nnoremap("<F4>", ":lua require('dapui').toggle()<CR>")
-nnoremap("<F7>", ":lua require('dap').toggle_breakpoint()<CR>")
-nnoremap("<F5>", ":lua require('dap').continue()<CR>")
-
-nnoremap("<F1>", ":lua require('dap').step_over()<CR>")
-nnoremap("<F2>", ":lua require('dap').step_into()<CR>")
-nnoremap("<F3>", ":lua require('dap').step_out()<CR>")
-
-nnoremap("<leader>dsc", ":lua require('dap').continue()<CR>")
-nnoremap("<leader>dsv", ":lua require('dap').step_over()<CR>")
-nnoremap("<leader>dsi", ":lua require('dap').step_into()<CR>")
-nnoremap("<leader>dso", ":lua require('dap').step_out()<CR>")
-
-nnoremap("<leader>dhh", ":lua require('dap.ui.variables').hover()<CR>")
-vnoremap("<leader>dhv", ":lua require('dap.ui.variables').visual_hover()<CR>")
-
-nnoremap("<leader>duh", ":lua require('dap.ui.widgets').hover()<CR>")
-nnoremap("<leader>duf", ":lua local widgets=require('dap.ui.widgets');widgets.centered_float(widgets.scopes)<CR>")
-
-nnoremap("<leader>dro", ":lua require('dap').repl.open()<CR>")
-nnoremap("<leader>drl", ":lua require('dap').repl.run_last()<CR>")
-
-nnoremap("<leader>dbc", ":lua require('dap').set_breakpoint(vim.fn.input('Breakpoint condition: '))<CR>")
-nnoremap("<leader>dbm", ":lua require('dap').set_breakpoint({ nil, nil, vim.fn.input('Log point message: '))<CR>")
-nnoremap("<leader>dbt", ":lua require('dap').toggle_breakpoint()<CR>")
-
-nnoremap("<leader>dc", ":lua require('dap.ui.variables').scopes()<CR>")
-nnoremap("<leader>di", ":lua require('dapui').toggle()<CR>")
 

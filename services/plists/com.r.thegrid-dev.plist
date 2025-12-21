@@ -7,14 +7,14 @@
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/make</string>
-        <string>dev</string>
+        <string>dev-app</string>
     </array>
     <key>WorkingDirectory</key>
     <string>/Users/r/repos/theGrid</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+        <string>/usr/local/go/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>
