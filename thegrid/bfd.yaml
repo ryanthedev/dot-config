@@ -1,7 +1,27 @@
+# ============================================================================
+# BFD (Built-in Focus Direction) Hotkey Configuration
+# ============================================================================
+#
+# All fields are optional - you can comment out any section.
+#
+# Hotkey format: "modifier+modifier-key"
+#   Modifiers: cmd, ctrl, alt, shift (combine with +)
+#   Examples: cmd-h, cmd+shift-h, ctrl+alt-j
+#
+# Hotkey values can be:
+#   - Simple command string: "thegrid focus left"
+#   - Variable expansion: "$grid focus left" (uses vars section)
+#   - Extended format with options:
+#       run: $grid resize cell left 0.01
+#       repeat: false      # Disable key repeat (default: true)
+#       rate_limit: 20     # Min ms between repeats (default: 50)
+#
+# ============================================================================
+
 shell: /bin/zsh
 
 vars:
-  grid: ~/.local/bin/thegrid
+  grid: thegrid
 
 defaults:
   repeat: true
@@ -50,20 +70,41 @@ hotkeys:
   # Layout
   cmd-2: $grid layout apply two-column
   cmd-3: $grid layout apply three-column
-  alt-a: $grid layout reapply
+  alt-a: thegrid-reapply-layouts
 
   # Apps (no repeat for launchers)
   cmd-return:
     run: open -na /Applications/Ghostty.app
     repeat: false
   alt-space:
-    run: /Users/r/.config/bin/dalauncher
+    run: dalauncher
     repeat: false
 
-apps:
-  Ghostty:
-    cmd-h: ~
-    cmd-l: ~
-  kitty:
-    cmd-h: ~
-    cmd-l: ~
+  # Service control
+  alt-escape:
+    run: services stop thegrid-dev
+    repeat: false
+
+# ============================================================================
+# Per-App Hotkey Overrides
+# ============================================================================
+#
+# Override hotkeys for specific applications. Values can be:
+#   - "~"           Pass-through to the app (BFD ignores, app receives key)
+#   - "command"     Run a different command for this app
+#   - Extended format (same as hotkeys section)
+#
+# Example:
+#   apps:
+#     Ghostty:
+#       cmd-h: ~              # Let Ghostty handle cmd-h natively
+#       cmd-l: ~              # Let Ghostty handle cmd-l natively
+#     "Some App":
+#       cmd-k: $grid focus up # Different command for this app
+#
+# ============================================================================
+
+# apps:
+#   Ghostty:
+#     cmd-h: ~
+#     cmd-l: ~

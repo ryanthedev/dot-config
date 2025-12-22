@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # dabootstrap - Idempotent window management bootstrap for macOS
-# Sets up skhd-zig + theGrid, cleans up aerospace/yabai
+# Sets up theGrid, cleans up legacy window managers
 
 CONFIG_DIR="$HOME/.config"
 DAMACHINE="$CONFIG_DIR/.damachine"
@@ -139,67 +139,44 @@ cleanup_yabai() {
     fi
 }
 
-setup_skhd() {
-    info "Setting up skhd-zig..."
+cleanup_skhd() {
+    info "Cleaning up skhd..."
 
-    # Install via brew if not present
-    if ! brew list skhd-zig &>/dev/null; then
-        info "  Installing skhd-zig via brew..."
-        if ! brew tap jackielii/homebrew-skhd; then
-            error "Failed to tap jackielii/homebrew-skhd"
-            exit 1
-        fi
-        if ! brew install skhd-zig; then
-            error "Failed to install skhd-zig"
-            exit 1
-        fi
-    else
-        info "  skhd-zig already installed"
-    fi
+    local found=false
 
-    # Create/update launch agent
+    # Stop and remove launch agent
     local plist="$LAUNCH_AGENTS/com.jackielii.skhd.plist"
-    local skhd_bin
-    skhd_bin="$(brew --prefix)/bin/skhd"
-
-    # Write plist
-    cat > "$plist" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.jackielii.skhd</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>$skhd_bin</string>
-    </array>
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>PATH</key>
-        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
-    </dict>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-    <key>StandardOutPath</key>
-    <string>/tmp/skhd.out.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/skhd.err.log</string>
-</dict>
-</plist>
-EOF
-    info "  Created launch agent"
-
-    # Reload service
-    launchctl unload "$plist" 2>/dev/null || true
-    sleep 0.5  # Allow launchd to fully terminate the old process
-    if ! launchctl load "$plist"; then
-        error "Failed to load skhd service"
-        exit 1
+    if [[ -f "$plist" ]] || [[ -L "$plist" ]]; then
+        launchctl unload "$plist" 2>/dev/null || true
+        rm -f "$plist"
+        info "  Removed launch agent"
+        found=true
     fi
-    info "  Loaded skhd service"
+
+    # Brew uninstall
+    if brew list skhd-zig &>/dev/null; then
+        brew uninstall skhd-zig
+        info "  Uninstalled skhd-zig via brew"
+        found=true
+    fi
+
+    # Untap
+    if brew tap | grep -q "jackielii/homebrew-skhd"; then
+        brew untap jackielii/homebrew-skhd
+        info "  Untapped jackielii/homebrew-skhd"
+        found=true
+    fi
+
+    # Remove config
+    if [[ -d "$CONFIG_DIR/skhd" ]]; then
+        rm -rf "$CONFIG_DIR/skhd"
+        info "  Removed config directory"
+        found=true
+    fi
+
+    if [[ "$found" == "false" ]]; then
+        info "  Nothing to clean up"
+    fi
 }
 
 setup_thegrid() {
@@ -310,6 +287,26 @@ setup_thegrid_brew() {
     fi
 }
 
+setup_bin_symlinks() {
+    info "Symlinking ~/.config/bin to ~/.local/bin..."
+
+    mkdir -p "$HOME/.local/bin"
+
+    local count=0
+    for script in "$CONFIG_DIR/bin"/*; do
+        [[ -f "$script" ]] || continue
+        [[ -x "$script" ]] || continue
+        local name
+        name=$(basename "$script")
+        # Skip dabootstrap itself to avoid circular issues
+        [[ "$name" == "dabootstrap" ]] && continue
+        ln -sf "$script" "$HOME/.local/bin/$name"
+        count=$((count + 1))
+    done
+
+    info "  Linked $count scripts to ~/.local/bin"
+}
+
 setup_claude() {
     info "Setting up Claude Code skills..."
 
@@ -354,13 +351,6 @@ verify_status() {
     info "Verifying services..."
     echo ""
 
-    # skhd
-    if launchctl list | grep -q "com.jackielii.skhd"; then
-        echo -e "  skhd-zig:    ${GREEN}running${NC}"
-    else
-        echo -e "  skhd-zig:    ${RED}not running${NC}"
-    fi
-
     # theGrid
     if [[ "$THEGRID_DEV" == "true" ]]; then
         if launchctl list | grep -q "com.r.thegrid-dev"; then
@@ -394,9 +384,10 @@ main() {
 
     load_config
     check_prerequisites
+    setup_bin_symlinks
     cleanup_aerospace
     cleanup_yabai
-    setup_skhd
+    cleanup_skhd
     setup_thegrid
     setup_claude
     verify_status

@@ -89,6 +89,7 @@ start_service() {
     local name="$1"
     local label=$(get_label "$name")
     local plist="$LAUNCH_AGENTS/$label.plist"
+    local domain="gui/$(id -u)"
 
     if [ -z "$name" ]; then
         echo "Error: Please specify a service name"
@@ -101,14 +102,14 @@ start_service() {
     fi
 
     echo "Starting $name..."
-    launchctl load "$plist" 2>&1
+    launchctl bootstrap "$domain" "$plist" 2>&1 || launchctl kickstart -k "$domain/$label" 2>&1
     echo "Done."
 }
 
 stop_service() {
     local name="$1"
     local label=$(get_label "$name")
-    local plist="$LAUNCH_AGENTS/$label.plist"
+    local domain="gui/$(id -u)"
 
     if [ -z "$name" ]; then
         echo "Error: Please specify a service name"
@@ -116,7 +117,7 @@ stop_service() {
     fi
 
     echo "Stopping $name..."
-    launchctl unload "$plist" 2>/dev/null
+    launchctl bootout "$domain/$label" 2>/dev/null
     echo "Done."
 }
 
@@ -162,6 +163,7 @@ install_services() {
     mkdir -p "$LAUNCH_AGENTS"
     mkdir -p "$LOGS_DIR"
 
+    local domain="gui/$(id -u)"
     local count=0
     for plist in "$PLISTS_DIR"/*.plist; do
         [ -f "$plist" ] || continue
@@ -169,8 +171,8 @@ install_services() {
         local target="$LAUNCH_AGENTS/$filename"
         local label="${filename%.plist}"
 
-        # Unload if already loaded
-        launchctl unload "$target" 2>/dev/null
+        # Bootout if already loaded
+        launchctl bootout "$domain/$label" 2>/dev/null
 
         # Remove existing symlink or file
         if [ -L "$target" ] || [ -f "$target" ]; then
@@ -181,8 +183,8 @@ install_services() {
         ln -s "$plist" "$target"
         echo "  Linked: $filename"
 
-        # Load the service
-        launchctl load "$target"
+        # Bootstrap the service
+        launchctl bootstrap "$domain" "$target"
         echo "  Loaded: $filename"
 
         count=$((count + 1))
@@ -199,14 +201,16 @@ install_services() {
 uninstall_services() {
     echo "Uninstalling services..."
 
+    local domain="gui/$(id -u)"
     local count=0
     for plist in "$PLISTS_DIR"/*.plist; do
         [ -f "$plist" ] || continue
         local filename=$(basename "$plist")
         local target="$LAUNCH_AGENTS/$filename"
+        local label="${filename%.plist}"
 
         if [ -L "$target" ] || [ -f "$target" ]; then
-            launchctl unload "$target" 2>/dev/null
+            launchctl bootout "$domain/$label" 2>/dev/null
             rm "$target"
             echo "  Removed: $filename"
             count=$((count + 1))

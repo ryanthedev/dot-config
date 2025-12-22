@@ -6,15 +6,14 @@
     <string>com.r.thegrid-dev</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/make</string>
-        <string>dev</string>
+        <string>/Users/r/repos/theGrid/grid-server/.build/debug/GridServer.app/Contents/MacOS/grid-server</string>
     </array>
     <key>WorkingDirectory</key>
     <string>/Users/r/repos/theGrid</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+        <string>/Users/r/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>

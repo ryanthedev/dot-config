@@ -90,7 +90,6 @@ typeset -U PATH  # Remove duplicate PATH entries
 
 # Core paths
 export PATH=$PATH:/opt/homebrew/bin
-export PATH=$PATH:$HOME/.config/bin
 export PATH=$PATH:$HOME/.local/bin
 
 # Language runtimes (conditional - only if installed)
