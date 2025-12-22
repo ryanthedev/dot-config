@@ -164,6 +164,22 @@ layouts:
         row: "1/2"
         stackMode: tabs
 
+  - id: default 
+    name: "Two Column"
+    description: "50/50 split with tabs in each cell"
+    grid:
+      columns: ["1fr", "1fr"]
+      rows: ["1fr"]
+    cells:
+      - id: left
+        column: "1/2"
+        row: "1/2"
+        stackMode: tabs
+      - id: right
+        column: "2/3"
+        row: "1/2"
+        stackMode: tabs
+
   - id: ide-ultra
     name: "IDE Ultrawide"
     grid:
