@@ -4,14 +4,18 @@
 
 settings:
   # Stack mode for windows in cells: "vertical", "horizontal", or "tabs"
-  defaultStackMode: tabs 
+  defaultStackMode: tabs
 
   # Base unit in pixels for "Nx" padding syntax (e.g., "2x" = 2 * baseSpacing)
   baseSpacing: 2
 
+  # Inset size for tab stack position indicators (reveals windows behind)
+  # Shows top-left corner if prev windows exist, bottom-right if next exist
+  tabIndicatorInset: "5x"  # 5 * baseSpacing = 10px
+
   # Global padding around the screen edges [top, right, bottom, left]
   # Supports: pixels (24), multiplier ("24x"), or array
-  padding: ["24x", "1x", "5x", "5x"]
+  padding: ["5x", "5x", "5x", "5x"]
 
   # Gap between stacked windows within a cell
   windowSpacing: "7x"
