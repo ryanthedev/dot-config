@@ -71,6 +71,7 @@ hotkeys:
   cmd-2: $grid layout apply two-column
   cmd-3: $grid layout apply three-column
   alt-a: thegrid-reapply-layouts
+  alt-s: $grid cell mode
 
   # Apps (no repeat for launchers)
   cmd-return:
