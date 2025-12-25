@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# npmr - fuzzy find and run package.json scripts with preview
+# Detects npm, pnpm, yarn, or bun automatically
+
+set -euo pipefail
+
+# Check for package.json
+if [[ ! -f package.json ]]; then
+  echo "No package.json found in current directory" >&2
+  exit 1
+fi
+
+# Detect package manager from lock files
+detect_pm() {
+  if [[ -f pnpm-lock.yaml ]]; then
+    echo "pnpm"
+  elif [[ -f yarn.lock ]]; then
+    echo "yarn"
+  elif [[ -f bun.lockb ]]; then
+    echo "bun"
+  elif [[ -f package-lock.json ]]; then
+    echo "npm"
+  else
+    # Default to npm if no lock file found
+    echo "npm"
+  fi
+}
+
+pm=$(detect_pm)
+
+# Warn if node_modules is missing
+if [[ ! -d node_modules ]]; then
+  echo "Warning: node_modules not found. You may need to run '$pm install' first." >&2
+  read -p "Continue anyway? [y/N] " -n 1 -r
+  echo
+  [[ $REPLY =~ ^[Yy]$ ]] || exit 0
+fi
+
+# Extract script names and let user pick one with fzf
+# Preview shows the full command
+selected=$(jq -r '.scripts // {} | keys[]' package.json 2>/dev/null | \
+  fzf --height=40% \
+      --layout=reverse \
+      --border \
+      --header="$pm run scripts" \
+      --preview="jq -r '.scripts[\"{}\"]' package.json" \
+      --preview-window=up:3:wrap)
+
+# Run the selected script
+if [[ -n "$selected" ]]; then
+  echo "Running: $pm run $selected"
+  $pm run "$selected"
+fi
