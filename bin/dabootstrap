@@ -23,7 +23,8 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; }
 load_config() {
     THEGRID_DEV="${THEGRID_DEV:-false}"
     THEGRID_REPO="${THEGRID_REPO:-}"
-    ULTRA_SKILLS_REPO="${ULTRA_SKILLS_REPO:-$HOME/repos/ultra-skills}"
+    SKILLS_REPO="${SKILLS_REPO:-$HOME/repos/oberskills}"
+    SSH_HOSTS="${SSH_HOSTS:-linode}"
 
     if [[ -f "$DAMACHINE" ]]; then
         info "Loading config from $DAMACHINE"
@@ -307,29 +308,65 @@ setup_bin_symlinks() {
     info "  Linked $count scripts to ~/.local/bin"
 }
 
+setup_remote_terminfo() {
+    info "Setting up Ghostty terminfo on remote hosts..."
+
+    # Check if ghostty terminfo exists locally
+    if ! infocmp xterm-ghostty &>/dev/null; then
+        warn "  xterm-ghostty terminfo not found locally, skipping"
+        return
+    fi
+
+    # SSH_HOSTS is space-separated list from .damachine (default: "linode")
+    if [[ -z "$SSH_HOSTS" ]]; then
+        info "  No SSH_HOSTS configured, skipping"
+        return
+    fi
+
+    for host in $SSH_HOSTS; do
+        # Check if host is reachable (with short timeout)
+        if ssh -o ConnectTimeout=5 -o BatchMode=yes "$host" true 2>/dev/null; then
+            info "  Installing terminfo on $host..."
+            if infocmp -x xterm-ghostty | ssh "$host" tic -x - 2>/dev/null; then
+                info "  $host: OK"
+            else
+                warn "  $host: failed to install terminfo"
+            fi
+        else
+            warn "  $host: unreachable, skipping"
+        fi
+    done
+}
+
 setup_claude() {
     info "Setting up Claude Code skills..."
 
-    local repo_path="${ULTRA_SKILLS_REPO/#\~/$HOME}"
+    local repo_path="${SKILLS_REPO/#\~/$HOME}"
 
-    # Check if ultra-skills repo exists
+    # Check if skills repo exists
     if [[ ! -d "$repo_path" ]]; then
-        warn "  ultra-skills repo not found at: $repo_path"
+        warn "  Skills repo not found at: $repo_path"
         warn "  Skipping Claude skills setup"
         return
     fi
 
     # Pull latest
-    info "  Pulling latest from ultra-skills..."
+    info "  Pulling latest from skills repo..."
     if git -C "$repo_path" pull --quiet 2>/dev/null; then
-        info "  Updated ultra-skills repo"
+        info "  Updated skills repo"
     else
-        warn "  Could not pull ultra-skills (offline or not a git repo)"
+        warn "  Could not pull skills repo (offline or not a git repo)"
     fi
 
     # Create directories
     mkdir -p "$HOME/.claude/skills"
     mkdir -p "$HOME/.claude/commands"
+
+    # Symlink global CLAUDE.md from dotfiles
+    if [[ -f "$CONFIG_DIR/claude/CLAUDE.md" ]]; then
+        ln -sf "$CONFIG_DIR/claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
+        info "  Linked global CLAUDE.md"
+    fi
 
     # Symlink all skills
     local skills_dir="$repo_path/skills"
@@ -389,6 +426,7 @@ main() {
     cleanup_yabai
     cleanup_skhd
     setup_thegrid
+    setup_remote_terminfo
     setup_claude
     verify_status
 

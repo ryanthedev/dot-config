@@ -31,4 +31,5 @@ services/logs/
 !.doc/
 !dalauncher/
 !mise/
+!claude/
 .damachine

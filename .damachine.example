@@ -1,7 +1,33 @@
-# Machine-specific configuration for dabootstrap
-# Copy to .damachine and customize for this machine
+# .damachine - Machine-specific configuration
+# Copy this to .damachine and customize for your machine
+#
+# cp .damachine.example .damachine
 
-# theGrid dev mode - run from local repo instead of brew
-# Uncomment on dev machines with theGrid source checkout
+# ============================================================================
+# theGrid Window Manager
+# ============================================================================
+
+# Set to true to run theGrid in dev mode (from local repo instead of brew)
 # THEGRID_DEV=true
+
+# Path to theGrid repo (required if THEGRID_DEV=true)
 # THEGRID_REPO="$HOME/repos/theGrid"
+
+# ============================================================================
+# Claude Code Skills
+# ============================================================================
+
+# Path to skills repo for Claude Code skill symlinks
+# SKILLS_REPO="$HOME/repos/oberskills"
+
+# ============================================================================
+# SSH Remote Hosts
+# ============================================================================
+
+# Space-separated list of SSH host names (must match ~/.ssh/config Host entries)
+# dabootstrap will install Ghostty terminfo on these hosts
+# Use ssh-setup <host> --generate --terminfo for first-time key setup
+# SSH_HOSTS="linode"
+
+# Examples:
+# SSH_HOSTS="linode aws-prod aws-staging raspberry-pi"
