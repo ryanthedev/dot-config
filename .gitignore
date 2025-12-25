@@ -24,6 +24,7 @@ nvim/plugin/
 !.gitignore
 !ghostty/
 !thegrid/
+thegrid/*.local.yaml
 !services/
 services/logs/
 !.damachine.example
