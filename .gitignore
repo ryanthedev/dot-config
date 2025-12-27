@@ -4,6 +4,7 @@
 !aerospace/
 aerospace/aerospace.toml
 !bin/
+bin/claude-debug-*.py
 !polybar/
 !skhd/
 !yabai/
@@ -27,6 +28,7 @@ nvim/plugin/
 thegrid/*.local.yaml
 !services/
 services/logs/
+services/plists/
 !.damachine.example
 !.doc/
 !dalauncher/

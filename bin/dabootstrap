@@ -288,6 +288,60 @@ setup_thegrid_brew() {
     fi
 }
 
+setup_services() {
+    info "Setting up launchd services..."
+
+    # Ensure directories exist
+    mkdir -p "$SERVICES_PLISTS"
+    mkdir -p "$CONFIG_DIR/services/logs"
+
+    # Generate sync-ueli-launchers plist
+    local plist="$SERVICES_PLISTS/com.r.sync-ueli-launchers.plist"
+    cat > "$plist" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.r.sync-ueli-launchers</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>$CONFIG_DIR/bin/sync-ueli-launchers</string>
+    </array>
+
+    <!-- Run every 60 seconds to keep launchers in sync with Chrome profiles -->
+    <key>StartInterval</key>
+    <integer>60</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Timeout after 30 seconds to prevent hangs -->
+    <key>ExitTimeOut</key>
+    <integer>30</integer>
+
+    <key>StandardOutPath</key>
+    <string>$CONFIG_DIR/services/logs/sync-ueli-launchers.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>$CONFIG_DIR/services/logs/sync-ueli-launchers.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+    </dict>
+</dict>
+</plist>
+EOF
+    info "  Generated sync-ueli-launchers plist"
+
+    # Install services
+    "$CONFIG_DIR/bin/services" install 2>/dev/null || true
+    info "  Installed services"
+}
+
 setup_bin_symlinks() {
     info "Symlinking ~/.config/bin to ~/.local/bin..."
 
@@ -422,6 +476,7 @@ main() {
     load_config
     check_prerequisites
     setup_bin_symlinks
+    setup_services
     cleanup_aerospace
     cleanup_yabai
     cleanup_skhd
