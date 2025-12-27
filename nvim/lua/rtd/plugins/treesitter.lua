@@ -14,7 +14,7 @@ return {
         "bash", "c", "c_sharp", "css", "diff", "dockerfile",
         "go", "gomod", "gosum", "html", "javascript", "json", "jsonc",
         "lua", "luadoc", "markdown", "markdown_inline", "python",
-        "query", "regex", "rust", "toml", "tsx", "typescript",
+        "query", "regex", "rust", "swift", "toml", "tsx", "typescript",
         "vim", "vimdoc", "xml", "yaml",
       },
       auto_install = true,

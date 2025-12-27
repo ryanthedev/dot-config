@@ -173,6 +173,14 @@ return {
 					end,
 				},
 			})
+
+			-- Swift: sourcekit-lsp (bundled with Xcode, not managed by Mason)
+			require("lspconfig").sourcekit.setup({
+				capabilities = lsp_capabilities,
+				on_attach = function(client, bufnr)
+					on_lsp_attach(client, bufnr)
+				end,
+			})
 		end,
 	},
   {
