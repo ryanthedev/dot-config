@@ -23,6 +23,7 @@ nvim/plugin/
 !readme.md
 !vscode/
 !.gitignore
+!Makefile
 !ghostty/
 !thegrid/
 thegrid/*.local.yaml

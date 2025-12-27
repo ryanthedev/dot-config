@@ -469,7 +469,7 @@ verify_status() {
     echo ""
 }
 
-main() {
+run_all() {
     echo "=== dabootstrap ==="
     echo ""
 
@@ -489,4 +489,58 @@ main() {
     info "Bootstrap complete!"
 }
 
-main "$@"
+# Run a specific target or all if none specified
+run_target() {
+    local target="${1:-all}"
+
+    # Always load config first
+    load_config
+
+    case "$target" in
+        all)
+            run_all
+            ;;
+        check|prerequisites)
+            check_prerequisites
+            ;;
+        symlinks|bin)
+            setup_bin_symlinks
+            ;;
+        services)
+            setup_services
+            ;;
+        cleanup-aerospace)
+            cleanup_aerospace
+            ;;
+        cleanup-yabai)
+            cleanup_yabai
+            ;;
+        cleanup-skhd)
+            cleanup_skhd
+            ;;
+        cleanup)
+            cleanup_aerospace
+            cleanup_yabai
+            cleanup_skhd
+            ;;
+        thegrid)
+            setup_thegrid
+            ;;
+        terminfo)
+            setup_remote_terminfo
+            ;;
+        claude)
+            setup_claude
+            ;;
+        status)
+            verify_status
+            ;;
+        *)
+            error "Unknown target: $target"
+            echo "Available targets: all, check, symlinks, services, cleanup, cleanup-aerospace, cleanup-yabai, cleanup-skhd, thegrid, terminfo, claude, status"
+            exit 1
+            ;;
+    esac
+}
+
+run_target "$@"
