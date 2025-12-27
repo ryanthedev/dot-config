@@ -18,7 +18,7 @@ settings:
   padding: ["5x", "5x", "5x", "5x"]
 
   # Gap between stacked windows within a cell
-  windowSpacing: "7x"
+  windowSpacing: "5x"
 
 # ============================================================================
 # Border Configuration
