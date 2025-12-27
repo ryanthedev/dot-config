@@ -21,7 +21,7 @@
 shell: /bin/zsh
 
 vars:
-  grid: thegrid
+  grid: ~/.local/bin/thegrid 
 
 defaults:
   repeat: true
@@ -68,6 +68,8 @@ hotkeys:
   cmd+alt-0: $grid resize reset --cells
 
   # Layout
+  cmd-0: $grid layout apply single-tabs
+  cmd-1: $grid layout apply single-tabs
   cmd-2: $grid layout apply two-column
   cmd-3: $grid layout apply three-column
   alt-a: thegrid-reapply-layouts
