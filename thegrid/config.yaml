@@ -20,6 +20,12 @@ settings:
   # Gap between stacked windows within a cell
   windowSpacing: "5x"
 
+  # displayOffsets:
+  #   "FCEC43D7-E221-4C92-92E9-7DA8EFE7B554":
+  #     x: -100
+  #     y: 5
+
+
 # ============================================================================
 # Border Configuration
 # ============================================================================
