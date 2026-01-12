@@ -422,6 +422,38 @@ setup_claude() {
         info "  Linked global CLAUDE.md"
     fi
 
+    # Merge hooks from dotfiles settings.json into user settings
+    if [[ -f "$CONFIG_DIR/claude/settings.json" ]]; then
+        python3 - << 'PYEOF'
+import json
+from pathlib import Path
+
+dotfiles_settings = Path.home() / ".config/claude/settings.json"
+user_settings = Path.home() / ".claude/settings.json"
+
+# Load dotfiles settings (source of hooks)
+with open(dotfiles_settings) as f:
+    hooks_config = json.load(f)
+
+# Load or create user settings
+if user_settings.exists():
+    with open(user_settings) as f:
+        user_config = json.load(f)
+else:
+    user_config = {"$schema": "https://json.schemastore.org/claude-code-settings.json"}
+
+# Merge hooks from dotfiles into user settings
+if "hooks" in hooks_config:
+    user_config["hooks"] = hooks_config["hooks"]
+
+# Write back
+with open(user_settings, "w") as f:
+    json.dump(user_config, f, indent=2)
+    f.write("\n")
+PYEOF
+        info "  Merged hooks into settings.json"
+    fi
+
     # Symlink all skills
     local skills_dir="$repo_path/skills"
     if [[ -d "$skills_dir" ]]; then

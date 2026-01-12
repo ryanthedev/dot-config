@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'REMINDER: Check available skills before doing anything. Use the Skill tool to invoke relevant skills.'"
+          }
+        ]
+      }
+    ]
+  }
+}

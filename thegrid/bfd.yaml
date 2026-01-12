@@ -68,7 +68,7 @@ hotkeys:
   cmd+alt-0: $grid resize reset --cells
 
   # Layout
-  cmd-0: $grid layout reapply 
+  cmd-0: $grid layout refresh 
   cmd-1: $grid layout apply single-tabs
   cmd-2: $grid layout apply two-column
   cmd-3: $grid layout apply three-column
@@ -82,6 +82,9 @@ hotkeys:
     repeat: false
   alt-space:
     run: dalauncher
+    repeat: false
+  cmd-escape:
+    run: $grid pick window
     repeat: false
 
   # Service control
