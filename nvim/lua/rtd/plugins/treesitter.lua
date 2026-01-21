@@ -4,23 +4,19 @@ return {
     {'windwp/nvim-ts-autotag'}
   },
   build = ':TSUpdate',
-  config = function()
-    require('nvim-treesitter.configs').setup({
-      ensure_installed = {
-        "bash", "c", "c_sharp", "css", "diff", "dockerfile",
-        "go", "gomod", "gosum", "html", "javascript", "json",
-        "lua", "luadoc", "markdown", "markdown_inline", "python",
-        "query", "regex", "rust", "swift", "toml", "tsx", "typescript",
-        "vim", "vimdoc", "xml", "yaml",
-      },
-      highlight = {
-        enable = true,
-      },
-      indent = {
-        enable = true,
-      },
-    })
-
+  opts = {
+    ensure_installed = {
+      "bash", "c", "c_sharp", "css", "diff", "dockerfile",
+      "go", "gomod", "gosum", "html", "javascript", "json",
+      "lua", "luadoc", "markdown", "markdown_inline", "python",
+      "query", "regex", "rust", "swift", "toml", "tsx", "typescript",
+      "vim", "vimdoc", "xml", "yaml",
+    },
+    highlight = { enable = true },
+    indent = { enable = true },
+  },
+  config = function(_, opts)
+    require('nvim-treesitter').setup(opts)
     require('nvim-ts-autotag').setup()
   end
 }
