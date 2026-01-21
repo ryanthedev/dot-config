@@ -94,6 +94,7 @@ export PATH=$PATH:$HOME/.local/bin
 
 # Language runtimes (conditional - only if installed)
 [ -d /usr/local/go/bin ] && export PATH=$PATH:/usr/local/go/bin
+[ -d $HOME/go/bin ] && export PATH=$PATH:$HOME/go/bin
 [ -d $HOME/.dotnet ] && export DOTNET_ROOT=$HOME/.dotnet && export PATH=$PATH:$DOTNET_ROOT:$DOTNET_ROOT/tools
 [ -d $HOME/.nvim/bin ] && export PATH=$PATH:$HOME/.nvim/bin
 

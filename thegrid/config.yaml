@@ -20,12 +20,6 @@ settings:
   # Gap between stacked windows within a cell
   windowSpacing: "5x"
 
-  # displayOffsets:
-  #   "FCEC43D7-E221-4C92-92E9-7DA8EFE7B554":
-  #     x: -100
-  #     y: 5
-
-
 # ============================================================================
 # Border Configuration
 # ============================================================================
@@ -51,6 +45,16 @@ settings:
 #   shadowColor   - Shadow color (default "#000000")
 #   shadowOpacity - Shadow intensity 0.0-1.0
 #
+# Stack Indicator (shows position within tabbed/stacked cells):
+#   stackIndicator:
+#     enabled: true           # Show/hide indicator
+#     lineLength: 12          # Line length in pixels (1-100)
+#     lineWidth: 3            # Line width in pixels (1-20)
+#     spacing: 6              # Gap between lines (0-50)
+#     position: "auto"        # auto, left, right, top, bottom
+#     activeColor: "#hex"     # Active line color (defaults to border color)
+#     inactiveColor: "#hex"   # Inactive line color (defaults to black)
+#
 # Animation (NOT YET IMPLEMENTED - config is parsed but not applied):
 #   animation:
 #     type: "pulse"           # Animation type
@@ -70,6 +74,16 @@ borders:
     cornerRadius: 12
     opacity: 1.0
 
+    # Stack indicator (shows position within tabbed/stacked cell)
+    stackIndicator:
+      enabled: true
+      lineLength: 12       # Length of each line in pixels
+      lineWidth: 3         # Width of each line in pixels
+      spacing: 6           # Gap between lines in pixels
+      position: "auto"     # auto, left, right, top, bottom
+      # activeColor: "#22c55e"   # Defaults to border color
+      # inactiveColor: "#000000" # Defaults to black
+
     # Glow effect
     glowRadius: 1
     glowOpacity: 1 
@@ -87,10 +101,10 @@ borders:
   # Inactive window borders
   inactive:
     enabled: true
-    color: "#22c55e"
+    color: "#3b82f6"
     width: 2
     cornerRadius: 12
-    opacity: 0.4
+    opacity: 0.6
 
     # No glow for inactive
     glowRadius: 0
