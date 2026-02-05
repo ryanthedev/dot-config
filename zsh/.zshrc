@@ -171,3 +171,7 @@ if [ -f $HOME/.config/zsh/.env ]; then
     source $HOME/.config/zsh/.env
     set +a  # Stop auto-exporting
 fi
+
+# Tree-sitter grammar location for code-foundations AST extraction
+export TREE_SITTER_GRAMMAR_DIR="$HOME/repos/tree-sitter-grammars"
+alias ccf="PLUGIN_DIR=/Users/r/repos/code-foundations claude --plugin-dir /Users/r/repos/code-foundations"
