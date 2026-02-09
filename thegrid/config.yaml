@@ -20,10 +20,16 @@ settings:
   # Gap between stacked windows within a cell
   windowSpacing: "5x"
 
-  # displayOffsets:
-  #   "FCEC43D7-E221-4C92-92E9-7DA8EFE7B554":
-  #     x: -100
-  #     y: 5
+  displayOffsets:
+    "37D8832A-2D66-02CA-B9F7-8F30A301B230":
+      x: 0
+      y: -200
+    "1297EE89-0C6B-49EE-B353-141B6EF1041A":
+      x: 0
+      y: -200
+    "40D5C812-3D19-421F-8A1A-F48D1EBA8459":
+      x: 0
+      y: -200
 
 
 # ============================================================================
@@ -174,19 +180,15 @@ layouts:
         row: "1/2"
         stackMode: tabs
 
-  - id: default 
-    name: "Two Column"
-    description: "50/50 split with tabs in each cell"
+  - id: default
+    name: "Single Cell Tabs"
+    description: "One cell with all windows as tabs"
     grid:
-      columns: ["1fr", "1fr"]
+      columns: ["1fr"]
       rows: ["1fr"]
     cells:
-      - id: left
+      - id: main
         column: "1/2"
-        row: "1/2"
-        stackMode: tabs
-      - id: right
-        column: "2/3"
         row: "1/2"
         stackMode: tabs
 
