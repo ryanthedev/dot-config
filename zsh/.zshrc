@@ -94,6 +94,7 @@ export PATH=$PATH:$HOME/.local/bin
 
 # Language runtimes (conditional - only if installed)
 [ -d /usr/local/go/bin ] && export PATH=$PATH:/usr/local/go/bin
+[ -d $HOME/go/bin ] && export PATH=$PATH:$HOME/go/bin
 [ -d $HOME/.dotnet ] && export DOTNET_ROOT=$HOME/.dotnet && export PATH=$PATH:$DOTNET_ROOT:$DOTNET_ROOT/tools
 [ -d $HOME/.nvim/bin ] && export PATH=$PATH:$HOME/.nvim/bin
 
@@ -170,3 +171,7 @@ if [ -f $HOME/.config/zsh/.env ]; then
     source $HOME/.config/zsh/.env
     set +a  # Stop auto-exporting
 fi
+
+# Tree-sitter grammar location for code-foundations AST extraction
+export TREE_SITTER_GRAMMAR_DIR="$HOME/repos/tree-sitter-grammars"
+alias ccf="PLUGIN_DIR=/Users/r/repos/code-foundations claude --plugin-dir /Users/r/repos/code-foundations"

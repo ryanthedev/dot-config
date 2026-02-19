@@ -442,16 +442,18 @@ if user_settings.exists():
 else:
     user_config = {"$schema": "https://json.schemastore.org/claude-code-settings.json"}
 
-# Merge hooks from dotfiles into user settings
+# Merge hooks and permissions from dotfiles into user settings
 if "hooks" in hooks_config:
     user_config["hooks"] = hooks_config["hooks"]
+if "permissions" in hooks_config:
+    user_config["permissions"] = hooks_config["permissions"]
 
 # Write back
 with open(user_settings, "w") as f:
     json.dump(user_config, f, indent=2)
     f.write("\n")
 PYEOF
-        info "  Merged hooks into settings.json"
+        info "  Merged hooks and permissions into settings.json"
     fi
 
     # Symlink all skills

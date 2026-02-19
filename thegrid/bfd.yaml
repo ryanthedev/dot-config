@@ -80,11 +80,8 @@ hotkeys:
   cmd-return:
     run: open -na /Applications/Ghostty.app
     repeat: false
-  alt-space:
-    run: dalauncher
-    repeat: false
   cmd-escape:
-    run: $grid pick window
+    run: $grid pick
     repeat: false
 
   # Service control
