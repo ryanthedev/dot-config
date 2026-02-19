@@ -175,3 +175,16 @@ fi
 # Tree-sitter grammar location for code-foundations AST extraction
 export TREE_SITTER_GRAMMAR_DIR="$HOME/repos/tree-sitter-grammars"
 alias ccf="PLUGIN_DIR=/Users/r/repos/code-foundations claude --plugin-dir /Users/r/repos/code-foundations"
+
+# Temporal CLI - Production
+export TEMPORAL_ADDRESS="beh-prod.vazty.tmprl.cloud:7233"
+export TEMPORAL_NAMESPACE="beh-prod.vazty"
+export TEMPORAL_TLS_CERT="$HOME/.tmpl/beh-prod-client-cert.crt"
+export TEMPORAL_TLS_KEY="$HOME/.tmpl/beh-prod-client-cert.key"
+
+# bun completions
+[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"

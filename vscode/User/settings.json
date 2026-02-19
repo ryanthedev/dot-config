@@ -165,5 +165,9 @@
   },
   "typescript.updateImportsOnFileMove.enabled": "always",
   "claudeCode.preferredLocation": "panel",
-  "go.toolsManagement.autoUpdate": true
+  "go.toolsManagement.autoUpdate": true,
+  "chat.tools.terminal.autoApprove": {
+    "command": true,
+    "az": true
+  }
 }
