@@ -62,7 +62,7 @@ nnoremap("<C-u>", "<C-u><cr>zz")
 -- nvim-tree
 -- nnoremap("<leader>e", ":NvimTreeToggle<cr>") -- toggle file explorer
 -- oil
-nnoremap("<leader>e", ":lua require('oil').toggle_float()<cr>") -- toggle file explorer
+nnoremap("<leader>e", "<CMD>Oil<CR>") -- toggle file explorer
 
 -- telescope
 nnoremap("<leader>ff", "<cmd>Telescope find_files show_untracked=true<cr>") -- find files within current working directory, respects .gitignore

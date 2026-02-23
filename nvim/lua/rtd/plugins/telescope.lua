@@ -12,6 +12,8 @@ return {
         defaults = {
           layout_strategy = 'vertical',
           layout_config = { height = 0.95, width = 0.99 },
+          file_ignore_patterns = { "node_modules" },
+          hidden = true,
           -- path_display = {
           --   shorten = 2
           -- },
