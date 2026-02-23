@@ -46,11 +46,11 @@ tar xzvf "$TEMP_DIR/$NVIM_TAR" -C "$TEMP_DIR" || {
   exit 1
 }
 
-# Step 4: Remove existing Neovim binary directory if it exists
-if [ -d "$INSTALL_DIR/bin" ]; then
-  echo "Removing existing Neovim binary directory at $INSTALL_DIR/bin..."
-  rm -rf "$INSTALL_DIR/bin" || {
-    echo "Error: Failed to remove existing Neovim binary directory."
+# Step 4: Remove existing Neovim installation if it exists
+if [ -d "$INSTALL_DIR" ]; then
+  echo "Removing existing Neovim installation at $INSTALL_DIR..."
+  rm -rf "$INSTALL_DIR" || {
+    echo "Error: Failed to remove existing Neovim installation."
     exit 1
   }
 fi

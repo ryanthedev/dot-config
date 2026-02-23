@@ -174,7 +174,7 @@ fi
 
 # Tree-sitter grammar location for code-foundations AST extraction
 export TREE_SITTER_GRAMMAR_DIR="$HOME/repos/tree-sitter-grammars"
-alias ccf="PLUGIN_DIR=/Users/r/repos/code-foundations claude --plugin-dir /Users/r/repos/code-foundations"
+alias claude="command claude --plugin-dir $HOME/repos/code-foundations"
 
 # Temporal CLI - Production
 export TEMPORAL_ADDRESS="beh-prod.vazty.tmprl.cloud:7233"

@@ -85,7 +85,7 @@ hotkeys:
     repeat: false
 
   cmd-backtick:
-    run: $grid terminal 
+    run: $grid terminal
     repeat: false
 
   # Service control
