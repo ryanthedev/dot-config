@@ -84,7 +84,7 @@ hotkeys:
     run: $grid pick
     repeat: false
 
-  cmd-backtick:
+  ctrl-backtick:
     run: $grid terminal
     repeat: false
 
