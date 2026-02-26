@@ -22,6 +22,21 @@ return {
           end,
         },
         -- Don't use .gitignore to hide files
+        keymaps = {
+          ["gy"] = {
+            callback = function()
+              local oil = require("oil")
+              local entry = oil.get_cursor_entry()
+              local dir = oil.get_current_dir()
+              if entry and dir then
+                local path = dir .. entry.name
+                vim.fn.setreg("+", path)
+                vim.notify("Copied: " .. path)
+              end
+            end,
+            desc = "Copy absolute path",
+          },
+        },
         use_default_keymaps = true,
         skip_confirm_for_simple_edits = false,
     })
