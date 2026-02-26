@@ -15,19 +15,18 @@ return  {
 			})
 		end,
 	},
-	-- DAP
-	{
-		'rcarriga/nvim-dap-ui',
-		dependencies = { 'mfussenegger/nvim-dap' },
-	},
+  -- ANSI color rendering for scrollback viewer
   {
-    'jayp0521/mason-nvim-dap.nvim',
-  },
-  {
-    'nvim-telescope/telescope-dap.nvim',
-  },
-  -- Meow
-  {
-    'fladson/vim-kitty',
+    'm00qek/baleia.nvim',
+    version = '*',
+    config = function()
+      vim.g.baleia = require('baleia').setup({
+        async = true,
+        chunk_size = 2000,
+      })
+      vim.api.nvim_create_user_command('BaleiaColorize', function()
+        vim.g.baleia.once(vim.api.nvim_get_current_buf())
+      end, { bang = true })
+    end,
   }
 }
