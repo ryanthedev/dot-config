@@ -76,11 +76,12 @@ return {
 	-- Autocompletion
 	{
 		"hrsh7th/nvim-cmp",
-		event = "InsertEnter",
+		event = { "InsertEnter", "CmdlineEnter" },
 		dependencies = {
 			{ "L3MON4D3/LuaSnip" },
 			{ "hrsh7th/cmp-buffer" },
 			{ "hrsh7th/cmp-path" },
+			{ "hrsh7th/cmp-cmdline" },
 			{ "hrsh7th/cmp-nvim-lsp-signature-help" },
 			{ "saadparwaiz1/cmp_luasnip" },
 		},
@@ -124,6 +125,24 @@ return {
 				}),
 			})
 			require("luasnip.loaders.from_vscode").load({ paths = { "~/.config/snippets" } })
+
+			-- Cmdline ':' completion
+			cmp.setup.cmdline(":", {
+				mapping = cmp.mapping.preset.cmdline(),
+				sources = cmp.config.sources({
+					{ name = "path" },
+				}, {
+					{ name = "cmdline" },
+				}),
+			})
+
+			-- Cmdline '/' and '?' search completion
+			cmp.setup.cmdline({ "/", "?" }, {
+				mapping = cmp.mapping.preset.cmdline(),
+				sources = {
+					{ name = "buffer" },
+				},
+			})
 		end,
 	},
 	-- LSP
@@ -176,12 +195,13 @@ return {
 			})
 
 			-- Swift: sourcekit-lsp (bundled with Xcode, not managed by Mason)
-			require("lspconfig").sourcekit.setup({
+			vim.lsp.config("sourcekit", {
 				capabilities = lsp_capabilities,
 				on_attach = function(client, bufnr)
 					on_lsp_attach(client, bufnr)
 				end,
 			})
+			vim.lsp.enable("sourcekit")
 		end,
 	},
   {
