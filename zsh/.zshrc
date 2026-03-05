@@ -169,7 +169,6 @@ fi
 
 # Tree-sitter grammar location for code-foundations AST extraction
 export TREE_SITTER_GRAMMAR_DIR="$HOME/repos/tree-sitter-grammars"
-alias claude="command claude --plugin-dir $HOME/repos/code-foundations"
 
 # Temporal CLI - Production
 export TEMPORAL_ADDRESS="beh-prod.vazty.tmprl.cloud:7233"
@@ -183,3 +182,6 @@ export TEMPORAL_TLS_KEY="$HOME/.tmpl/beh-prod-client-cert.key"
 # bun
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
+
+# Load machine-local customizations (not tracked in git)
+[[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
