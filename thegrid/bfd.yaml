@@ -9,19 +9,16 @@
 #   Examples: cmd-h, cmd+shift-h, ctrl+alt-j
 #
 # Hotkey values can be:
-#   - Simple command string: "thegrid focus left"
-#   - Variable expansion: "$grid focus left" (uses vars section)
+#   - "@command" for in-process dispatch (no process spawn)
+#   - Shell command string: "open -na /Applications/Ghostty.app"
 #   - Extended format with options:
-#       run: $grid resize cell left 0.01
+#       run: "@resize cell left 0.01"
 #       repeat: false      # Disable key repeat (default: true)
 #       rate_limit: 20     # Min ms between repeats (default: 50)
 #
 # ============================================================================
 
 shell: /bin/zsh
-
-vars:
-  grid: /opt/homebrew/bin/thegrid
 
 defaults:
   repeat: true
@@ -33,59 +30,63 @@ blacklist:
 
 hotkeys:
   # Navigation
-  cmd-h: $grid focus prev -m
-  cmd-l: $grid focus next -m
-  cmd+shift-h: $grid focus left --extend --mouse
-  cmd+shift-l: $grid focus right --extend -m
-  cmd+shift-j: $grid focus down --extend -m
-  cmd+shift-k: $grid focus up --extend -m
+  cmd-h: "@focus prev -m"
+  cmd-l: "@focus next -m"
+  cmd+shift-h: "@focus left --extend --mouse"
+  cmd+shift-l: "@focus right --extend -m"
+  cmd+shift-j: "@focus down --extend -m"
+  cmd+shift-k: "@focus up --extend -m"
 
   # Movement
-  cmd+ctrl-h: $grid window move left --extend -m
-  cmd+ctrl-l: $grid window move right --extend -m
-  cmd+ctrl-j: $grid window move down --extend -m
-  cmd+ctrl-k: $grid window move up --extend -m
+  cmd+ctrl-h: "@window move left --extend -m"
+  cmd+ctrl-l: "@window move right --extend -m"
+  cmd+ctrl-j: "@window move down --extend -m"
+  cmd+ctrl-k: "@window move up --extend -m"
 
   # Swap
-  ctrl+alt-h: $grid window swap left -m
-  ctrl+alt-l: $grid window swap right -m
-  ctrl+alt-j: $grid window swap down -m
-  ctrl+alt-k: $grid window swap up -m
+  ctrl+alt-h: "@window swap left -m"
+  ctrl+alt-l: "@window swap right -m"
+  ctrl+alt-j: "@window swap down -m"
+  ctrl+alt-k: "@window swap up -m"
 
   # Resize (faster rate for smooth resizing)
   cmd+alt-h:
-    run: $grid resize cell left 0.01
+    run: "@resize cell left 0.01"
     rate_limit: 20
   cmd+alt-l:
-    run: $grid resize cell right 0.01
+    run: "@resize cell right 0.01"
     rate_limit: 20
   cmd+alt-j:
-    run: $grid resize grow 0.01
+    run: "@resize grow 0.01"
     rate_limit: 20
   cmd+alt-k:
-    run: $grid resize shrink 0.01
+    run: "@resize shrink 0.01"
     rate_limit: 20
-  cmd+alt-0: $grid resize reset --cells
+  cmd+alt-0: "@resize reset --cells"
 
   # Layout
-  cmd-0: $grid layout refresh 
-  cmd-1: $grid layout apply single-tabs
-  cmd-2: $grid layout apply two-column
-  cmd-3: $grid layout apply three-column
-  cmd-9: rm /Users/r/.local/state/thegrid/thegrid* 
-  alt-a: thegrid-reapply-layouts
-  alt-s: $grid cell mode
+  cmd-0: "@layout refresh"
+  cmd-1: "@layout apply single-tabs"
+  cmd-2: "@layout apply two-column"
+  cmd-3: "@layout apply three-column"
+  cmd-9: rm /Users/r/.local/state/thegrid/thegrid*
+  alt-a: "@layout refresh"
+  alt-s: "@cell mode"
 
   # Apps (no repeat for launchers)
   cmd-return:
     run: open -na /Applications/Ghostty.app
     repeat: false
   cmd-escape:
-    run: $grid pick
+    run: "@pick"
     repeat: false
 
   ctrl-backtick:
-    run: $grid terminal
+    run: "@terminal"
+    repeat: false
+
+  cmd+shift-escape:
+    run: "@test"
     repeat: false
 
   # Service control
@@ -108,7 +109,7 @@ hotkeys:
 #       cmd-h: ~              # Let Ghostty handle cmd-h natively
 #       cmd-l: ~              # Let Ghostty handle cmd-l natively
 #     "Some App":
-#       cmd-k: $grid focus up # Different command for this app
+#       cmd-k: "@focus up"    # Different command for this app
 #
 # ============================================================================
 
