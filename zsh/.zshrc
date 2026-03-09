@@ -176,6 +176,13 @@ export TEMPORAL_NAMESPACE="beh-prod.vazty"
 export TEMPORAL_TLS_CERT="$HOME/.tmpl/beh-prod-client-cert.crt"
 export TEMPORAL_TLS_KEY="$HOME/.tmpl/beh-prod-client-cert.key"
 
+# Claude Code telemetry -> local k3s monitoring stack
+export CLAUDE_CODE_ENABLE_TELEMETRY=1
+export OTEL_METRICS_EXPORTER=otlp
+export OTEL_LOGS_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+
 # bun completions
 [ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
