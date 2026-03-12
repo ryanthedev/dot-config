@@ -157,6 +157,8 @@
   "chat.instructionsFilesLocations": {
     ".github/instructions": true,
     ".claude/rules": true,
+    "~/.copilot/instructions": true,
+    "~/.claude/rules": true,
     "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-collections-post-response.instructions.md": true,
     "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-collections-pre-request.instructions.md": true,
     "/var/folders/fv/65994xl96rq9yshw76k23yhh0000gq/T/postman-folder-post-response.instructions.md": true,
@@ -170,5 +172,6 @@
   "chat.tools.terminal.autoApprove": {
     "command": true,
     "az": true
-  }
+  },
+  "workbench.secondarySideBar.defaultVisibility": "hidden"
 }
