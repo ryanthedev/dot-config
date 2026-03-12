@@ -88,22 +88,12 @@ source $ZSH/oh-my-zsh.sh
 # User configuration
 typeset -U PATH  # Remove duplicate PATH entries
 
-# Core paths
+# PATH setup is in ~/.zshenv (so non-interactive shells like tmux popups get it too)
+# Homebrew (kept here since .zprofile handles it for login shells)
 export PATH=$PATH:/opt/homebrew/bin
-export PATH=$PATH:$HOME/.local/bin
-
-# Language runtimes (conditional - only if installed)
-[ -d /usr/local/go/bin ] && export PATH=$PATH:/usr/local/go/bin
-[ -d $HOME/go/bin ] && export PATH=$PATH:$HOME/go/bin
-[ -d $HOME/.dotnet ] && export DOTNET_ROOT=$HOME/.dotnet && export PATH=$PATH:$DOTNET_ROOT:$DOTNET_ROOT/tools
-[ -d $HOME/.nvim/bin ] && export PATH=$PATH:$HOME/.nvim/bin
-
-# App-specific paths (conditional)
-[ -d /Applications/kitty.app ] && export PATH=$PATH:/Applications/kitty.app/Contents/MacOS
 
 # tmux
 export TMUX_CONF=~/.config/tmux/tmux.conf
-[ -d $HOME/.config/tmux/plugins/tmux-session-wizard ] && export PATH=$HOME/.config/tmux/plugins/tmux-session-wizard/bin:$PATH
 
 
 
