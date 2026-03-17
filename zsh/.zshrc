@@ -101,9 +101,12 @@ export TMUX_CONF=~/.config/tmux/tmux.conf
 export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" --no-use  # Defer node version activation
 
-# Add default node version to PATH (for tools like Claude Code that don't init nvm)
-export NVM_DEFAULT_VERSION="v22.20.0"
-[ -d "$NVM_DIR/versions/node/$NVM_DEFAULT_VERSION/bin" ] && export PATH="$NVM_DIR/versions/node/$NVM_DEFAULT_VERSION/bin:$PATH"
+# Add nvm default node to PATH (for tools like Claude Code that don't init nvm)
+# Resolves default alias (lts/*), falls back to latest installed if not yet installed
+nvm_default_path="$(nvm which default 2>/dev/null)" || \
+  nvm_default_path="$NVM_DIR/versions/node/$(command ls "$NVM_DIR/versions/node/" 2>/dev/null | sort -V | tail -1)/bin/node"
+[ -x "$nvm_default_path" ] && export PATH="${nvm_default_path%/*}:$PATH"
+unset nvm_default_path
 
 # You may need to manually set your language environment
 # export LANG=en_US.UTF-8
