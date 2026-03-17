@@ -89,6 +89,11 @@ hotkeys:
     run: "@test"
     repeat: false
 
+  # Nudge mode
+  ctrl+shift-n:
+    run: "@nudge enter"
+    repeat: false
+
   # Service control
   alt-escape:
     run: services stop thegrid-dev
