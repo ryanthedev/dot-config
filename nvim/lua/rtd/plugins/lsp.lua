@@ -65,13 +65,25 @@ return {
 	{
 		"williamboman/mason.nvim",
 		lazy = false,
-		config = true,
     opts = {
       registries = {
           "github:mason-org/mason-registry",
           "github:Crashdummyy/mason-registry",
       },
-    }
+    },
+    config = function(_, opts)
+      require("mason").setup(opts)
+      local ensure = { "roslyn" }
+      local mr = require("mason-registry")
+      mr.refresh(function()
+        for _, name in ipairs(ensure) do
+          local pkg = mr.get_package(name)
+          if not pkg:is_installed() then
+            pkg:install()
+          end
+        end
+      end)
+    end,
 	},
 	-- Autocompletion
 	{
@@ -209,8 +221,10 @@ return {
   ft = "cs",
   -- enabled = false,
   opts = {
+    silent = true,
     config = {
       on_attach = function (client, bufnr)
+        on_lsp_attach(client, bufnr)
 
         -- let client know we got this
         client.server_capabilities = vim.tbl_deep_extend("force", client.server_capabilities, {

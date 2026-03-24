@@ -4,38 +4,46 @@ font-family = "BerkeleyMono Nerd Font"
 font-size = 20
 
 # Window settings
-background-opacity = 0.98
-window-decoration = true 
+background-opacity = 0.96
+window-decoration = true
 macos-non-native-fullscreen = true
 
-# Colors
-background = #121212
-foreground = #BFBFBF
-cursor-color = #666666
+# ──────────────────────────────────────────────
+# Matrix Theme
+# Design: monochromatic green core, CRT phosphor aesthetic
+# Foreground is desaturated for daily use; bright green (#00ff41)
+# reserved for accents. All hues shifted toward the digital family.
+# ──────────────────────────────────────────────
 
-# Color palette (equivalent to color0 to color15 in Kitty)
-palette = 0=#232323
-palette = 1=#FF5454
-palette = 2=#00CC7A
-palette = 3=#FFD700
-palette = 4=#FF7431
-palette = 5=#00BFFF
-palette = 6=#48D1CC
-palette = 7=#BFBFBF
-palette = 8=#767C77
-palette = 9=#FF1A75
-palette = 10=#1AFFA3
-palette = 11=#FFFF00
-palette = 12=#FFAA54
-palette = 13=#28C9FF
-palette = 14=#09FFF2
-palette = 15=#F9F9F9
+# Core colors
+background = #0d120d
+foreground = #80cc80
+cursor-color = #00ff41
+
+# ANSI Normal (0-7)
+palette = 0=#1a241a
+palette = 1=#c43030
+palette = 2=#00b350
+palette = 3=#a0a830
+palette = 4=#3878a0
+palette = 5=#885a88
+palette = 6=#2a9888
+palette = 7=#80a880
+
+# ANSI Bright (8-15)
+palette = 8=#4a5e4a
+palette = 9=#ff4040
+palette = 10=#00ff41
+palette = 11=#ccff00
+palette = 12=#55a8d0
+palette = 13=#bb77bb
+palette = 14=#00e8a0
+palette = 15=#c0e8c0
 
 # Selection colors
-selection-background = #404040
-selection-foreground = #BFBFBF
+selection-background = #1a3a1e
+selection-foreground = #c0e8c0
+
 # Send newline on Shift+Enter for Claude CLI
-# keybind = shift+enter=text:\\\n\r
 keybind = shift+enter=text:\x1b\r
 quit-after-last-window-closed = true
-
