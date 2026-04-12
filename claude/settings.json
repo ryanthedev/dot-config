@@ -90,11 +90,13 @@
       "Bash(redis-cli FLUSHALL*)",
       "Bash(redis-cli FLUSHDB*)",
 
-      "Bash(ssh *)",
-      "Bash(scp *)",
       "Bash(rsync * *:*)",
 
       "Bash(sudo *)"
+    ],
+    "ask": [
+      "Bash(ssh *)",
+      "Bash(scp *)"
     ]
   },
   "hooks": {
