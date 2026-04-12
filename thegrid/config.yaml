@@ -130,26 +130,23 @@ borders:
 layouts:
   - id: three-column
     name: "Three Column"
-    description: "Left (tabs), Middle (65%), Right (vertical)"
+    description: "Left (tabs), Notify (skinny), Right (tabs)"
     grid:
-      # Column sizes: "1fr" = 1 fraction, "Npx" = pixels, "N%" = percentage
-      columns: ["1fr", "3.7fr", "1fr"]
+      columns: ["5fr", "1fr", "5fr"]
       rows: ["1fr"]
     cells:
       - id: left
-        # Column span: "start/end" (1-indexed, end is exclusive)
         column: "1/2"
         row: "1/2"
-        # How windows stack in this cell: "tabs", "vertical", "horizontal"
         stackMode: tabs
-      - id: middle
+      - id: notify
         column: "2/3"
         row: "1/2"
         stackMode: tabs
       - id: right
         column: "3/4"
         row: "1/2"
-        stackMode: vertical
+        stackMode: tabs
 
   - id: three-column-tab
     name: "Three Column Middle"
@@ -211,6 +208,30 @@ layouts:
         row: "1/2"
         stackMode: tabs
 
+  - id: four-column
+    name: "Four Column"
+    description: "4 columns: 25/25/15/35"
+    grid:
+      columns: ["5fr", "5fr", "3fr", "7fr"]
+      rows: ["1fr"]
+    cells:
+      - id: col1
+        column: "1/2"
+        row: "1/2"
+        stackMode: tabs
+      - id: col2
+        column: "2/3"
+        row: "1/2"
+        stackMode: tabs
+      - id: col3
+        column: "3/4"
+        row: "1/2"
+        stackMode: tabs
+      - id: col4
+        column: "4/5"
+        row: "1/2"
+        stackMode: tabs
+
   - id: ide-ultra
     name: "IDE Ultrawide"
     grid:
@@ -248,7 +269,9 @@ spaces:
   # Space number as string key
   "1":
     name: "Main"
-    # List of layout IDs available for this space
-    layouts: ["single-tabs", "three-column", "two-column"]
-    # Layout to apply when switching to this space
-    defaultLayout: two-column
+    layouts: ["three-column"]
+    defaultLayout: three-column
+  "4":
+    name: "Quad"
+    layouts: ["four-column"]
+    defaultLayout: four-column

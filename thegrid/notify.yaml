@@ -1,0 +1,10 @@
+pipe_path: ~/.local/state/thegrid/notify.pipe
+pipe_source_label: pipe
+max_count: 200
+
+scripts:
+  - name: imessage
+    path: /usr/bin/python3
+    arguments:
+      - ~/.local/state/thegrid/GridNotify.app/Contents/Resources/scripts/imessage-watch.py
+    restart_delay: 5

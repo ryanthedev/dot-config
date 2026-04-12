@@ -1,0 +1,8 @@
+contacts:
+  - "+16463910068"
+  - "+16465090955"
+
+pipe_path: ~/.local/state/thegrid/notify.pipe
+poll_interval: 2
+ttl: 300
+warn_before: 60

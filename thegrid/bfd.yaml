@@ -69,6 +69,7 @@ hotkeys:
   cmd-1: "@layout apply single-tabs"
   cmd-2: "@layout apply two-column"
   cmd-3: "@layout apply three-column"
+  cmd-4: "@layout apply four-column"
   cmd-9: rm /Users/r/.local/state/thegrid/thegrid*
   alt-a: "@layout refresh"
   alt-s: "@cell mode"
@@ -87,6 +88,11 @@ hotkeys:
 
   cmd+shift-escape:
     run: "@test"
+    repeat: false
+
+  # Notification panel
+  alt-n:
+    run: "@notify toggle"
     repeat: false
 
   # Nudge mode
