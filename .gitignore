@@ -35,5 +35,5 @@ services/plists/
 !dalauncher/
 !mise/
 !claude/
-claude/wrap/__pycache__/
+claude/wrap/
 .damachine
