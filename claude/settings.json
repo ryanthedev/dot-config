@@ -12,7 +12,13 @@
       "Write",
       "Bash(*)",
       "mcp__grug-brain__*",
-      "mcp__claude-mux__*"
+      "mcp__plugin_grug-brain_grug-brain__*",
+      "mcp__claude-mux__*",
+      "mcp__thegrid__*",
+      "mcp__claude_ai_Google_Drive__*",
+      "mcp__plugin_penman_penman__*",
+      "mcp__plugin_stripe_stripe__*",
+      "mcp__plugin_upublish_upublish__*"
     ],
     "deny": [
       "Bash(rm -rf *)",
@@ -29,7 +35,6 @@
       "Bash(fdisk*)",
       "Bash(diskutil erase*)",
       "Bash(diskutil unmount*)",
-
       "Bash(git push --force*)",
       "Bash(git push *--force*)",
       "Bash(git push -f *)",
@@ -46,17 +51,13 @@
       "Bash(git stash drop*)",
       "Bash(git stash clear*)",
       "Bash(git rebase * --exec*)",
-
       "Bash(kill -9 *)",
       "Bash(killall *)",
-      "Bash(pkill *)",
       "Bash(sudo kill*)",
       "Bash(shutdown*)",
       "Bash(reboot*)",
       "Bash(halt*)",
       "Bash(launchctl unload*)",
-      "Bash(launchctl bootout*)",
-
       "Bash(npm publish*)",
       "Bash(npx npm publish*)",
       "Bash(yarn publish*)",
@@ -65,7 +66,6 @@
       "Bash(cargo publish*)",
       "Bash(pip upload*)",
       "Bash(twine upload*)",
-
       "Bash(docker rm -f*)",
       "Bash(docker rmi -f*)",
       "Bash(docker system prune*)",
@@ -75,13 +75,11 @@
       "Bash(kubectl delete *)",
       "Bash(kubectl drain *)",
       "Bash(kubectl cordon *)",
-
       "Bash(chmod 777 *)",
       "Bash(chmod -R 777 *)",
       "Bash(chown *)",
       "Bash(sudo chown *)",
       "Bash(sudo chmod *)",
-
       "Bash(dropdb *)",
       "Bash(* DROP DATABASE *)",
       "Bash(* DROP TABLE *)",
@@ -89,16 +87,18 @@
       "Bash(* drop table *)",
       "Bash(redis-cli FLUSHALL*)",
       "Bash(redis-cli FLUSHDB*)",
-
       "Bash(rsync * *:*)",
-
       "Bash(sudo *)"
     ],
     "ask": [
-      "Bash(ssh *)",
-      "Bash(scp *)"
+      "Bash(launchctl bootout*)",
+      "Bash(launchctl bootstrap*)",
+      "Bash(pkill *)",
+      "mcp__plugin_upublish_upublish__publish",
+      "mcp__plugin_upublish_upublish__delete"
     ]
   },
+  "model": "claude-opus-4-6[1m]",
   "hooks": {
     "PreToolUse": [
       {
@@ -160,7 +160,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "tmux set-option -p @claude-waiting 1 2>/dev/null; true"
+            "command": "~/.local/share/thegrid/hooks/claude-asking.sh"
           }
         ]
       }
@@ -171,7 +171,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "tmux set-option -pu @claude-waiting 2>/dev/null; true"
+            "command": "~/.local/share/thegrid/hooks/claude-answered.sh"
           }
         ]
       }
@@ -189,20 +189,31 @@
   },
   "enabledPlugins": {
     "svelte-foundations@/Users/r/repos/svelte-foundations.skill": true,
-    "frontend-design@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
     "swift-lsp@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
-    "ast-grep@ast-grep-marketplace": true
+    "ast-grep@ast-grep-marketplace": true,
+    "ruby-lsp@claude-plugins-official": true,
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "upublish@omni-ping-upublish": true,
+    "stripe@claude-plugins-official": true,
+    "clangd-lsp@claude-plugins-official": true
   },
-  "sandbox": {
-    "enabled": false
+  "extraKnownMarketplaces": {
+    "omni-ping-upublish": {
+      "source": {
+        "source": "github",
+        "repo": "omni-ping/upublish.skill"
+      }
+    }
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "high",
   "autoMemoryEnabled": false,
   "skipDangerousModePermissionPrompt": true,
+  "editorMode": "vim",
+  "autoCompactEnabled": false,
   "feedbackSurveyState": {
     "lastShownTime": 1754078816059
   }
