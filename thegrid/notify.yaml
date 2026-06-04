@@ -2,6 +2,11 @@ pipe_path: ~/.local/state/thegrid/notify.pipe
 pipe_source_label: pipe
 max_count: 200
 
+animations:
+  default:
+    idle: [marquee_title, spinner, breathing, fade_to_ghost]
+    ghost: [fade_to_ghost, marquee_title, spinner, breathing]
+
 scripts:
   - name: imessage
     path: /usr/bin/python3
