@@ -35,5 +35,6 @@ services/plists/
 !dalauncher/
 !mise/
 !claude/
-claude/wrap/
+claude/wrap/*
+!claude/wrap/claude-theme-wrap.py
 .damachine
