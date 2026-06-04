@@ -173,5 +173,6 @@
     "command": true,
     "az": true
   },
-  "workbench.secondarySideBar.defaultVisibility": "hidden"
+  "workbench.secondarySideBar.defaultVisibility": "hidden",
+  "update.showReleaseNotes": false
 }
