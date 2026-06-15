@@ -37,4 +37,5 @@ services/plists/
 !claude/
 claude/wrap/*
 !claude/wrap/claude-theme-wrap.py
+!claude/wrap/test-*.py
 .damachine

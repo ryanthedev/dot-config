@@ -76,21 +76,202 @@ SUBS = [
      b'\x1b[1m' + rainbow_text(b'Skill') + b'\x1b[22m'),
 ]
 
-# Hold back this many bytes from each chunk of claude's stdout so that
-# literal SUBS needles straddling a chunk boundary still match on the next
-# pass. Longest needle is ~14 bytes; 64 gives comfortable headroom.
-MAX_HOLDBACK = 64
+# DEC private mode 2026 (Synchronized Output) markers. Claude's Ink-fork
+# renderer wraps every render-op batch in BSU … ops … ESU so the terminal
+# applies the whole frame atomically (no tearing). The wrapper MUST keep
+# each BSU…ESU span intact: slicing it strands the closing ESU and the
+# terminal shows a stale/partial frame (the ghosting bug). Both markers are
+# 8 bytes and share the 7-byte prefix \x1b[?2026, differing only in the
+# final h/l — so a straddling-read holdback of len(marker)-1 = 7 bytes is
+# enough to never emit a partial marker.
+BSU = b'\x1b[?2026h'   # Begin Synchronized Update
+ESU = b'\x1b[?2026l'   # End Synchronized Update
+_MARKER_PREFIX = b'\x1b[?2026'  # shared 7-byte prefix of BSU/ESU
+
+# Size backstop. An open frame that never sees its ESU (malformed stream,
+# attach mid-render) must not buffer without bound. When the open frame
+# crosses this cap we flush what we have (SUBS applied) and stream the rest
+# of that frame raw until the ESU arrives — atomicity degrades for one
+# oversized frame, but memory stays bounded and the stream stays live.
+# 256 KiB comfortably exceeds any real Claude render batch.
+FRAME_BYTE_CAP = 256 * 1024
 
 # When master_fd has been quiet for this many seconds, flush whatever's in
-# the residue buffer. Without this, single-character TUI updates (input
-# echo, cursor moves) are smaller than MAX_HOLDBACK and would otherwise
-# sit in the residue forever, making interactive typing feel frozen.
+# the FrameMux's open frame (time backstop). Without this, a frame whose
+# ESU never arrives — or single-character TUI updates that open no frame at
+# all — would sit buffered forever, making the screen look frozen. The mux
+# itself is clockless; this timeout is the loop's responsibility.
 IDLE_FLUSH_SECS = 0.03
 
 def apply_subs(buf: bytes) -> bytes:
     for needle, repl in SUBS:
         buf = buf.replace(needle, repl)
     return buf
+
+def _partial_marker_tail_len(buf: bytes) -> int:
+    """Length of the longest suffix of `buf` that is a proper prefix of a
+    marker (BSU/ESU share _MARKER_PREFIX). These bytes might be the start of
+    a marker split across two reads, so out-of-frame scanning holds them back
+    rather than emitting them as passthrough and missing the boundary.
+
+    Returns 0..len(_MARKER_PREFIX) (i.e. ≤7). A complete marker is matched by
+    the caller's find() before this runs, so we only look for partial ones.
+    """
+    max_tail = min(len(buf), len(_MARKER_PREFIX))
+    # Longest first so we hold the smallest safe amount (a 1-byte ESC is the
+    # weakest match; a 7-byte \x1b[?2026 is the strongest).
+    for n in range(max_tail, 0, -1):
+        if _MARKER_PREFIX.startswith(buf[-n:]):
+            return n
+    return 0
+
+class FrameMux:
+    """Frame-aware byte multiplexer for Claude's Synchronized-Output stream.
+
+    Pure and clockless: `feed` is a deterministic function of (state, bytes)
+    with no I/O and no wall-clock dependency, so it is fully unit-testable
+    against synthetic streams. The time backstop lives in the I/O loop, which
+    calls `drain()` on idle timeout.
+
+    States:
+      out-of-frame  — pass bytes through raw; hold back only a ≤7-byte tail
+                      that might be the start of a split marker.
+      in-frame      — buffer the open frame; emit nothing until its ESU, then
+                      emit apply_subs(whole frame) atomically.
+      degraded      — an open frame crossed FRAME_BYTE_CAP; its head was
+                      flushed, so stream the rest raw until ESU (still holding
+                      a ≤7-byte partial-ESU tail) to preserve liveness.
+
+    Robustness over correctness (this is an interactive tool): any malformed
+    marker (ESU with no open BSU, an inner BSU, a never-closed frame) degrades
+    to passthrough/flush — it never raises and never blocks the terminal.
+    """
+
+    def __init__(self) -> None:
+        self._frame = bytearray()  # buffered open-frame bytes (in-frame state)
+        self._in_frame = False     # True between a BSU and its ESU
+        self._degraded = False     # True while streaming an oversized frame raw
+        self._tail = b''           # held-back ≤7-byte possible-partial-marker bytes
+
+    def has_open_frame(self) -> bool:
+        """True while any bytes are buffered awaiting an ESU (or a held tail
+        exists). The loop uses this to decide whether the idle-timeout backstop
+        needs to drain."""
+        return self._in_frame or self._degraded or bool(self._frame) or bool(self._tail)
+
+    def feed(self, data: bytes) -> bytes:
+        """Process a chunk; return bytes safe to write now = completed frames
+        (BSU…ESU span, SUBS applied) plus raw out-of-frame bytes. Buffers the
+        open frame and any trailing partial-marker bytes; emits nothing for an
+        open frame until its ESU. `feed(b'')` is a no-op returning b''."""
+        # Re-attach any tail held from the previous read so a marker split
+        # across reads is scanned as one contiguous span.
+        pending = self._tail + data
+        self._tail = b''
+        out = bytearray()
+        while pending:
+            if self._in_frame:
+                pending = self._step_in_frame(pending, out)
+            elif self._degraded:
+                pending = self._step_degraded(pending, out)
+            else:
+                pending = self._step_out_of_frame(pending, out)
+        return bytes(out)
+
+    def drain(self) -> bytes:
+        """Flush everything buffered now (SUBS applied to frame content) and
+        reset to out-of-frame ground state. Called by the loop on idle timeout
+        (time backstop) and at shutdown. Idempotent once buffers are empty:
+        returns b'' and stays in ground state."""
+        out = bytearray()
+        if self._frame:
+            # An open frame never reached its ESU; emit it themed anyway so the
+            # screen advances rather than freezing.
+            out += apply_subs(bytes(self._frame))
+            self._frame = bytearray()
+        if self._tail:
+            # A held partial-marker tail turned out not to complete; it is
+            # ordinary out-of-frame content, so emit it raw.
+            out += self._tail
+            self._tail = b''
+        self._in_frame = False
+        self._degraded = False
+        return bytes(out)
+
+    def _step_out_of_frame(self, pending: bytes, out: bytearray) -> bytes:
+        """Out-of-frame: emit raw up to a BSU. On BSU, enter in-frame buffering.
+        With no BSU, emit all but a possible split-marker tail (held back)."""
+        idx = pending.find(BSU)
+        if idx != -1:
+            out += pending[:idx]            # raw bytes before the frame
+            self._frame = bytearray(BSU)    # BSU is part of the atomic frame
+            self._in_frame = True
+            return pending[idx + len(BSU):]
+        # No complete BSU: everything except a possible partial-marker tail is
+        # safe out-of-frame passthrough. Hold the tail for the next read.
+        keep = _partial_marker_tail_len(pending)
+        emit_len = len(pending) - keep
+        out += pending[:emit_len]
+        self._tail = pending[emit_len:]
+        return b''  # tail is parked; nothing left actionable this call
+
+    def _step_in_frame(self, pending: bytes, out: bytearray) -> bytes:
+        """In-frame: buffer toward the ESU. On ESU, emit apply_subs(frame)
+        atomically and return to out-of-frame. Only an ESU ends a frame, so an
+        inner BSU is treated as frame content. Trip the size backstop if the
+        open frame outgrows FRAME_BYTE_CAP before its ESU.
+
+        The ESU can straddle the already-buffered frame tail and `pending`, so
+        we append first and search the whole buffer from just before the seam
+        (len(ESU)-1 bytes back) — never missing a split-marker boundary."""
+        seam = max(0, len(self._frame) - (len(ESU) - 1))
+        self._frame += pending
+        idx = self._frame.find(ESU, seam)
+        if idx != -1:
+            end = idx + len(ESU)                 # ESU closes the atomic frame
+            leftover = bytes(self._frame[end:])
+            out += apply_subs(bytes(self._frame[:end]))
+            self._frame = bytearray()
+            self._in_frame = False
+            return leftover
+        # No ESU yet: keep waiting — unless we've buffered too much, in which
+        # case flush and degrade to raw streaming to keep memory bounded.
+        if len(self._frame) > FRAME_BYTE_CAP:
+            out += apply_subs(bytes(self._frame))
+            self._frame = bytearray()
+            self._in_frame = False
+            self._degraded = True
+        return b''
+
+    def _step_degraded(self, pending: bytes, out: bytearray) -> bytes:
+        """Degraded (oversized frame): stream raw until the ESU, then return to
+        out-of-frame. Hold a ≤7-byte partial-ESU tail so the boundary is never
+        missed across reads."""
+        idx = pending.find(ESU)
+        if idx != -1:
+            out += pending[:idx + len(ESU)]   # ESU still written so sync mode closes
+            self._degraded = False
+            return pending[idx + len(ESU):]
+        # No ESU: emit all but a possible partial-marker tail, hold the tail.
+        keep = _partial_marker_tail_len(pending)
+        emit_len = len(pending) - keep
+        out += pending[:emit_len]
+        self._tail = pending[emit_len:]
+        return b''
+
+def write_all(fd: int, data: bytes) -> None:
+    """Write every byte, looping on short writes.
+
+    os.write to a tty/pty can return fewer bytes than requested when the
+    downstream buffer is full or a write is interrupted. Ignoring the count
+    silently drops the tail of a frame — a dropped erase/cursor sequence
+    leaves stale glyphs on screen (redraw ghosting). Loop until drained.
+    Python retries EINTR for us (PEP 475); we only need to handle partials.
+    """
+    mv = memoryview(data)
+    while mv:
+        n = os.write(fd, mv)
+        mv = mv[n:]
 
 def set_pane_title() -> None:
     # OSC 2 sets tmux pane title (and iTerm/kitty window title). Independent
@@ -178,14 +359,16 @@ def main() -> int:
         set_winsize(master_fd, r, c)
     signal.signal(signal.SIGWINCH, on_resize)
 
-    residue = b''
+    mux = FrameMux()
     try:
         while True:
             r, _, _ = select.select([stdin_fd, master_fd], [], [], IDLE_FLUSH_SECS)
             if not r:
-                if residue:
-                    os.write(stdout_fd, apply_subs(residue))
-                    residue = b''
+                # Time backstop: an open frame whose ESU hasn't arrived (or a
+                # held partial-marker tail) would otherwise freeze the screen.
+                # The mux is clockless, so the loop owns this flush.
+                if mux.has_open_frame():
+                    write_all(stdout_fd, mux.drain())
                 continue
             if stdin_fd in r:
                 try:
@@ -194,7 +377,7 @@ def main() -> int:
                     break
                 if not data:
                     break
-                os.write(master_fd, data)
+                write_all(master_fd, data)
             if master_fd in r:
                 try:
                     data = os.read(master_fd, 65536)
@@ -202,18 +385,13 @@ def main() -> int:
                     break
                 if not data:
                     break
-                buf = residue + data
-                if len(buf) > MAX_HOLDBACK - 1:
-                    flush, residue = buf[:-(MAX_HOLDBACK - 1)], buf[-(MAX_HOLDBACK - 1):]
-                else:
-                    flush, residue = b'', buf
-                os.write(stdout_fd, apply_subs(flush))
+                write_all(stdout_fd, mux.feed(data))
     finally:
-        if residue:
-            try:
-                os.write(stdout_fd, apply_subs(residue))
-            except OSError:
-                pass
+        # Drain whatever the mux still holds so the final frame isn't lost.
+        try:
+            write_all(stdout_fd, mux.drain())
+        except OSError:
+            pass
         termios.tcsetattr(stdin_fd, termios.TCSADRAIN, old_attrs)
     try:
         _, status = os.waitpid(pid, 0)
