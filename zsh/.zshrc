@@ -191,3 +191,7 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 # Load machine-local customizations (not tracked in git)
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
 export PATH="$HOME/.grug-brain/bin:$PATH"
+
+
+# Added by Antigravity CLI installer
+export PATH="/Users/r/.local/bin:$PATH"
