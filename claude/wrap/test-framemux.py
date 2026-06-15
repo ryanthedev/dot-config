@@ -364,6 +364,156 @@ def test_edge_partial_marker_tail_is_bounded(mod):
           "held partial-marker tail stays bounded (<= len(marker)-1)")
 
 
+# ==========================================================================
+# DW-2.2: A rainbow-`Skill` needle split across TWO feed() calls (the seam
+#         landing INSIDE the needle) is still rewritten in the emitted frame.
+#         This is the original bug class: positional effects must survive a
+#         read boundary because SUBS run on the reassembled whole frame.
+# ==========================================================================
+def test_DW_2_2_skill_needle_split_across_two_feeds(mod):
+    needle = b'\x1b[1mSkill\x1b[22m'
+    frame = mod.BSU + b'pre' + needle + b'post' + mod.ESU
+    # Cut once, mid-needle, so neither half contains the whole needle. The
+    # split point is chosen to land inside 'Skill' itself, not at a clean
+    # SGR boundary — the cruelest realistic two-read split.
+    cut = frame.index(b'Skill') + 2            # between 'Sk' and 'ill'
+    first, second = frame[:cut], frame[cut:]
+    check(needle not in first and needle not in second,
+          "DW-2.2: precondition — the needle must straddle the two feeds")
+    mux = mod.FrameMux()
+    out1 = mux.feed(first)
+    out2 = mux.feed(second)
+    emitted = out1 + out2
+    eq(out1, b'', "DW-2.2: nothing escapes before the closing ESU of the frame")
+    check(mod.rainbow_text(b'Skill') in emitted,
+          "DW-2.2: a Skill needle split across two feed() calls is still rewritten")
+    check(needle not in emitted,
+          "DW-2.2: the plain Skill envelope must not survive in the output")
+    # And the whole frame must still be atomic: BSU…ESU intact around it.
+    expected = mod.BSU + mod.apply_subs(b'pre' + needle + b'post') + mod.ESU
+    eq(emitted, expected,
+       "DW-2.2: the split needle reassembles into one atomic, themed frame")
+
+
+def test_DW_2_2_skill_needle_split_at_every_seam(mod):
+    # Stronger: no matter WHERE the two-feed seam falls inside the needle
+    # span, the rewrite must still fire. Sweep every cut point across the
+    # needle and assert the rainbow rewrite always lands.
+    needle = b'\x1b[1mSkill\x1b[22m'
+    frame = mod.BSU + b'A' + needle + b'B' + mod.ESU
+    start = frame.index(needle)
+    for cut in range(start, start + len(needle) + 1):
+        mux = mod.FrameMux()
+        emitted = mux.feed(frame[:cut]) + mux.feed(frame[cut:])
+        check(mod.rainbow_text(b'Skill') in emitted,
+              f"DW-2.2: Skill rewrite must fire for a seam at byte {cut}")
+        check(not mux.has_open_frame(),
+              f"DW-2.2: frame must close (no stall) for a seam at byte {cut}")
+
+
+# ==========================================================================
+# DW-2.3: Sequential-frames-in-one-chunk and the malformed cases
+#         (ESU-without-BSU, nested BSU) are asserted to NEITHER CRASH
+#         NOR STALL. "No stall" = the mux returns to ground state (no open
+#         frame left hanging) and stays usable for the next feed.
+# ==========================================================================
+def test_DW_2_3_sequential_frames_no_crash_no_stall(mod):
+    a = mod.BSU + b'first' + mod.ESU
+    b = mod.BSU + b'second' + mod.ESU
+    mux = mod.FrameMux()
+    out = mux.feed(a + b)                       # must not raise
+    eq(out, mod.BSU + mod.apply_subs(b'first') + mod.ESU
+            + mod.BSU + mod.apply_subs(b'second') + mod.ESU,
+       "DW-2.3: two back-to-back frames both emit, themed and atomic")
+    check(not mux.has_open_frame(),
+          "DW-2.3: after sequential frames the mux is back in ground state (no stall)")
+    # Still usable for a third frame — proves no latched/broken state.
+    out3 = mux.feed(mod.BSU + b'third' + mod.ESU)
+    eq(out3, mod.BSU + mod.apply_subs(b'third') + mod.ESU,
+       "DW-2.3: the mux keeps working after sequential frames (no stall)")
+
+
+def test_DW_2_3_esu_without_bsu_no_crash_no_stall(mod):
+    mux = mod.FrameMux()
+    out = mux.feed(b'before' + mod.ESU + b'after')   # stray ESU, must not raise
+    eq(out, b'before' + mod.ESU + b'after',
+       "DW-2.3: a stray ESU with no open BSU passes through raw")
+    check(not mux.has_open_frame(),
+          "DW-2.3: a stray ESU must not leave the mux stalled in a frame")
+    # A real frame after the malformed input must still work.
+    out2 = mux.feed(mod.BSU + b'ok' + mod.ESU)
+    eq(out2, mod.BSU + mod.apply_subs(b'ok') + mod.ESU,
+       "DW-2.3: the mux recovers and frames normally after a stray ESU")
+
+
+def test_DW_2_3_nested_bsu_no_crash_no_stall(mod):
+    # Inner BSU while already in-frame is content; only an ESU ends the frame.
+    inner = b'x' + mod.BSU + b'y'
+    frame = mod.BSU + inner + mod.ESU
+    mux = mod.FrameMux()
+    out = mux.feed(frame)                            # must not raise
+    eq(out, mod.BSU + mod.apply_subs(inner) + mod.ESU,
+       "DW-2.3: a nested BSU is treated as frame content; the first ESU closes it")
+    check(not mux.has_open_frame(),
+          "DW-2.3: a nested BSU must not leave a second frame stuck open (no stall)")
+    out2 = mux.feed(mod.BSU + b'next' + mod.ESU)
+    eq(out2, mod.BSU + mod.apply_subs(b'next') + mod.ESU,
+       "DW-2.3: the mux frames normally after a nested-BSU frame")
+
+
+def test_DW_2_3_unterminated_then_drain_no_stall(mod):
+    # The other no-stall axis: a frame that never closes must be drainable so
+    # the screen advances instead of freezing (time-backstop liveness).
+    mux = mod.FrameMux()
+    mux.feed(mod.BSU + b'\x1b[1mSkill\x1b[22m hangs forever')
+    check(mux.has_open_frame(), "DW-2.3: an unterminated frame is open before drain")
+    out = mux.drain()                                # must not raise
+    check(mod.rainbow_text(b'Skill') in out,
+          "DW-2.3: drain flushes the stuck frame themed (no permanent stall)")
+    check(not mux.has_open_frame(),
+          "DW-2.3: after drain the mux is back in ground state")
+
+
+# ==========================================================================
+# DW-2.5: This test file is stdlib-only and follows the 0/1/2 exit
+#         convention. Asserted as a tested invariant rather than left implicit.
+# ==========================================================================
+def test_DW_2_5_test_file_is_stdlib_only(mod):
+    import ast
+    src = open(os.path.join(HERE, "test-framemux.py"), "rb").read().decode()
+    tree = ast.parse(src)
+    stdlib = {
+        "importlib", "os", "subprocess", "sys", "ast",  # module-level + local
+    }
+    imported = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for n in node.names:
+                imported.add(n.name.split(".")[0])
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported.add(node.module.split(".")[0])
+    thirdparty = imported - stdlib
+    check(not thirdparty,
+          f"DW-2.5: test file must be stdlib-only; unexpected imports: {sorted(thirdparty)}")
+
+
+def test_DW_2_5_exit_convention_0_1_2(mod):
+    # Running this file as a subprocess on the all-pass tree must exit 0.
+    # (1 = behavioral regression, 2 = driver error — the documented contract.)
+    # Guard against infinite self-recursion: the child sees _FRAMEMUX_NO_SUBPROC
+    # and skips re-spawning, so it still runs every other test (exit code is a
+    # real signal) without forking forever.
+    if os.environ.get("_FRAMEMUX_NO_SUBPROC"):
+        return
+    env = dict(os.environ, _FRAMEMUX_NO_SUBPROC="1")
+    res = subprocess.run([sys.executable, os.path.join(HERE, "test-framemux.py")],
+                         capture_output=True, env=env)
+    check(res.returncode in (0, 1, 2),
+          f"DW-2.5: exit code must be one of 0/1/2, got {res.returncode}")
+    eq(res.returncode, 0,
+       f"DW-2.5: the green tree must exit 0 (stderr: {res.stderr.decode()!r})")
+
+
 def main():
     try:
         mod = load_wrapper()
