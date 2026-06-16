@@ -120,25 +120,48 @@ def test_DW_1_3_no_partial_marker_leaked(mod):
 
 
 # ==========================================================================
-# DW-1.4: Out-of-frame bytes → returned unmodified & promptly, except a
-#         ≤len(marker)-1 trailing partial-marker tail.
+# DW-1.4: _step_in_frame and drain behavior is UNCHANGED by the out-of-frame
+#         fix. The in-frame atomic-emission tests elsewhere (the DW-1.1 frame
+#         case, DW-1.2, DW-1.3 split BSU/ESU, DW-1.5, DW-1.6, DW-1.6b, DW-1.7
+#         in-frame, DW-2.2, DW-2.3) all still pass verbatim. Here we pin the
+#         in-frame / drain emit sites at the source level so the fix cannot
+#         silently touch them.
+#
+#         (The out-of-frame contract itself changed: out-of-frame bytes are now
+#         SUBSTITUTED, not passed raw — see the DW-1.1 out-of-frame tests below.
+#         Non-needle, non-marker out-of-frame bytes are still emitted promptly
+#         and unchanged, which the passthrough check here still asserts.)
 # ==========================================================================
-def test_DW_1_4_out_of_frame_passthrough_unmodified(mod):
-    raw = b'\x1b[1mBash\x1b[22m plain boot chrome \x1b[0m'  # has a SUB needle
+def test_DW_1_4_non_needle_out_of_frame_passthrough_unchanged(mod):
+    # Bytes that match no SUBS needle are emitted verbatim (apply_subs is a
+    # no-op on them), so out-of-frame liveness/ordering is preserved.
+    raw = b'plain boot chrome with no needles \x1b[0m and some text'
     out = mod.FrameMux().feed(raw)
-    eq(out, raw, "DW-1.4: out-of-frame bytes pass through verbatim, no SUBS")
+    eq(out, raw, "DW-1.4: out-of-frame bytes with no needle emit verbatim+promptly")
+
+
+def test_DW_1_4_in_frame_and_drain_source_unchanged(mod):
+    # The in-frame and drain emit sites must keep running apply_subs over the
+    # reassembled frame — the ghosting fix from a86dc96 stays intact.
+    src = open(WRAP, "rb").read().decode()
+    check("out += apply_subs(bytes(self._frame[:end]))" in src,
+          "DW-1.4: _step_in_frame still emits apply_subs over the closed frame")
+    check("out += apply_subs(bytes(self._frame)) + ESU" in src,
+          "DW-1.4: drain still emits apply_subs(frame) + synthesized ESU")
+    check("out += apply_subs(bytes(self._frame))\n" in src,
+          "DW-1.4: the in-frame size-backstop still flushes apply_subs(frame)")
 
 
 def test_DW_1_4_only_partial_marker_tail_held(mod):
     raw = b'lots of out of frame text'
     out = mod.FrameMux().feed(raw)
     eq(out, raw, "DW-1.4: out-of-frame bytes with no marker tail emit fully+promptly")
-    # A tail that IS a partial marker is the only thing held back, and only ≤7.
+    # A tail that IS a partial marker is held back, bounded by the holdback rule.
     mux = mod.FrameMux()
     out = mux.feed(b'data' + b'\x1b[?2026')            # 7-byte partial-marker tail
-    eq(out, b'data', "DW-1.4: exactly the partial-marker tail (<=7) is withheld")
-    check(len(mux._tail) <= len(mod.BSU) - 1,
-          "DW-1.4: held tail must be <= len(marker)-1 bytes")
+    eq(out, b'data', "DW-1.4: exactly the partial-marker tail is withheld")
+    check(len(mux._tail) <= mod._MAX_HOLD,
+          "DW-1.4: held tail must be <= _MAX_HOLD bytes")
 
 
 # ==========================================================================
@@ -275,10 +298,15 @@ def test_DW_1_7_rainbow_skill_sub_across_split_frame(mod):
           "DW-1.7: a Skill needle split across feeds is still rewritten")
 
 
-def test_DW_1_7_out_of_frame_subs_not_applied(mod):
-    raw = b'\x1b[1mBash\x1b[22m'                       # same needle, but out of frame
+def test_DW_1_7_out_of_frame_subs_applied(mod):
+    # The regression fix: out-of-frame needles ARE now substituted (Claude only
+    # emits 2026 frames when the terminal advertises sync; without frames the
+    # whole stream is out-of-frame and theming must still fire).
+    raw = b'\x1b[1mBash\x1b[22m'                       # needle, out of frame
     out = mod.FrameMux().feed(raw)
-    eq(out, raw, "DW-1.7: out-of-frame bytes must NOT be substituted")
+    eq(out, mod.apply_subs(raw),
+       "DW-1.7: out-of-frame needles are now substituted (regression fix)")
+    check(raw not in out, "DW-1.7: the plain Bash envelope must not survive out-of-frame")
 
 
 # ==========================================================================
@@ -389,12 +417,263 @@ def test_edge_partial_marker_tail_resolves_to_non_marker(mod):
 
 def test_edge_partial_marker_tail_is_bounded(mod):
     # Feeding only marker-prefix bytes repeatedly must never grow the held tail
-    # beyond len(marker)-1.
+    # beyond the holdback bound.
     mux = mod.FrameMux()
     for _ in range(50):
         mux.feed(b'\x1b[?2026')
-    check(len(mux._tail) <= len(mod.BSU) - 1,
-          "held partial-marker tail stays bounded (<= len(marker)-1)")
+    check(len(mux._tail) <= mod._MAX_HOLD,
+          "held partial-marker tail stays bounded (<= _MAX_HOLD)")
+
+
+# ==========================================================================
+# DW-1.1 (out-of-frame substitution): _step_out_of_frame applies apply_subs
+#         over its non-held portion — both the no-BSU trailing slice and the
+#         pre-BSU slice. No themed content escapes raw out-of-frame.
+# ==========================================================================
+def test_DW_1_1_out_of_frame_needle_substituted_single_chunk(mod):
+    # The core regression: a BSU-free (unframed) stream carrying a needle must
+    # be themed, because Claude emits no 2026 frame when sync isn't advertised.
+    raw = b'before \x1b[1mSkill\x1b[22m after'
+    out = mod.FrameMux().feed(raw)
+    check(mod.rainbow_text(b'Skill') in out,
+          "DW-1.1: an unframed Skill needle must be rainbowed")
+    check(b'\x1b[1mSkill\x1b[22m' not in out,
+          "DW-1.1: the plain Skill envelope must not survive unframed")
+    eq(out, mod.apply_subs(raw),
+       "DW-1.1: unframed output equals apply_subs over the whole chunk")
+
+
+def test_DW_1_1_out_of_frame_inline_code_substituted(mod):
+    # Inline-code needle (claude's pale blue 153) recolored to PALETTE['code']
+    # (214) even with no frame in the stream.
+    raw = b'text \x1b[38;5;153m`code`'
+    out = mod.FrameMux().feed(raw)
+    check(mod.PALETTE['code'] in out,
+          "DW-1.1: unframed inline-code needle must recolor to PALETTE['code'] (214)")
+    check(b'\x1b[38;5;153m' not in out,
+          "DW-1.1: the original pale-blue 153 must not survive unframed")
+
+
+def test_DW_1_1_pre_bsu_slice_substituted_and_frame_atomic(mod):
+    # needle + BSU + body + ESU in ONE out-of-frame chunk: the pre-BSU needle
+    # is substituted AND the frame still emits atomically (in-frame untouched).
+    needle = b'\x1b[1mBash\x1b[22m'
+    body = b'\x1b[1mSkill\x1b[22m'
+    chunk = needle + mod.BSU + body + mod.ESU
+    out = mod.FrameMux().feed(chunk)
+    expected = (mod.apply_subs(needle)
+                + mod.BSU + mod.apply_subs(body) + mod.ESU)
+    eq(out, expected,
+       "DW-1.1: pre-BSU slice is subbed; the frame still emits atomically")
+    check(mod.PALETTE['bash'] in out, "DW-1.1: pre-BSU Bash recolor must appear")
+    check(mod.rainbow_text(b'Skill') in out, "DW-1.1: in-frame Skill still rainbowed")
+
+
+def test_DW_1_1_out_of_frame_between_frames_substituted(mod):
+    # Bytes between two frames are out-of-frame; a needle there must now be
+    # substituted (previously passed raw — the regression).
+    stream = (mod.BSU + b'one' + mod.ESU
+              + b'\x1b[1mBash\x1b[22m'
+              + mod.BSU + b'two' + mod.ESU)
+    out = mod.FrameMux().feed(stream)
+    expected = (mod.BSU + mod.apply_subs(b'one') + mod.ESU
+                + mod.apply_subs(b'\x1b[1mBash\x1b[22m')
+                + mod.BSU + mod.apply_subs(b'two') + mod.ESU)
+    eq(out, expected,
+       "DW-1.1: out-of-frame needle between frames is substituted")
+
+
+# ==========================================================================
+# DW-1.2 (degraded substitution): _step_degraded applies apply_subs over its
+#         streamed bytes; in the found-ESU branch the pre-ESU slice is subbed
+#         while the ESU is emitted VERBATIM (never wrapped in apply_subs).
+# ==========================================================================
+def _trip_degraded(mod):
+    """Drive a mux into the degraded state via the size backstop; return it."""
+    mux = mod.FrameMux()
+    mux.feed(mod.BSU + b'Z' * (mod.FRAME_BYTE_CAP + 100))   # never closes within cap
+    check(mux._degraded, "precondition: mux must be in degraded state")
+    return mux
+
+
+def test_DW_1_2_degraded_out_of_frame_needle_substituted(mod):
+    # After the size backstop trips, streamed bytes still get themed.
+    mux = _trip_degraded(mod)
+    out = mux.feed(b'mid \x1b[1mSkill\x1b[22m frame')
+    check(mod.rainbow_text(b'Skill') in out,
+          "DW-1.2: a needle in degraded streamed bytes must be substituted")
+    check(b'\x1b[1mSkill\x1b[22m' not in out,
+          "DW-1.2: the plain Skill envelope must not survive in degraded stream")
+
+
+def test_DW_1_2_degraded_esu_emitted_verbatim_not_subbed(mod):
+    # Found-ESU branch: pre-ESU slice subbed, ESU byte-for-byte verbatim. The
+    # ESU is not a needle and must not be mutated.
+    mux = _trip_degraded(mod)
+    out = mux.feed(b'\x1b[1mBash\x1b[22m tail' + mod.ESU + b'after')
+    expected = (mod.apply_subs(b'\x1b[1mBash\x1b[22m tail')
+                + mod.ESU + b'after')
+    eq(out, expected,
+       "DW-1.2: degraded found-ESU = apply_subs(pre) + ESU verbatim + raw after")
+    check(mod.ESU in out, "DW-1.2: the ESU must survive intact (sync close)")
+    check(not mux.has_open_frame(),
+          "DW-1.2: the ESU returns the degraded frame to ground state")
+
+
+def test_DW_1_2_degraded_esu_not_wrapped_in_apply_subs(mod):
+    # Guard against the specific wrong implementation apply_subs(pre + ESU).
+    # Even though apply_subs is a no-op on a bare ESU today, the slice cut must
+    # keep the ESU OUT of the substituted span. Assert the source does the safe
+    # cut, and that an ESU adjacent to a needle still emits verbatim.
+    mux = _trip_degraded(mod)
+    # Needle ends exactly where the ESU begins — no separator bytes.
+    out = mux.feed(b'\x1b[1mBash\x1b[22m' + mod.ESU)
+    expected = mod.apply_subs(b'\x1b[1mBash\x1b[22m') + mod.ESU
+    eq(out, expected,
+       "DW-1.2: ESU adjacent to a needle still emits verbatim (not in the sub span)")
+
+
+# ==========================================================================
+# DW-1.3 (needle-aware holdback): the out-of-frame/degraded holdback length is
+#         the longest suffix of the buffer that is a proper prefix of any SUBS
+#         needle OR _MARKER_PREFIX. A needle split across two UNFRAMED feeds
+#         still substitutes.
+# ==========================================================================
+def test_DW_1_3_unframed_needle_split_across_two_feeds(mod):
+    # The needle straddles the emit/hold boundary in feed 1; the held tail is
+    # re-prepended in feed 2 and the rewrite fires. Unframed (no BSU/ESU).
+    needle = b'\x1b[1mSkill\x1b[22m'
+    cut = 4                                   # split inside the needle's prefix
+    mux = mod.FrameMux()
+    out1 = mux.feed(needle[:cut])             # only a partial-needle prefix
+    out2 = mux.feed(needle[cut:] + b' done')
+    emitted = out1 + out2
+    check(mod.rainbow_text(b'Skill') in emitted,
+          "DW-1.3: an unframed needle split across two feeds still substitutes")
+    check(needle not in emitted,
+          "DW-1.3: the plain needle must not survive the split")
+
+
+def test_DW_1_3_unframed_needle_split_at_every_seam(mod):
+    # Sweep every cut point across an unframed needle; the rewrite must always
+    # fire and the held tail must never exceed the bound.
+    needle = b'\x1b[1mSkill\x1b[22m'
+    stream = b'A' + needle + b'B'
+    start = stream.index(needle)
+    for cut in range(start, start + len(needle) + 1):
+        mux = mod.FrameMux()
+        out1 = mux.feed(stream[:cut])
+        check(len(mux._tail) <= mod._MAX_HOLD,
+              f"DW-1.3: held tail bounded for an unframed seam at byte {cut}")
+        emitted = out1 + mux.feed(stream[cut:])
+        check(mod.rainbow_text(b'Skill') in emitted,
+              f"DW-1.3: unframed Skill rewrite must fire for a seam at byte {cut}")
+        check(needle not in emitted,
+              f"DW-1.3: plain needle must not survive a seam at byte {cut}")
+
+
+def test_DW_1_3_held_tail_len_helper_semantics(mod):
+    # The helper returns the longest suffix that is a proper prefix of a needle
+    # or _MARKER_PREFIX.
+    f = mod._held_tail_len
+    eq(f(b'no token here'), 0, "DW-1.3: plain text holds nothing back")
+    # \x1b[1m is a proper prefix of the Bash/Skill/h1 needles.
+    eq(f(b'text\x1b[1m'), len(b'\x1b[1m'),
+       "DW-1.3: a needle-prefix suffix is held")
+    # \x1b[?2026 is the marker prefix → held (marker path preserved).
+    eq(f(b'data\x1b[?2026'), len(b'\x1b[?2026'),
+       "DW-1.3: a marker-prefix suffix is held")
+    # A COMPLETE needle is not 'partial' — apply_subs handles it, so the helper
+    # holds back only the trailing bytes that could still extend a token. For a
+    # buffer ending in a complete-but-also-prefix situation, it holds the
+    # longest proper-prefix suffix; never more than _MAX_HOLD.
+    check(f(b'\x1b[1mBash\x1b[22m') <= mod._MAX_HOLD,
+          "DW-1.3: helper never returns more than _MAX_HOLD")
+
+
+def test_DW_1_3_max_hold_derived_from_subs_not_hardcoded(mod):
+    expected = max(len(n) for n, _ in mod.SUBS
+                   + [(mod._MARKER_PREFIX, None)]) - 1
+    eq(mod._MAX_HOLD, expected,
+       "DW-1.3: _MAX_HOLD must be max(needle/marker len)-1, derived from SUBS")
+    check(mod._MAX_HOLD > len(mod._MARKER_PREFIX) - 1,
+          "DW-1.3: _MAX_HOLD must exceed the marker-only bound (needles are longer)")
+
+
+# ==========================================================================
+# DW-1.5 (marker safety under out-of-frame subs): a 2026 marker interleaved
+#         with out-of-frame needles is never split across reads.
+# ==========================================================================
+def test_DW_1_5_marker_after_out_of_frame_needle_not_split(mod):
+    # An out-of-frame needle immediately followed by a split BSU: the needle is
+    # themed, the BSU half is held (not leaked), and the frame opens correctly.
+    needle = b'\x1b[1mBash\x1b[22m'
+    half = len(mod.BSU) // 2
+    mux = mod.FrameMux()
+    out1 = mux.feed(needle + mod.BSU[:half])       # needle + half a BSU
+    check(mod.PALETTE['bash'] in out1,
+          "DW-1.5: the out-of-frame needle before a split BSU is themed")
+    check(mod.BSU not in out1, "DW-1.5: a partial BSU must not leak")
+    out2 = mux.feed(mod.BSU[half:] + b'body' + mod.ESU)
+    eq(out2, mod.BSU + mod.apply_subs(b'body') + mod.ESU,
+       "DW-1.5: the split BSU completes and the frame closes correctly")
+
+
+def test_DW_1_5_mixed_needle_then_marker_prefix_held(mod):
+    # A needle followed by exactly the shared marker prefix: needle themed, the
+    # ambiguous prefix held until the next read resolves it to BSU or ESU.
+    mux = mod.FrameMux()
+    out1 = mux.feed(b'\x1b[1mSkill\x1b[22m' + mod._MARKER_PREFIX)
+    check(mod.rainbow_text(b'Skill') in out1,
+          "DW-1.5: the needle before a marker prefix is themed")
+    check(mod._MARKER_PREFIX not in out1,
+          "DW-1.5: the held marker prefix must not leak as passthrough")
+    out2 = mux.feed(b'h' + b'frame' + mod.ESU)     # prefix + 'h' = BSU
+    eq(out2, mod.BSU + mod.apply_subs(b'frame') + mod.ESU,
+       "DW-1.5: held prefix + 'h' resolves to a real BSU and frames")
+
+
+# ==========================================================================
+# DW-1.6 (bounded tail): the out-of-frame/degraded held tail is bounded by
+#         max-needle-length - 1; a never-completing partial needle is flushed
+#         raw by drain.
+# ==========================================================================
+def test_DW_1_6_held_tail_bounded_by_max_needle_len(mod):
+    # Feed only the longest needle's prefix bytes repeatedly: the held tail must
+    # never exceed _MAX_HOLD (= max needle len - 1).
+    longest = max((n for n, _ in mod.SUBS), key=len)
+    prefix = longest[:-1]                          # a proper prefix, can't complete
+    mux = mod.FrameMux()
+    for _ in range(50):
+        mux.feed(prefix)
+        check(len(mux._tail) <= mod._MAX_HOLD,
+              "DW-1.6: held tail must stay <= _MAX_HOLD while fed needle prefixes")
+
+
+def test_DW_1_6_repeat_needle_prefix_bounded(mod):
+    # Single-byte ESC fed repeatedly (the weakest needle/marker prefix) must
+    # also stay bounded and not accumulate.
+    mux = mod.FrameMux()
+    for _ in range(1000):
+        mux.feed(b'\x1b')
+    check(len(mux._tail) <= mod._MAX_HOLD,
+          "DW-1.6: repeated ESC prefixes stay bounded (no unbounded tail growth)")
+
+
+def test_DW_1_6_partial_needle_never_completes_drained_raw(mod):
+    # A held partial-needle tail that never completes is flushed raw by drain()
+    # and the mux returns to ground state (acceptable cosmetic miss).
+    partial = b'\x1b[1mSki'                         # prefix of the Skill needle
+    mux = mod.FrameMux()
+    out1 = mux.feed(partial)
+    check(out1 != partial or len(mux._tail) > 0,
+          "DW-1.6: some of a partial needle is held back")
+    out = mux.drain()
+    # Everything fed must come out across feed+drain (raw, since incomplete).
+    eq(out1 + out, partial,
+       "DW-1.6: an incomplete needle is flushed raw on drain, in order")
+    check(not mux.has_open_frame(),
+          "DW-1.6: drain returns the mux to ground state after an incomplete needle")
 
 
 # ==========================================================================

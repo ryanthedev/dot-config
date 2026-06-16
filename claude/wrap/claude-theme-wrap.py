@@ -116,6 +116,9 @@ def _partial_marker_tail_len(buf: bytes) -> int:
 
     Returns 0..len(_MARKER_PREFIX) (i.e. ≤7). A complete marker is matched by
     the caller's find() before this runs, so we only look for partial ones.
+
+    Kept for the marker-only reasoning it documents; the out-of-frame and
+    degraded steps now use the needle-aware `_held_tail_len` below.
     """
     max_tail = min(len(buf), len(_MARKER_PREFIX))
     # Longest first so we hold the smallest safe amount (a 1-byte ESC is the
@@ -123,6 +126,47 @@ def _partial_marker_tail_len(buf: bytes) -> int:
     for n in range(max_tail, 0, -1):
         if _MARKER_PREFIX.startswith(buf[-n:]):
             return n
+    return 0
+
+# Holdback alphabet: every SUBS needle plus the full BSU/ESU markers. A split
+# that lands inside ANY of these at a read boundary must be withheld so the
+# needle/marker is never emitted half-formed (and so apply_subs can match it,
+# or find() can detect the marker, once the rest arrives on the next read).
+# The FULL 8-byte markers are used (not the 7-byte shared prefix) so the rule
+# is uniform: holding a *proper* prefix of a token is correct for both — e.g.
+# the 7-byte _MARKER_PREFIX is a proper prefix of the 8-byte BSU, so it is
+# still held. Derived from SUBS — never a hardcoded byte count — so adding a
+# longer needle automatically widens the bound.
+_HOLD_PREFIXES = tuple(n for n, _ in SUBS) + (BSU, ESU)
+# Longest possible held tail = longest holdback token minus one. A complete
+# token is matched (substituted, or framed by find()) before holdback runs, so
+# we only ever hold a PROPER prefix — at most len-1 bytes.
+_MAX_HOLD = max(len(p) for p in _HOLD_PREFIXES) - 1
+
+def _held_tail_len(buf: bytes) -> int:
+    """Length of the longest suffix of `buf` that is a proper prefix of any
+    SUBS needle OR the 2026-marker prefix. Those trailing bytes might be the
+    start of a needle/marker split across two reads, so the out-of-frame and
+    degraded steps hold them back rather than emitting them un-substituted and
+    missing the match on the next read.
+
+    Returns 0.._MAX_HOLD. Only a PROPER (strictly shorter) prefix is held: a
+    suffix that exactly equals a complete needle is left for apply_subs to
+    rewrite in place, and a complete marker is found by the caller's find()
+    before this runs — so only genuine partial tails are withheld. Bounded by
+    _MAX_HOLD (= longest token len − 1), so feeding only prefix bytes can never
+    grow the held tail without bound.
+    """
+    max_tail = min(len(buf), _MAX_HOLD)
+    # Longest candidate first → hold the smallest amount that is still safe.
+    for n in range(max_tail, 0, -1):
+        suffix = buf[-n:]
+        for prefix in _HOLD_PREFIXES:
+            # `len(suffix) < len(prefix)` keeps this a PROPER prefix: a suffix
+            # that is a whole needle is complete content (apply_subs handles
+            # it), not an in-progress token to hold back.
+            if len(suffix) < len(prefix) and prefix.startswith(suffix):
+                return n
     return 0
 
 class FrameMux:
@@ -134,13 +178,17 @@ class FrameMux:
     calls `drain()` on idle timeout.
 
     States:
-      out-of-frame  — pass bytes through raw; hold back only a ≤7-byte tail
-                      that might be the start of a split marker.
+      out-of-frame  — substitute (apply_subs) the streamed bytes; hold back
+                      only a ≤_MAX_HOLD tail that might be the start of a split
+                      needle or marker. Claude emits 2026 frames only when the
+                      terminal advertises sync support, so this is the common
+                      path and themed content must be subbed here too.
       in-frame      — buffer the open frame; emit nothing until its ESU, then
                       emit apply_subs(whole frame) atomically.
       degraded      — an open frame crossed FRAME_BYTE_CAP; its head was
-                      flushed, so stream the rest raw until ESU (still holding
-                      a ≤7-byte partial-ESU tail) to preserve liveness.
+                      flushed, so substitute the rest until ESU (still holding
+                      a ≤_MAX_HOLD partial needle/marker tail) to preserve
+                      liveness.
 
     Robustness over correctness (this is an interactive tool): any malformed
     marker (ESU with no open BSU, an inner BSU, a never-closed frame) degrades
@@ -151,7 +199,7 @@ class FrameMux:
         self._frame = bytearray()  # buffered open-frame bytes (in-frame state)
         self._in_frame = False     # True between a BSU and its ESU
         self._degraded = False     # True while streaming an oversized frame raw
-        self._tail = b''           # held-back ≤7-byte possible-partial-marker bytes
+        self._tail = b''           # held-back ≤_MAX_HOLD possible-partial needle/marker bytes
 
     def has_open_frame(self) -> bool:
         """True while any bytes are buffered awaiting an ESU (or a held tail
@@ -199,8 +247,9 @@ class FrameMux:
             out += apply_subs(bytes(self._frame)) + ESU
             self._frame = bytearray()
         if self._tail:
-            # A held partial-marker tail turned out not to complete; it is
-            # ordinary out-of-frame content, so emit it raw.
+            # A held partial needle/marker tail never completed. It is an
+            # incomplete token (it would not match apply_subs anyway), so flush
+            # it raw — an acceptable cosmetic miss, not a stranded marker.
             out += self._tail
             self._tail = b''
         self._in_frame = False
@@ -208,19 +257,25 @@ class FrameMux:
         return bytes(out)
 
     def _step_out_of_frame(self, pending: bytes, out: bytearray) -> bytes:
-        """Out-of-frame: emit raw up to a BSU. On BSU, enter in-frame buffering.
-        With no BSU, emit all but a possible split-marker tail (held back)."""
+        """Out-of-frame: substitute up to a BSU. On BSU, enter in-frame
+        buffering. With no BSU, substitute all but a possible split needle/
+        marker tail (held back). Claude emits 2026 frames only when the terminal
+        advertises sync support, so out-of-frame is the common case (e.g. tmux
+        with sync disabled) — themed content lives here too and MUST be subbed."""
         idx = pending.find(BSU)
         if idx != -1:
-            out += pending[:idx]            # raw bytes before the frame
-            self._frame = bytearray(BSU)    # BSU is part of the atomic frame
+            # A needle cannot overlap the BSU bytes (\x1b[?2026h is not a
+            # substring of any needle), so the pre-BSU slice is a hard cut and
+            # apply_subs over it is safe.
+            out += apply_subs(pending[:idx])   # themed bytes before the frame
+            self._frame = bytearray(BSU)       # BSU is part of the atomic frame
             self._in_frame = True
             return pending[idx + len(BSU):]
-        # No complete BSU: everything except a possible partial-marker tail is
-        # safe out-of-frame passthrough. Hold the tail for the next read.
-        keep = _partial_marker_tail_len(pending)
+        # No complete BSU: substitute everything except a possible partial
+        # needle/marker tail (held so a split needle still matches next read).
+        keep = _held_tail_len(pending)
         emit_len = len(pending) - keep
-        out += pending[:emit_len]
+        out += apply_subs(pending[:emit_len])
         self._tail = pending[emit_len:]
         return b''  # tail is parked; nothing left actionable this call
 
@@ -253,18 +308,22 @@ class FrameMux:
         return b''
 
     def _step_degraded(self, pending: bytes, out: bytearray) -> bytes:
-        """Degraded (oversized frame): stream raw until the ESU, then return to
-        out-of-frame. Hold a ≤7-byte partial-ESU tail so the boundary is never
-        missed across reads."""
+        """Degraded (oversized frame): substitute the streamed bytes until the
+        ESU, then return to out-of-frame. Hold a partial needle/marker tail so a
+        split boundary is never missed across reads."""
         idx = pending.find(ESU)
         if idx != -1:
-            out += pending[:idx + len(ESU)]   # ESU still written so sync mode closes
+            # Substitute the pre-ESU slice; emit the ESU VERBATIM. The ESU is
+            # not a needle — wrapping it in apply_subs risks corrupting the
+            # sync-close marker, so it is a hard cut (apply_subs(pre) + ESU,
+            # never apply_subs(pre + ESU)).
+            out += apply_subs(pending[:idx]) + pending[idx:idx + len(ESU)]
             self._degraded = False
             return pending[idx + len(ESU):]
-        # No ESU: emit all but a possible partial-marker tail, hold the tail.
-        keep = _partial_marker_tail_len(pending)
+        # No ESU: substitute all but a possible partial needle/marker tail.
+        keep = _held_tail_len(pending)
         emit_len = len(pending) - keep
-        out += pending[:emit_len]
+        out += apply_subs(pending[:emit_len])
         self._tail = pending[emit_len:]
         return b''
 
