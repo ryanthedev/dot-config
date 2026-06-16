@@ -182,12 +182,21 @@ class FrameMux:
         """Flush everything buffered now (SUBS applied to frame content) and
         reset to out-of-frame ground state. Called by the loop on idle timeout
         (time backstop) and at shutdown. Idempotent once buffers are empty:
-        returns b'' and stays in ground state."""
+        returns b'' and stays in ground state. An open frame is closed with a
+        synthesized ESU so the flush never strands the terminal mid-sync."""
         out = bytearray()
         if self._frame:
-            # An open frame never reached its ESU; emit it themed anyway so the
-            # screen advances rather than freezing.
-            out += apply_subs(bytes(self._frame))
+            # An open frame never reached its ESU. It begins with a BSU (added
+            # in _step_out_of_frame), so flushing it as-is would leave that BSU
+            # unmatched and strand the terminal mid-synchronized-update: it
+            # keeps buffering this partial frame and drops the rest of its draw
+            # ops — e.g. the input box's side/bottom borders, which redraw on
+            # every keystroke — until some later ESU. Close the frame ourselves
+            # with an ESU so the terminal paints what we have and exits sync
+            # mode. The real ESU, when it finally arrives, lands out-of-frame
+            # and is a harmless no-op (it just ends sync mode again on an
+            # already-closed update).
+            out += apply_subs(bytes(self._frame)) + ESU
             self._frame = bytearray()
         if self._tail:
             # A held partial-marker tail turned out not to complete; it is

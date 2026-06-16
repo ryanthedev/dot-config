@@ -184,8 +184,8 @@ def test_DW_1_6_has_open_frame_then_drain_flushes(mod):
     mux.feed(mod.BSU + inner)
     check(mux.has_open_frame(), "DW-1.6: an open unclosed frame reports has_open_frame")
     out = mux.drain()
-    eq(out, mod.BSU + mod.apply_subs(inner),
-       "DW-1.6: drain flushes the open frame (SUBS applied) so the screen advances")
+    eq(out, mod.BSU + mod.apply_subs(inner) + mod.ESU,
+       "DW-1.6: drain flushes the open frame (SUBS applied) AND closes it with an ESU")
 
 
 def test_DW_1_6_drain_resets_to_ground_state(mod):
@@ -207,6 +207,39 @@ def test_DW_1_6_drain_idempotent_when_empty(mod):
     mux.feed(mod.BSU + b'x')
     mux.drain()
     eq(mux.drain(), b'', "DW-1.6: second drain after a flush returns nothing")
+
+
+# ==========================================================================
+# DW-1.6b: The box-drop regression. When the time-backstop drains an OPEN
+#          frame (a BSU seen, its ESU not yet), the flush must close the
+#          synchronized update with a synthesized ESU. Emitting the BSU
+#          unmatched stranded the terminal mid-sync — it buffered the partial
+#          frame and dropped the rest of its draw ops (the input box's
+#          side/bottom borders), so typed text rendered "outside the box".
+# ==========================================================================
+def test_DW_1_6b_drain_of_open_frame_closes_the_sync_update(mod):
+    mux = mod.FrameMux()
+    mux.feed(mod.BSU + b'partial box draw ops')          # open frame, no ESU yet
+    out = mux.drain()
+    # Every BSU the drain emits must be matched by an ESU — no stranded BSU.
+    eq(out.count(mod.BSU), out.count(mod.ESU),
+       "DW-1.6b: a drained open frame must be BSU/ESU-balanced (no stranded BSU)")
+    check(out.startswith(mod.BSU) and out.endswith(mod.ESU),
+          "DW-1.6b: the drained frame must open with BSU and be closed by the synthesized ESU")
+
+
+def test_DW_1_6b_real_esu_after_drain_is_harmless_passthrough(mod):
+    # After the drain closes the frame, the rest of that same frame is still
+    # upstream. It arrives out-of-frame on the next feed: the leftover ops and
+    # the real ESU must pass through raw without re-opening or stalling.
+    mux = mod.FrameMux()
+    mux.feed(mod.BSU + b'head ops')
+    mux.drain()                                          # closes with synthesized ESU
+    leftover = mux.feed(b'tail ops' + mod.ESU + b'after')
+    eq(leftover, b'tail ops' + mod.ESU + b'after',
+       "DW-1.6b: the real ESU + trailing bytes pass through raw after a drain")
+    check(not mux.has_open_frame(),
+          "DW-1.6b: a drained-then-resumed frame leaves the mux in ground state")
 
 
 # ==========================================================================
