@@ -497,6 +497,18 @@ class _SGR:
         if self.bg:
             out += self.bg[0]
 
+    def replay_to_default(self, out: bytearray) -> None:
+        """Emit the PRECISE per-attribute off-tokens that return `self`'s active
+        style to default — \x1b[22m/\x1b[23m/.../\x1b[39m/\x1b[49m as needed —
+        rather than a blanket \x1b[0m reset. Closing a row this way matters when a
+        themed bold word (Bash/Skill) is the LITERAL last styled glyph on a row:
+        \x1b[1mBash\x1b[22m must round-trip so the downstream apply_subs needle
+        still matches; a trailing \x1b[0m would strand the \x1b[1m unpaired and
+        break the needle. Equivalent to transitioning from `self` to a fresh
+        default _SGR (reusing replay_from), so the off-token set stays correct
+        and deterministic without duplicating the cancel logic."""
+        _SGR().replay_from(self, out)
+
     def is_default(self) -> bool:
         return not self.flags and self.fg is None and self.bg is None
 
@@ -699,7 +711,13 @@ class ScreenRepair:
             ch = row[c]
             out += ch.encode('utf-8', 'replace') if ch != ' ' else b' '
         if not cur.is_default():
-            out += b'\x1b[0m'                 # close any active style at row end
+            # Close any still-active style at row end with PRECISE per-attribute
+            # off-tokens (\x1b[22m/\x1b[39m/...), NOT a blanket \x1b[0m. If a
+            # themed bold word (Bash/Skill) is the literal last styled glyph on
+            # the row, \x1b[1mBash\x1b[22m must stay paired so the downstream
+            # apply_subs needle still matches; a trailing \x1b[0m would strand
+            # the \x1b[1m and break the needle.
+            cur.replay_to_default(out)
         return bytes(out)
 
     # --- incomplete-token holdback -----------------------------------------
@@ -922,6 +940,137 @@ class ScreenRepair:
             for c in range(self.W):
                 row[c] = ' '; sty[c] = dk
 
+# Env flag that disables the cursor-repair stage entirely (instant rollback to
+# the pre-ScreenRepair wrapper, no code change). Default ON. Only these explicit
+# off-values disable it; anything else (including unset) leaves repair enabled.
+_REPAIR_OFF_VALUES = frozenset({"0", "off", "false", "no"})
+# Where the safety barricade logs the ONE time repair trips an exception and
+# degrades to passthrough. Best-effort; a logging failure never breaks the loop.
+REPAIR_DEBUG_LOG = "/tmp/claude-theme-wrap-repair.log"
+
+
+def repair_enabled() -> bool:
+    """True unless CLAUDE_WRAP_REPAIR is set to an explicit off-value. Read once
+    at startup so a mid-session env change can't flip the pipeline shape."""
+    val = os.environ.get("CLAUDE_WRAP_REPAIR", "").strip().lower()
+    return val not in _REPAIR_OFF_VALUES
+
+
+class RepairState:
+    """Session-scoped holder for the output-correction pipeline so main()'s loop,
+    its SIGWINCH closure, and the idle/shutdown drains all share ONE object
+    instead of several free variables (containment over a sprawling loop, per
+    cc-routine-and-class-design). Groups the two pure transforms (ScreenRepair +
+    FrameMux) and the two sticky booleans that gate them.
+
+    enabled  — the env flag's decision, fixed for the session.
+    disabled — the safety barricade tripped (a ScreenRepair exception). Once set,
+               repair is bypassed for the REST of the session: bytes flow through
+               FrameMux+apply_subs exactly as the pre-repair wrapper did, so the
+               session never breaks or freezes.
+    """
+
+    __slots__ = ("sr", "mux", "enabled", "disabled", "_logged")
+
+    def __init__(self, rows: int, cols: int) -> None:
+        self.enabled = repair_enabled()
+        # Only build the (stateful) ScreenRepair when repair is on; when off, the
+        # output path is byte-identical to today's mux-only wrapper.
+        self.sr = ScreenRepair(rows, cols) if self.enabled else None
+        self.mux = FrameMux()
+        self.disabled = False
+        self._logged = False
+
+    def active(self) -> bool:
+        """True when the repair stage should run for the next chunk."""
+        return self.enabled and not self.disabled and self.sr is not None
+
+    def _trip(self, where: str, exc: BaseException) -> None:
+        """Barricade: disable repair for the rest of the session and log ONCE.
+        Logging is best-effort — a failure to write the debug file must never
+        propagate into the live I/O loop."""
+        self.disabled = True
+        if self._logged:
+            return
+        self._logged = True
+        try:
+            with open(REPAIR_DEBUG_LOG, "a") as f:
+                f.write(f"[claude-theme-wrap] repair disabled at {where}: "
+                        f"{type(exc).__name__}: {exc}\n")
+        except OSError:
+            pass
+
+    def correct(self, data: bytes) -> bytes:
+        """Run the cursor-repair stage on a chunk, guarded. Returns the corrected
+        bytes (claude's intended grid, with faithful original SGR) when repair is
+        active; the raw bytes unchanged when repair is off/disabled. ANY exception
+        from ScreenRepair.feed trips the barricade and returns the raw bytes, so
+        downstream FrameMux+apply_subs still themes them — degraded, never broken."""
+        if not self.active():
+            return data
+        try:
+            return self.sr.feed(data)
+        except Exception as exc:                 # noqa: BLE001 - barricade: never raise
+            self._trip("feed", exc)
+            return data
+
+    def correct_drain(self) -> bytes:
+        """Flush the repair stage's held tail (idle/shutdown), guarded the same
+        way as correct(). Returns b'' when repair is off/disabled or nothing is
+        held."""
+        if not self.active():
+            return b''
+        try:
+            return self.sr.drain()
+        except Exception as exc:                 # noqa: BLE001 - barricade: never raise
+            self._trip("drain", exc)
+            return b''
+
+    def repair_pending(self) -> bool:
+        """True while the repair stage holds an incomplete token (drives the idle
+        backstop). False when repair is off/disabled."""
+        return self.active() and self.sr.has_pending()
+
+    def on_resize(self, rows: int, cols: int) -> None:
+        """SIGWINCH: track the new geometry in the virtual grid so post-resize
+        content lands on the right rows. reset() clears any held tail, so a resize
+        mid-stream can't strand a half-parsed token. Guarded — a reset failure
+        trips the barricade rather than killing the resize path."""
+        if self.sr is None:
+            return
+        try:
+            self.sr.reset(rows, cols)
+        except Exception as exc:                 # noqa: BLE001 - barricade
+            self._trip("reset", exc)
+
+
+def process_output(data: bytes, state: "RepairState") -> bytes:
+    """The master_fd -> stdout pipeline for one chunk:
+
+        claude bytes -> ScreenRepair (cursor-desync repair, faithful SGR)
+                     -> FrameMux.feed (apply_subs theming, frame-bracketing)
+                     -> bytes to write
+
+    With repair OFF/disabled, `state.correct` returns `data` unchanged, so this is
+    byte-identical to the pre-repair wrapper's `mux.feed(data)`. ScreenRepair never
+    emits a BSU/ESU, so FrameMux only ever sees out-of-frame bytes here and its
+    dormant in-frame path stays untouched; if a genuine 2026 frame were present it
+    would still be FrameMux — the sole frame handler — that brackets it downstream."""
+    return state.mux.feed(state.correct(data))
+
+
+def drain_output(state: "RepairState") -> bytes:
+    """Idle/shutdown flush of BOTH pipeline stages, in pipeline order: drain the
+    repair stage first so its bytes reach FrameMux, then drain FrameMux. Returns
+    everything still buffered (so the final frame and any held tail aren't lost)."""
+    out = bytearray()
+    tail = state.correct_drain()
+    if tail:
+        out += state.mux.feed(tail)
+    out += state.mux.drain()
+    return bytes(out)
+
+
 def write_all(fd: int, data: bytes) -> None:
     """Write every byte, looping on short writes.
 
@@ -1017,21 +1166,29 @@ def main() -> int:
 
     os.close(slave_fd)
 
+    # Output-correction pipeline state (ScreenRepair + FrameMux + the flag/
+    # barricade booleans), shared by the loop, the SIGWINCH closure, and the
+    # drains. Sized to the current geometry; SIGWINCH re-sizes the virtual grid.
+    state = RepairState(rows, cols)
+
     def on_resize(*_):
         r, c = get_term_size()
         set_winsize(master_fd, r, c)
+        # Track the new size in the virtual grid so post-resize content lands on
+        # the right rows (after set_winsize, like FrameMux's clockless contract).
+        state.on_resize(r, c)
     signal.signal(signal.SIGWINCH, on_resize)
 
-    mux = FrameMux()
     try:
         while True:
             r, _, _ = select.select([stdin_fd, master_fd], [], [], IDLE_FLUSH_SECS)
             if not r:
-                # Time backstop: an open frame whose ESU hasn't arrived (or a
-                # held partial-marker tail) would otherwise freeze the screen.
-                # The mux is clockless, so the loop owns this flush.
-                if mux.has_open_frame():
-                    write_all(stdout_fd, mux.drain())
+                # Time backstop: a frame whose ESU hasn't arrived, a held partial
+                # marker, OR a held partial repair token would otherwise freeze
+                # the screen. Both transforms are clockless, so the loop owns this
+                # flush — drain the repair stage into the mux, then the mux.
+                if state.mux.has_open_frame() or state.repair_pending():
+                    write_all(stdout_fd, drain_output(state))
                 continue
             if stdin_fd in r:
                 try:
@@ -1048,11 +1205,11 @@ def main() -> int:
                     break
                 if not data:
                     break
-                write_all(stdout_fd, mux.feed(data))
+                write_all(stdout_fd, process_output(data, state))
     finally:
-        # Drain whatever the mux still holds so the final frame isn't lost.
+        # Drain whatever the pipeline still holds so the final frame isn't lost.
         try:
-            write_all(stdout_fd, mux.drain())
+            write_all(stdout_fd, drain_output(state))
         except OSError:
             pass
         termios.tcsetattr(stdin_fd, termios.TCSADRAIN, old_attrs)
