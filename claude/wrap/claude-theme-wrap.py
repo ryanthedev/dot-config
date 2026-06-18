@@ -169,6 +169,637 @@ def _held_tail_len(buf: bytes) -> int:
                 return n
     return 0
 
+# === VT500 parser state machine (Phase 2: insulation layer) ================
+#
+# A pure, table-driven implementation of the Paul Williams DEC ANSI / VT500
+# parser (vt100.net/emu/dec_ansi_parser). The state machine classifies EVERY
+# byte, so a control sequence can NEVER leak to the terminal as a printable
+# glyph — the exact regression the prior ad-hoc-regex parser shipped
+# (`\x1b[>1u` rendered as text). Each emitted event carries the RAW bytes that
+# produced it; concatenating every event's `.raw` (feed + drain) reconstructs
+# the input EXACTLY (losslessness), which Phase 3's control-plane forwarding
+# depends on.
+#
+# Pure and clockless: `feed(bytes) -> list[Event]` / `drain() -> list[Event]`
+# are a deterministic function of (parser state, input). No I/O, no time, no
+# screen semantics, no forwarding decisions — those belong to Phase 3.
+
+# Cap on bytes held mid-sequence. A hostile or buggy stream can open an OSC/DCS
+# (or a pathologically long CSI) and never terminate it; without a cap the hold
+# buffer would grow unbounded. On overflow we flush the held bytes as an inert
+# event and reset to GROUND — losslessness is preserved (the flushed event
+# still carries the raw bytes), memory is not.
+MAX_VT500_HOLD = 1 << 16
+
+_REPLACEMENT = "�"  # U+FFFD, emitted for malformed/truncated UTF-8
+
+
+class Event:
+    """Base for parser events. Equality and repr are by (type, raw) so the
+    chunk-invariance test can compare event streams directly."""
+    __slots__ = ("raw",)
+
+    def __init__(self, raw: bytes):
+        self.raw = raw
+
+    def __eq__(self, other):
+        return type(self) is type(other) and self.__dict__like() == other.__dict__like()
+
+    def __dict__like(self):
+        return tuple(getattr(self, s) for s in self._fields())
+
+    def _fields(self):
+        return ("raw",)
+
+    def __hash__(self):
+        return hash((type(self).__name__,) + self.__dict__like())
+
+    def __repr__(self):
+        body = ", ".join("%s=%r" % (s, getattr(self, s)) for s in self._fields())
+        return "%s(%s)" % (type(self).__name__, body)
+
+
+class Print(Event):
+    """One or more printable characters (a decoded UTF-8 run)."""
+    __slots__ = ("text",)
+
+    def __init__(self, text: str, raw: bytes):
+        super().__init__(raw)
+        self.text = text
+
+    def _fields(self):
+        return ("text", "raw")
+
+
+class Execute(Event):
+    """A C0/C1 control byte to execute (e.g. LF, CR, BS, HT, BEL)."""
+    __slots__ = ("byte",)
+
+    def __init__(self, byte: int, raw: bytes):
+        super().__init__(raw)
+        self.byte = byte
+
+    def _fields(self):
+        return ("byte", "raw")
+
+
+class EscDispatch(Event):
+    """A non-CSI escape sequence: ESC <intermediates> <final>."""
+    __slots__ = ("intermediates", "final")
+
+    def __init__(self, intermediates: bytes, final: int, raw: bytes):
+        super().__init__(raw)
+        self.intermediates = intermediates
+        self.final = final
+
+    def _fields(self):
+        return ("intermediates", "final", "raw")
+
+
+class CsiDispatch(Event):
+    """A CSI sequence: ESC [ <private> <params> <intermediates> <final>."""
+    __slots__ = ("private", "params", "intermediates", "final")
+
+    def __init__(self, private: bytes, params: bytes, intermediates: bytes,
+                 final: int, raw: bytes):
+        super().__init__(raw)
+        self.private = private
+        self.params = params
+        self.intermediates = intermediates
+        self.final = final
+
+    def _fields(self):
+        return ("private", "params", "intermediates", "final", "raw")
+
+
+class Osc(Event):
+    """An OSC string (ESC ] ... BEL|ST). `payload` is the bytes between the
+    introducer and the terminator; `raw` is the whole sequence incl. terminator."""
+    __slots__ = ("payload",)
+
+    def __init__(self, payload: bytes, raw: bytes):
+        super().__init__(raw)
+        self.payload = payload
+
+    def _fields(self):
+        return ("payload", "raw")
+
+
+class Dcs(Event):
+    """A DCS string (ESC P ... ST). Inert here; carries raw for forwarding."""
+
+
+class Sos(Event):
+    """A SOS string (ESC X ... ST)."""
+
+
+class Pm(Event):
+    """A PM string (ESC ^ ... ST)."""
+
+
+class Apc(Event):
+    """An APC string (ESC _ ... ST)."""
+
+
+# Byte-class helpers (Williams tables are expressed over these ranges).
+def _is_intermediate(b: int) -> bool:
+    return 0x20 <= b <= 0x2f  # SP ! " # $ % & ' ( ) * + , - . /
+
+
+def _is_param(b: int) -> bool:
+    return 0x30 <= b <= 0x3b  # 0-9 : ;
+
+
+def _is_csi_private(b: int) -> bool:
+    return 0x3c <= b <= 0x3f  # < = > ?
+
+
+def _is_final(b: int) -> bool:
+    return 0x40 <= b <= 0x7e  # @ ... ~
+
+
+def _is_c0_execute(b: int) -> bool:
+    # C0 controls passed through 'execute' in most states. ESC/CAN/SUB are
+    # handled before this as transitions; 0x7f (DEL) is ignored, not executed.
+    return b <= 0x1f and b not in (0x18, 0x1a, 0x1b)
+
+
+class VT500Parser:
+    """Williams DEC ANSI parser. `feed` returns the events fully resolved by the
+    bytes seen so far, HOLDING any incomplete trailing sequence or UTF-8
+    codepoint for the next feed; `drain` flushes whatever is still held.
+
+    No-leak guarantee: a byte is classified as printable ONLY in the GROUND
+    state via the UTF-8 decoder. Every escape-introduced sequence is consumed by
+    a non-GROUND state and emitted as a typed control event, never as Print.
+    """
+
+    # State constants.
+    _GROUND = 0
+    _ESCAPE = 1
+    _ESCAPE_INTERMEDIATE = 2
+    _CSI_ENTRY = 3
+    _CSI_PARAM = 4
+    _CSI_INTERMEDIATE = 5
+    _CSI_IGNORE = 6
+    _OSC_STRING = 7
+    _DCS_ENTRY = 8
+    _DCS_PARAM = 9
+    _DCS_INTERMEDIATE = 10
+    _DCS_PASSTHROUGH = 11
+    _DCS_IGNORE = 12
+    _SOS_PM_APC_STRING = 13
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self) -> None:
+        """Return to a pristine GROUND state, dropping any in-flight sequence and
+        UTF-8 tail. Phase 4 will call this on resize; safe to call any time."""
+        self._state = self._GROUND
+        self._seq = b""          # raw bytes of the in-flight control sequence
+        self._private = b""
+        self._params = b""
+        self._intermediates = b""
+        self._osc_payload = b""
+        self._utf8_buf = b""     # raw bytes of an incomplete trailing codepoint
+        self._string_kind = None  # which of SOS/PM/APC we are inside
+
+    # -- public API ---------------------------------------------------------
+    def feed(self, data: bytes) -> list:
+        """Consume `data`; return events resolved so far. Incomplete trailing
+        sequence/codepoint is held for the next feed. Never raises on any bytes."""
+        out: list = []
+        for b in data:
+            self._step(b, out)
+        return out
+
+    def drain(self) -> list:
+        """Flush any held sequence/codepoint as terminal events. After drain the
+        held state is empty so feed+drain raw bytes reconstruct the full input."""
+        out: list = []
+        # Flush an incomplete trailing UTF-8 codepoint: each held byte is
+        # un-decodable on its own, so emit one replacement char but carry the
+        # exact raw bytes (losslessness). Then clear.
+        self._flush_utf8_tail(out)
+        # Flush an unterminated control sequence as the right inert event type so
+        # its raw bytes are not lost. OSC/strings/DCS/CSI that never terminated
+        # still carry their bytes forward.
+        if self._seq:
+            self._emit_unterminated(out)
+        self._reset_seq()
+        self._state = self._GROUND
+        return out
+
+    # -- helpers ------------------------------------------------------------
+    def _flush_utf8_tail(self, out: list) -> None:
+        """Emit a held, incomplete UTF-8 codepoint as one replacement char,
+        carrying its exact raw bytes so reconstruction stays byte-exact."""
+        if self._utf8_buf:
+            out.append(Print(_REPLACEMENT, self._utf8_buf))
+            self._utf8_buf = b""
+
+    def _reset_seq(self) -> None:
+        self._seq = b""
+        self._private = b""
+        self._params = b""
+        self._intermediates = b""
+        self._osc_payload = b""
+        self._string_kind = None
+
+    def _emit_unterminated(self, out: list) -> None:
+        """Emit the held, never-terminated sequence as its inert event type."""
+        raw = self._seq
+        st = self._state
+        if st in (self._OSC_STRING,):
+            out.append(Osc(self._osc_payload, raw))
+        elif st in (self._DCS_ENTRY, self._DCS_PARAM, self._DCS_INTERMEDIATE,
+                    self._DCS_PASSTHROUGH, self._DCS_IGNORE):
+            out.append(Dcs(raw))
+        elif st == self._SOS_PM_APC_STRING:
+            out.append({"sos": Sos, "pm": Pm, "apc": Apc}.get(
+                self._string_kind, Sos)(raw))
+        else:
+            # An incomplete ESC/CSI: no dispatch happened, but the bytes are
+            # real — surface them as an EscDispatch-shaped inert event with no
+            # final so nothing is lost and nothing is mistaken for Print.
+            out.append(EscDispatch(self._intermediates, -1, raw))
+
+    def _overflow(self) -> bool:
+        return len(self._seq) > MAX_VT500_HOLD
+
+    # -- UTF-8 (GROUND printable) ------------------------------------------
+    def _ground_byte(self, b: int, out: list) -> None:
+        """Decode one GROUND printable/continuation byte, accumulating multibyte
+        codepoints across calls. External, untrusted input: validate, never
+        raise. Every byte routed here is preserved in some emitted event's raw,
+        so the GROUND path is lossless by construction.
+
+        On a malformed sequence we follow the Unicode "maximal subpart"
+        substitution rule's *spirit*: emit ONE replacement char for the bytes
+        already held that cannot start/continue a valid codepoint, then RE-feed
+        the current byte fresh (it may legitimately begin a new codepoint, e.g.
+        a stray lead byte followed by a normal ASCII letter)."""
+        buf = self._utf8_buf + bytes([b])
+        try:
+            text = buf.decode("utf-8")
+        except UnicodeDecodeError as e:
+            if e.start > 0:
+                # A complete codepoint precedes a fresh (in)complete tail: emit
+                # the good prefix, then re-evaluate the remainder byte by byte.
+                good = buf[:e.start]
+                out.append(Print(good.decode("utf-8"), good))
+                self._utf8_buf = b""
+                for rb in buf[e.start:]:
+                    self._ground_byte(rb, out)
+                return
+            if e.reason == "unexpected end of data":
+                # A still-valid prefix of a multibyte codepoint: hold for the
+                # next feed. Bounded by max UTF-8 length, so it cannot grow.
+                self._utf8_buf = buf
+                return
+            # Invalid from the first byte. If we were already holding lead bytes,
+            # THOSE are the bad bytes: replace them and re-feed the current byte
+            # fresh (it might start a valid codepoint). If nothing was held, the
+            # current byte itself is the lone invalid byte.
+            if self._utf8_buf:
+                bad = self._utf8_buf
+                self._utf8_buf = b""
+                out.append(Print(_REPLACEMENT, bad))
+                self._ground_byte(b, out)
+            else:
+                out.append(Print(_REPLACEMENT, bytes([b])))
+            return
+        # Decoded cleanly to one or more chars.
+        self._utf8_buf = b""
+        out.append(Print(text, buf))
+
+    # -- core dispatch ------------------------------------------------------
+    def _step(self, b: int, out: list) -> None:
+        # --- "anywhere" transitions (Williams): these fire from any state. ---
+        # A pending UTF-8 tail can never complete once a control byte arrives;
+        # flush it FIRST so its bytes keep their stream position (losslessness).
+        if b in (0x18, 0x1a):  # CAN / SUB: abort the current sequence to ground
+            self._flush_utf8_tail(out)
+            self._abort_to_ground(out)
+            out.append(Execute(b, bytes([b])))
+            return
+        if b == 0x1b:  # ESC: abort current, begin a new escape sequence
+            self._flush_utf8_tail(out)
+            self._abort_to_ground(out)
+            self._seq = bytes([b])
+            self._state = self._ESCAPE
+            return
+        # 8-bit C1 introducers (high-bit controls) when not mid-UTF-8. Inside a
+        # GROUND multibyte tail these byte values are continuation bytes, so only
+        # treat them as introducers when no UTF-8 tail is pending.
+        if self._state == self._GROUND and not self._utf8_buf:
+            c1 = self._c1_introducer(b)
+            if c1 is not None:
+                self._seq = bytes([b])
+                self._state = c1
+                if c1 == self._OSC_STRING:
+                    self._osc_payload = b""
+                return
+
+        handler = self._DISPATCH[self._state]
+        handler(self, b, out)
+
+    def _c1_introducer(self, b: int):
+        """Map an 8-bit C1 introducer byte to its state, or None."""
+        if b == 0x9b:  # CSI
+            return self._CSI_ENTRY
+        if b == 0x9d:  # OSC
+            return self._OSC_STRING
+        if b == 0x90:  # DCS
+            return self._DCS_ENTRY
+        if b == 0x98:  # SOS
+            self._string_kind = "sos"
+            return self._SOS_PM_APC_STRING
+        if b == 0x9e:  # PM
+            self._string_kind = "pm"
+            return self._SOS_PM_APC_STRING
+        if b == 0x9f:  # APC
+            self._string_kind = "apc"
+            return self._SOS_PM_APC_STRING
+        return None
+
+    def _abort_to_ground(self, out: list) -> None:
+        """ESC/CAN/SUB arrived mid-sequence: the in-flight bytes are real and
+        must not be lost. Emit them as their inert type, then reset to GROUND.
+        Does NOT touch the UTF-8 tail (a pending codepoint is unrelated)."""
+        if self._seq:
+            self._emit_unterminated(out)
+        self._reset_seq()
+        self._state = self._GROUND
+
+    # -- per-state handlers -------------------------------------------------
+    def _st_ground(self, b: int, out: list) -> None:
+        if _is_c0_execute(b):
+            self._ground_byte_flush(out)
+            out.append(Execute(b, bytes([b])))
+            return
+        if b == 0x7f:  # DEL: ignored in ground (per Williams) but lossless-kept
+            self._ground_byte_flush(out)
+            out.append(Execute(b, bytes([b])))
+            return
+        self._ground_byte(b, out)
+
+    def _ground_byte_flush(self, out: list) -> None:
+        """A C0 control interrupts a printable run; a pending UTF-8 tail can't
+        complete, so flush it as a replacement (lossless) before the control."""
+        self._flush_utf8_tail(out)
+
+    def _collect_seq(self, b: int, out: list) -> bool:
+        """Append b to the in-flight raw sequence; on overflow flush and reset.
+        Returns True if the caller should keep processing b, False if aborted."""
+        self._seq += bytes([b])
+        if self._overflow():
+            self._emit_unterminated(out)
+            self._reset_seq()
+            self._state = self._GROUND
+            return False
+        return True
+
+    def _st_escape(self, b: int, out: list) -> None:
+        if not self._collect_seq(b, out):
+            return
+        if _is_intermediate(b):
+            self._intermediates += bytes([b])
+            self._state = self._ESCAPE_INTERMEDIATE
+            return
+        if b == 0x5b:  # '[' -> CSI
+            self._state = self._CSI_ENTRY
+            return
+        if b == 0x5d:  # ']' -> OSC
+            self._osc_payload = b""
+            self._state = self._OSC_STRING
+            return
+        if b == 0x50:  # 'P' -> DCS
+            self._state = self._DCS_ENTRY
+            return
+        if b == 0x58:  # 'X' -> SOS
+            self._string_kind = "sos"
+            self._state = self._SOS_PM_APC_STRING
+            return
+        if b == 0x5e:  # '^' -> PM
+            self._string_kind = "pm"
+            self._state = self._SOS_PM_APC_STRING
+            return
+        if b == 0x5f:  # '_' -> APC
+            self._string_kind = "apc"
+            self._state = self._SOS_PM_APC_STRING
+            return
+        if 0x30 <= b <= 0x7e:  # final byte -> esc_dispatch
+            out.append(EscDispatch(self._intermediates, b, self._seq))
+            self._reset_seq()
+            self._state = self._GROUND
+            return
+        # 0x20..0x2f handled above; anything else (0x7f) is ignored but kept.
+
+    def _st_escape_intermediate(self, b: int, out: list) -> None:
+        if not self._collect_seq(b, out):
+            return
+        if _is_intermediate(b):
+            self._intermediates += bytes([b])
+            return
+        if 0x30 <= b <= 0x7e:
+            out.append(EscDispatch(self._intermediates, b, self._seq))
+            self._reset_seq()
+            self._state = self._GROUND
+            return
+
+    def _st_csi_entry(self, b: int, out: list) -> None:
+        if not self._collect_seq(b, out):
+            return
+        if _is_csi_private(b):
+            self._private += bytes([b])
+            self._state = self._CSI_PARAM
+            return
+        if _is_param(b):
+            self._params += bytes([b])
+            self._state = self._CSI_PARAM
+            return
+        if _is_intermediate(b):
+            self._intermediates += bytes([b])
+            self._state = self._CSI_INTERMEDIATE
+            return
+        if _is_final(b):
+            self._csi_dispatch(b, out)
+            return
+
+    def _st_csi_param(self, b: int, out: list) -> None:
+        if not self._collect_seq(b, out):
+            return
+        if _is_param(b):
+            self._params += bytes([b])
+            return
+        if _is_csi_private(b):
+            # Private marker after params is illegal -> ignore the rest.
+            self._state = self._CSI_IGNORE
+            return
+        if _is_intermediate(b):
+            self._intermediates += bytes([b])
+            self._state = self._CSI_INTERMEDIATE
+            return
+        if _is_final(b):
+            self._csi_dispatch(b, out)
+            return
+
+    def _st_csi_intermediate(self, b: int, out: list) -> None:
+        if not self._collect_seq(b, out):
+            return
+        if _is_intermediate(b):
+            self._intermediates += bytes([b])
+            return
+        if _is_param(b) or _is_csi_private(b):
+            # param/private after an intermediate is illegal -> ignore.
+            self._state = self._CSI_IGNORE
+            return
+        if _is_final(b):
+            self._csi_dispatch(b, out)
+            return
+
+    def _st_csi_ignore(self, b: int, out: list) -> None:
+        if not self._collect_seq(b, out):
+            return
+        if _is_final(b):
+            # A malformed CSI: consume through the final but emit NO dispatch.
+            # The bytes are surfaced as an inert CsiDispatch with final=-1 so
+            # nothing is lost and nothing leaks as Print.
+            out.append(CsiDispatch(self._private, self._params,
+                                   self._intermediates, -1, self._seq))
+            self._reset_seq()
+            self._state = self._GROUND
+            return
+
+    def _csi_dispatch(self, b: int, out: list) -> None:
+        out.append(CsiDispatch(self._private, self._params,
+                               self._intermediates, b, self._seq))
+        self._reset_seq()
+        self._state = self._GROUND
+
+    def _st_osc_string(self, b: int, out: list) -> None:
+        # OSC terminates on BEL (0x07) or 8-bit ST (0x9c). The 7-bit ST form
+        # (ESC \) terminates via the anywhere ESC-transition: the ESC aborts the
+        # OSC (emitting it as an Osc event for the bytes so far) and the trailing
+        # '\' becomes an EscDispatch — both typed control events, never Print, so
+        # the OSC introducer can never leak. Losslessness holds across the split.
+        if b in (0x07, 0x9c):
+            self._seq += bytes([b])
+            out.append(Osc(self._osc_payload, self._seq))
+            self._reset_seq()
+            self._state = self._GROUND
+            return
+        if not self._collect_seq(b, out):
+            return
+        self._osc_payload += bytes([b])
+
+    def _st_dcs_entry(self, b: int, out: list) -> None:
+        if not self._collect_seq(b, out):
+            return
+        if _is_csi_private(b):
+            self._private += bytes([b])
+            self._state = self._DCS_PARAM
+            return
+        if _is_param(b):
+            self._params += bytes([b])
+            self._state = self._DCS_PARAM
+            return
+        if _is_intermediate(b):
+            self._intermediates += bytes([b])
+            self._state = self._DCS_INTERMEDIATE
+            return
+        if _is_final(b):
+            self._state = self._DCS_PASSTHROUGH
+            return
+
+    def _st_dcs_param(self, b: int, out: list) -> None:
+        if not self._collect_seq(b, out):
+            return
+        if _is_param(b):
+            self._params += bytes([b])
+            return
+        if _is_csi_private(b):
+            self._state = self._DCS_IGNORE
+            return
+        if _is_intermediate(b):
+            self._intermediates += bytes([b])
+            self._state = self._DCS_INTERMEDIATE
+            return
+        if _is_final(b):
+            self._state = self._DCS_PASSTHROUGH
+            return
+
+    def _st_dcs_intermediate(self, b: int, out: list) -> None:
+        if not self._collect_seq(b, out):
+            return
+        if _is_intermediate(b):
+            self._intermediates += bytes([b])
+            return
+        if _is_param(b) or _is_csi_private(b):
+            self._state = self._DCS_IGNORE
+            return
+        if _is_final(b):
+            self._state = self._DCS_PASSTHROUGH
+            return
+
+    def _st_dcs_passthrough(self, b: int, out: list) -> None:
+        # Body bytes pass through until ST. The 7-bit ST (ESC \) is routed by the
+        # anywhere ESC-transition (which flushes this DCS as a Dcs event); an
+        # 8-bit ST (0x9c) terminates here directly.
+        if b == 0x9c:
+            self._seq += bytes([b])
+            out.append(Dcs(self._seq))
+            self._reset_seq()
+            self._state = self._GROUND
+            return
+        self._collect_seq(b, out)
+
+    def _st_dcs_ignore(self, b: int, out: list) -> None:
+        if b == 0x9c:
+            self._seq += bytes([b])
+            out.append(Dcs(self._seq))
+            self._reset_seq()
+            self._state = self._GROUND
+            return
+        self._collect_seq(b, out)
+
+    def _st_sos_pm_apc_string(self, b: int, out: list) -> None:
+        cls = {"sos": Sos, "pm": Pm, "apc": Apc}.get(self._string_kind, Sos)
+        if b == 0x9c:  # 8-bit ST
+            self._seq += bytes([b])
+            out.append(cls(self._seq))
+            self._reset_seq()
+            self._state = self._GROUND
+            return
+        self._collect_seq(b, out)
+
+    # State -> handler dispatch table (built after methods are defined).
+    _DISPATCH = {}
+
+
+# Populate the dispatch table now that the methods exist.
+VT500Parser._DISPATCH = {
+    VT500Parser._GROUND: VT500Parser._st_ground,
+    VT500Parser._ESCAPE: VT500Parser._st_escape,
+    VT500Parser._ESCAPE_INTERMEDIATE: VT500Parser._st_escape_intermediate,
+    VT500Parser._CSI_ENTRY: VT500Parser._st_csi_entry,
+    VT500Parser._CSI_PARAM: VT500Parser._st_csi_param,
+    VT500Parser._CSI_INTERMEDIATE: VT500Parser._st_csi_intermediate,
+    VT500Parser._CSI_IGNORE: VT500Parser._st_csi_ignore,
+    VT500Parser._OSC_STRING: VT500Parser._st_osc_string,
+    VT500Parser._DCS_ENTRY: VT500Parser._st_dcs_entry,
+    VT500Parser._DCS_PARAM: VT500Parser._st_dcs_param,
+    VT500Parser._DCS_INTERMEDIATE: VT500Parser._st_dcs_intermediate,
+    VT500Parser._DCS_PASSTHROUGH: VT500Parser._st_dcs_passthrough,
+    VT500Parser._DCS_IGNORE: VT500Parser._st_dcs_ignore,
+    VT500Parser._SOS_PM_APC_STRING: VT500Parser._st_sos_pm_apc_string,
+}
+
+# === end VT500 parser ======================================================
+
+
 class FrameMux:
     """Frame-aware byte multiplexer for Claude's Synchronized-Output stream.
 
