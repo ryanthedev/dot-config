@@ -14,7 +14,7 @@ and mid-word line wraps (e.g. `grug-recall` wrapping to `grug-rec` +
 `all (MCP)` across two bold envelopes). We only touch exact byte
 sequences we're certain about.
 """
-import fcntl, os, select, signal, struct, subprocess, sys, termios, tty
+import fcntl, os, re, select, signal, struct, subprocess, sys, termios, tty
 
 # Palette: named foreground colors. TERM_DEFAULT defers to whatever your
 # terminal has configured as its default fg, so styled elements blend with
@@ -327,6 +327,750 @@ class FrameMux:
         self._tail = pending[emit_len:]
         return b''
 
+# Compiled token recognizers for the ScreenRepair intent parser. These match
+# the SAME subset of sequences claude emits that the test oracle (testdata/
+# vtmodel.py) understands — but this is an INDEPENDENT implementation. The
+# oracle is the checker; ScreenRepair is the production code. Keeping them
+# separate is deliberate: a bug shared between model and checker could hide a
+# failure, so neither imports the other.
+_SR_CSI = re.compile(rb'\x1b\[([0-9;?]*)([A-Za-z@])')
+_SR_OSC = re.compile(rb'\x1b\][^\x07]*(?:\x07|\x1b\\)')
+_SR_ESC1 = re.compile(rb'\x1b[^\[\]]')
+# Holdback bounds for an incomplete trailing ESC sequence split across reads.
+# A partial UTF-8 char is at most 3 trailing bytes. A partial CSI is short, so a
+# small bound suffices and a runaway (never-terminated) garbage CSI can't grow
+# the held tail without limit. A partial OSC, however, can be long and
+# LEGITIMATE — claude emits OSC 7 hyperlinks carrying file:// URLs (and OSC 8
+# links) that easily exceed the CSI bound; releasing such an OSC half-formed
+# would dump its body into the grid as visible text (the bug this guards). So
+# OSC gets a far larger bound; past it we give up and let the parser skip it.
+_SR_MAX_HOLD_CSI = 64
+_SR_MAX_HOLD_OSC = 4096
+_SR_MAX_HOLD = _SR_MAX_HOLD_OSC   # the widest tail we will ever hold
+
+# --- SGR (color/attribute) state engine ----------------------------------
+# ECMA-48 character-attribute flags claude uses, each as (on-codes, off-code).
+# The off-code is the canonical cancel for that flag; bold and dim BOTH cancel
+# with 22, which we model below. These let us re-emit claude's intent: a cell's
+# active style is the set of flags + fg + bg in effect when it was written, and
+# the emitter replays the EXACT original byte tokens that set them so downstream
+# apply_subs still matches needles like \x1b[1mSkill\x1b[22m and \x1b[38;5;153m.
+_SGR_FLAG_BY_CODE = {
+    1: ("bold", b'\x1b[1m', b'\x1b[22m'),
+    2: ("dim", b'\x1b[2m', b'\x1b[22m'),
+    3: ("italic", b'\x1b[3m', b'\x1b[23m'),
+    4: ("underline", b'\x1b[4m', b'\x1b[24m'),
+    5: ("blink", b'\x1b[5m', b'\x1b[25m'),
+    7: ("inverse", b'\x1b[7m', b'\x1b[27m'),
+    8: ("hidden", b'\x1b[8m', b'\x1b[28m'),
+    9: ("strike", b'\x1b[9m', b'\x1b[29m'),
+}
+# off-code -> the flag name(s) it cancels (22 cancels both bold and dim).
+_SGR_OFF = {22: ("bold", "dim"), 23: ("italic",), 24: ("underline",),
+            25: ("blink",), 27: ("inverse",), 28: ("hidden",), 29: ("strike",)}
+# Flag emit order: deterministic so two equal states produce byte-identical
+# replay (run-coalescing + the DW-1.4 determinism gate both rely on this).
+_SGR_FLAG_ORDER = ("bold", "dim", "italic", "underline", "blink",
+                   "inverse", "hidden", "strike")
+
+
+class _SGR:
+    """Faithful, sticky SGR attribute state with original-byte memory.
+
+    Models terminal SGR accumulation (a token mutates only the attributes it
+    names; others persist) over the subset claude emits: flags 1/2/3/4/5/7/8/9
+    and their cancels, 256-color fg (38;5;n) / bg (48;5;n), the 8/16 named
+    fg/bg (30-37/90-97, 40-47/100-107), default fg 39 / bg 49, and full reset 0.
+
+    For each active attribute it remembers the EXACT original byte token claude
+    used to set it, so the emitter can replay claude's intent byte-for-byte and
+    downstream apply_subs needles (\x1b[38;5;153m, \x1b[1mBash\x1b[22m, ...) still
+    match. Pure: no clock, no I/O; a deterministic function of (state, token).
+    """
+
+    __slots__ = ("flags", "fg", "bg")
+
+    def __init__(self):
+        # flags: name -> on-token bytes (presence == active).
+        self.flags = {}
+        self.fg = None   # (token_bytes,) or None for default
+        self.bg = None   # (token_bytes,) or None for default
+
+    def copy_key(self):
+        """A hashable snapshot of the active style, used as the per-cell style
+        key. Two cells with equal keys render under the same replayed run."""
+        return (tuple(sorted(self.flags.items())), self.fg, self.bg)
+
+    def apply(self, params: bytes) -> None:
+        """Mutate state by one SGR token's param string (the bytes between
+        \x1b[ and m). Empty params == reset (\x1b[m). Unrecognized sub-params
+        are ignored (defensive: never raise on odd input)."""
+        nums = params.split(b';') if params else [b'']
+        i = 0
+        while i < len(nums):
+            raw = nums[i]
+            try:
+                code = int(raw) if raw != b'' else 0
+            except ValueError:
+                i += 1
+                continue
+            if code == 0:
+                self.flags.clear(); self.fg = None; self.bg = None
+            elif code in _SGR_FLAG_BY_CODE:
+                name, on_tok, _ = _SGR_FLAG_BY_CODE[code]
+                self.flags[name] = on_tok
+            elif code in _SGR_OFF:
+                for name in _SGR_OFF[code]:
+                    self.flags.pop(name, None)
+            elif code == 38 or code == 48:
+                # Extended color: 38;5;n / 48;5;n (256) or 38;2;r;g;b (truecolor).
+                tok, consumed = self._ext_color_token(nums, i)
+                if tok is not None:
+                    if code == 38:
+                        self.fg = (tok,)
+                    else:
+                        self.bg = (tok,)
+                i += consumed
+                continue
+            elif code == 39:
+                self.fg = None
+            elif code == 49:
+                self.bg = None
+            elif 30 <= code <= 37 or 90 <= code <= 97:
+                self.fg = (b'\x1b[' + raw + b'm',)
+            elif 40 <= code <= 47 or 100 <= code <= 107:
+                self.bg = (b'\x1b[' + raw + b'm',)
+            # any other code: no modeled effect (defensive ignore)
+            i += 1
+
+    @staticmethod
+    def _ext_color_token(nums, i):
+        """Reconstruct a faithful single 38/48 color token from nums[i:] and
+        report how many params it consumed. Real captures use only single-attr
+        tokens (so this round-trips byte-exact); a combined token is rebuilt
+        canonically, which still re-themes correctly even if not byte-identical."""
+        if i + 1 >= len(nums):
+            return None, 1
+        try:
+            mode = int(nums[i + 1] or b'0')
+        except ValueError:
+            return None, 1
+        if mode == 5 and i + 2 < len(nums):
+            tok = b'\x1b[' + nums[i] + b';5;' + nums[i + 2] + b'm'
+            return tok, 3
+        if mode == 2 and i + 4 < len(nums):
+            tok = (b'\x1b[' + nums[i] + b';2;' + nums[i + 2] + b';'
+                   + nums[i + 3] + b';' + nums[i + 4] + b'm')
+            return tok, 5
+        return None, 1
+
+    def replay_from(self, prev: "_SGR", out: bytearray) -> None:
+        """Emit into `out` the minimal faithful token sequence to transition the
+        terminal from `prev`'s active style to this style. Flags that turn OFF
+        emit their exact cancel token (so \x1b[1m...\x1b[22m round-trips); flags
+        that turn ON emit their remembered original token; fg/bg changes emit the
+        new color or the 39/49 default. Order is deterministic."""
+        # Turn OFF flags active in prev but not now.
+        for name in _SGR_FLAG_ORDER:
+            if name in prev.flags and name not in self.flags:
+                # off-token for this flag (bold/dim share 22).
+                out += self._off_token(name)
+        # Turn ON flags active now but not in prev (or changed token bytes).
+        for name in _SGR_FLAG_ORDER:
+            if name in self.flags and prev.flags.get(name) != self.flags[name]:
+                out += self.flags[name]
+        # fg transition.
+        if self.fg != prev.fg:
+            out += self.fg[0] if self.fg else b'\x1b[39m'
+        # bg transition.
+        if self.bg != prev.bg:
+            out += self.bg[0] if self.bg else b'\x1b[49m'
+
+    def replay_full(self, out: bytearray) -> None:
+        """Emit the full active style from a known-clean (reset) baseline. Used
+        at the start of each repainted run after an explicit \x1b[0m reset."""
+        for name in _SGR_FLAG_ORDER:
+            if name in self.flags:
+                out += self.flags[name]
+        if self.fg:
+            out += self.fg[0]
+        if self.bg:
+            out += self.bg[0]
+
+    def replay_to_default(self, out: bytearray) -> None:
+        """Emit the PRECISE per-attribute off-tokens that return `self`'s active
+        style to default — \x1b[22m/\x1b[23m/.../\x1b[39m/\x1b[49m as needed —
+        rather than a blanket \x1b[0m reset. Closing a row this way matters when a
+        themed bold word (Bash/Skill) is the LITERAL last styled glyph on a row:
+        \x1b[1mBash\x1b[22m must round-trip so the downstream apply_subs needle
+        still matches; a trailing \x1b[0m would strand the \x1b[1m unpaired and
+        break the needle. Equivalent to transitioning from `self` to a fresh
+        default _SGR (reusing replay_from), so the off-token set stays correct
+        and deterministic without duplicating the cancel logic."""
+        _SGR().replay_from(self, out)
+
+    def is_default(self) -> bool:
+        return not self.flags and self.fg is None and self.bg is None
+
+    @staticmethod
+    def _off_token(name: str) -> bytes:
+        for code, (n, _on, off) in _SGR_FLAG_BY_CODE.items():
+            if n == name:
+                return off
+        return b''
+
+
+def _sgr_from_key(key) -> _SGR:
+    """Reconstruct an _SGR from a copy_key() snapshot (used by the emitter to
+    replay a cell's stored style). The key is (sorted-flag-items, fg, bg)."""
+    s = _SGR()
+    flags, fg, bg = key
+    s.flags = dict(flags)
+    s.fg = fg
+    s.bg = bg
+    return s
+
+
+class ScreenRepair:
+    """Scroll-aware intended-grid re-renderer for claude's clamp-desynced TUI.
+
+    Pure and clockless, exactly like FrameMux: `feed` is a deterministic
+    function of (state, bytes) with no I/O and no wall-clock/random dependency,
+    so it is fully unit-testable against the captured streams. Time backstops
+    stay in the I/O loop.
+
+    THE BUG IT FIXES: claude 2.1.181 renders with relative cursor moves and no
+    absolute anchor, walking the cursor PAST screen edges (oversized [40A/[40B,
+    [2K][1B] clear loops). Real terminals CLAMP the cursor at the edges; claude's
+    internal row model does not, so its row counter desyncs and later content
+    lands on the wrong rows. We track claude's INTENDED (clamp-free) grid and
+    re-emit it to the real (clamping) terminal via absolute positioning, so
+    edge-clamping can no longer desync what the user sees.
+
+    THE CONTRACT (Phase 2 depends only on this): for each captured stream,
+        clamp_model( b"".join(feed-chunks) + drain() ).grid()
+            == noclamp_model(raw).grid()
+    holds under whole-stream, 1-byte, and random chunk boundaries.
+
+    Robustness over correctness (interactive tool): any unparseable span never
+    raises and never freezes — it degrades to a safe render. The visible glyph
+    count never drops below raw passthrough (a defensive floor).
+    """
+
+    def __init__(self, rows: int, cols: int) -> None:
+        self.reset(rows, cols)
+
+    def reset(self, rows: int, cols: int) -> None:
+        """(Re)initialize for a (possibly new) terminal size. Phase 2 calls this
+        from the SIGWINCH path after set_winsize. Clears all pending state so a
+        resize mid-stream can never strand a half-parsed token or stale grid."""
+        self.H = max(1, rows)
+        self.W = max(1, cols)
+        # Intent grid: claude's clamp-FREE visible screen. Cursor is tracked
+        # clamp-free (the bug is the desync), but writes are clipped to the grid.
+        self._g = [[' '] * self.W for _ in range(self.H)]
+        # Style plane: per-cell active-SGR snapshot key (parallel to _g). A cell's
+        # key is _SGR.copy_key() at write time; blank/erased cells carry the
+        # default-style key so the emitter re-themes claude's colors faithfully.
+        self._sgr = _SGR()                       # live SGR state, sticky across feeds
+        self._default_key = _SGR().copy_key()    # the "no style" key (cached)
+        self._sty = [[self._default_key] * self.W for _ in range(self.H)]
+        self._r = 0
+        self._c = 0
+        self._pending = False        # magic-margin wrap (am+xenl): stay, set pending
+        self._scrolloff = []         # top lines that scrolled off THIS feed, in order
+        self._scrolloff_sty = []     # style rows for the scrolled-off lines, in order
+        # Last-emitted viewport snapshot, for diffing. Starts blank: the real
+        # terminal is assumed blank-or-whatever; the first feed's diff repaints
+        # only the rows that differ from blank, which is correct on a fresh pane
+        # and self-corrects on any pane because we use absolute CUP + clear.
+        self._prev = [[' '] * self.W for _ in range(self.H)]
+        self._prev_sty = [[self._default_key] * self.W for _ in range(self.H)]
+        self._hold = b''             # incomplete-token tail held across feeds
+
+    def has_pending(self) -> bool:
+        """True while an incomplete-token tail is held (a partial ESC sequence or
+        partial UTF-8 char waiting for its continuation bytes). The loop uses this
+        to decide whether the idle-timeout backstop needs to drain."""
+        return bool(self._hold)
+
+    # --- public stream API -------------------------------------------------
+
+    def feed(self, data: bytes) -> bytes:
+        """Advance the intent model over `data` and return corrected bytes that,
+        on a clamping terminal, reproduce claude's intended grid. Holds back any
+        trailing incomplete token so the model only ever sees complete sequences.
+        `feed(b'')` with no held tail is a no-op returning b''."""
+        buf = self._hold + data
+        complete, self._hold = self._split_incomplete_tail(buf)
+        self._scrolloff = []
+        self._scrolloff_sty = []
+        self._advance(complete)
+        return self._emit()
+
+    def drain(self) -> bytes:
+        """Flush any held incomplete-token tail (best-effort parse) and emit the
+        resulting grid. Called by the loop on idle timeout and at shutdown so a
+        partial sequence at end-of-stream still paints. Idempotent once empty."""
+        if not self._hold:
+            return b''
+        tail = self._hold
+        self._hold = b''
+        self._scrolloff = []
+        self._scrolloff_sty = []
+        self._advance(tail)
+        return self._emit()
+
+    # --- emission ----------------------------------------------------------
+
+    def _emit(self) -> bytes:
+        """Re-render the intent viewport to absolute-positioned bytes.
+
+        Two paths:
+          * scroll happened this feed → emit each scrolled-off line at the bottom
+            row + CRLF (real scroll: pushes the top line into tmux scrollback),
+            then a FULL absolute repaint of the viewport. A scroll shifts every
+            row, so a per-row diff against the pre-scroll snapshot would be wrong;
+            a full repaint re-syncs the clamping terminal to intent deterministically.
+          * no scroll → cheap diff: only rows that changed since the last emit are
+            repainted (CUP to the row, clear it, rewrite). Steady typing / spinner
+            updates stay cheap (a few rows), never a full-screen repaint per byte.
+        Either way the emitted bytes use absolute CUP + EL, so edge-clamping in
+        the real terminal cannot desync the result.
+        """
+        out = bytearray()
+        if self._scrolloff:
+            for line, sty in zip(self._scrolloff, self._scrolloff_sty):
+                # Park at the bottom row, clear it, write the scrolled-off line
+                # WITH its colors, then CRLF. The CRLF at the bottom is a REAL
+                # scroll on the clamping terminal, so this colored line enters
+                # its scrollback history exactly as claude intended it.
+                out += b'\x1b[%d;1H' % self.H
+                out += b'\x1b[2K'
+                out += self._render_row(list(line) + [' '] * self.W, sty)
+                out += b'\r\n'
+            for r in range(self.H):
+                row = self._g[r]
+                out += b'\x1b[%d;1H' % (r + 1)
+                out += b'\x1b[2K'
+                out += self._render_row(row, self._sty[r])
+                self._prev[r] = list(row)
+                self._prev_sty[r] = list(self._sty[r])
+        else:
+            for r in range(self.H):
+                row = self._g[r]
+                # Repaint when EITHER the chars OR the style changed since last
+                # emit — a pure recolor (same glyphs, new SGR) must still repaint.
+                if row != self._prev[r] or self._sty[r] != self._prev_sty[r]:
+                    out += b'\x1b[%d;1H' % (r + 1)
+                    out += b'\x1b[2K'
+                    out += self._render_row(row, self._sty[r])
+                    self._prev[r] = list(row)
+                    self._prev_sty[r] = list(self._sty[r])
+        return bytes(out)
+
+    def _render_row(self, row, sty) -> bytes:
+        """Render one row's chars to bytes, re-emitting claude's SGR per styled
+        run so colors/attributes match intent EXACTLY. We walk to the last
+        non-blank cell (trailing blanks are trimmed, like the old rstrip), and at
+        each cell whose style key differs from the run in effect we emit the
+        faithful SGR transition (original on-tokens, exact off-tokens) BEFORE the
+        char. A leading reset (\x1b[0m) opens every row from a known-clean
+        baseline so a colored run on a prior line can't bleed across the CUP, and
+        a trailing reset closes any still-active style so it can't leak past the
+        row. Default-style rows emit no SGR at all (byte-identical to the old
+        monochrome path for uncolored content)."""
+        # Find the last non-blank column so trailing blanks are trimmed.
+        last = -1
+        for c in range(len(row) - 1, -1, -1):
+            if row[c] != ' ':
+                last = c
+                break
+        if last < 0:
+            return b''                       # fully blank row → nothing to paint
+        out = bytearray()
+        cur = _SGR()                          # the style currently on the stream
+        opened = False                        # have we opened the row baseline yet?
+        for c in range(last + 1):
+            key = sty[c] if c < len(sty) else self._default_key
+            if key != cur.copy_key():
+                want = _sgr_from_key(key)
+                if not want.is_default() and not opened:
+                    # Open the row from a clean baseline (\x1b[0m) before the FIRST
+                    # styled run so a colored run on a prior line can't bleed in
+                    # across the CUP. cur is already default here.
+                    out += b'\x1b[0m'
+                    opened = True
+                # Emit the faithful transition: precise off-tokens for flags/fg/bg
+                # turning OFF (so \x1b[1m..\x1b[22m round-trips for apply_subs) and
+                # original on-tokens for those turning ON. Returning to default
+                # therefore emits \x1b[22m/\x1b[39m/\x1b[49m as needed — NOT a
+                # blanket reset that would break the bold-pair needle.
+                want.replay_from(cur, out)
+                cur = want
+            ch = row[c]
+            out += ch.encode('utf-8', 'replace') if ch != ' ' else b' '
+        if not cur.is_default():
+            # Close any still-active style at row end with PRECISE per-attribute
+            # off-tokens (\x1b[22m/\x1b[39m/...), NOT a blanket \x1b[0m. If a
+            # themed bold word (Bash/Skill) is the literal last styled glyph on
+            # the row, \x1b[1mBash\x1b[22m must stay paired so the downstream
+            # apply_subs needle still matches; a trailing \x1b[0m would strand
+            # the \x1b[1m and break the needle.
+            cur.replay_to_default(out)
+        return bytes(out)
+
+    # --- incomplete-token holdback -----------------------------------------
+
+    def _split_incomplete_tail(self, buf: bytes):
+        """Return (complete_prefix, incomplete_tail). The tail is the longest
+        suffix of `buf` that could be the START of an ESC sequence or a partial
+        UTF-8 multibyte char split across reads. Holding it back means the intent
+        parser only ever sees COMPLETE tokens — so a sequence split across feed
+        calls (the 1-byte / random-chunk adversarial cases) parses identically to
+        the whole-stream case. Bounded by _SR_MAX_HOLD so a never-terminated ESC
+        can't grow the held tail without limit."""
+        n = len(buf)
+        # 1) Incomplete trailing ESC sequence. Find the last ESC; if the run from
+        #    there isn't a complete CSI / OSC / 2-byte ESC, it may still complete
+        #    on the next read — hold it (within the per-kind bound). An OSC body
+        #    (a hyperlink URL) can be long but legitimate, so it gets the larger
+        #    bound; anything else is short, so the small CSI bound applies and a
+        #    runaway garbage ESC can't grow the held tail without limit.
+        last_esc = buf.rfind(0x1b)
+        if last_esc != -1:
+            rest = buf[last_esc:]
+            if not (self._complete_csi(rest) or _SR_OSC.match(rest)
+                    or _SR_ESC1.match(rest)):
+                # rest[:2] == b'\x1b]' marks an OSC introducer; bound it widely.
+                bound = _SR_MAX_HOLD_OSC if rest[:2] == b'\x1b]' else _SR_MAX_HOLD_CSI
+                if (n - last_esc) <= bound:
+                    return buf[:last_esc], rest
+        # 2) Incomplete trailing UTF-8 multibyte char (≤3 dangling bytes).
+        k = 0
+        while k < 3 and (n - 1 - k) >= 0:
+            b = buf[n - 1 - k]
+            if b < 0x80:
+                break                       # ASCII byte: nothing partial here
+            if b >= 0xc0:                    # a UTF-8 start byte
+                need = 1 if b < 0xe0 else 2 if b < 0xf0 else 3
+                if k < need:                 # missing continuation bytes → hold
+                    return buf[:n - 1 - k], buf[n - 1 - k:]
+                break                        # the char is complete
+            k += 1                           # a continuation byte; keep walking back
+        return buf, b''
+
+    @staticmethod
+    def _complete_csi(rest: bytes) -> bool:
+        """True if `rest` begins with a COMPLETE CSI (final byte present)."""
+        m = _SR_CSI.match(rest)
+        return bool(m and m.start() == 0)
+
+    # --- the intent model (independent of the oracle) ----------------------
+
+    def _scroll(self) -> None:
+        # Capture the top line (chars + its style row) BEFORE it leaves so it can
+        # enter scrollback WITH its color, then scroll: drop row 0, append a blank
+        # bottom row in BOTH the char grid and the style plane.
+        self._scrolloff.append(''.join(self._g[0]).rstrip())
+        self._scrolloff_sty.append(list(self._sty[0]))
+        self._g.pop(0)
+        self._g.append([' '] * self.W)
+        self._sty.pop(0)
+        self._sty.append([self._default_key] * self.W)
+        # The last-emitted snapshot (chars AND style) must scroll in lockstep so
+        # the no-scroll diff in a LATER feed compares against aligned rows.
+        self._prev.pop(0)
+        self._prev.append([' '] * self.W)
+        self._prev_sty.pop(0)
+        self._prev_sty.append([self._default_key] * self.W)
+
+    def _lf(self) -> None:
+        self._pending = False
+        if self._r == self.H - 1:
+            self._scroll()
+        else:
+            self._r += 1
+
+    def _cr(self) -> None:
+        self._pending = False
+        self._c = 0
+
+    def _putch(self, ch: str) -> None:
+        if self._pending:                    # magic-margin wrap deferred from last col
+            self._cr()
+            self._lf()
+        if 0 <= self._r < self.H and 0 <= self._c < self.W:
+            self._g[self._r][self._c] = ch   # write clipped to the visible grid
+            # Record the SGR in effect at this cell so the emitter re-themes it.
+            self._sty[self._r][self._c] = self._sgr.copy_key()
+        if self._c == self.W - 1:
+            self._pending = True             # at last column: stay, defer the wrap
+        else:
+            self._c += 1
+
+    def _advance(self, data: bytes) -> None:
+        """Drive the intent grid over a span of COMPLETE tokens. Never raises:
+        an unrecognized ESC is skipped one byte at a time (defensive), and a
+        malformed UTF-8 char decodes to a replacement glyph rather than throwing.
+        Cursor moves are modeled CLAMP-FREE (claude's intent); writes are clipped
+        to the grid by _putch."""
+        i = 0
+        n = len(data)
+        while i < n:
+            b = data[i]
+            if b == 0x1b:
+                m = _SR_CSI.match(data, i)
+                if m and m.start() == i:
+                    i = self._apply_csi(m)
+                    continue
+                m = _SR_OSC.match(data, i)
+                if m and m.start() == i:
+                    i = m.end()              # OSC (title etc): no grid effect
+                    continue
+                m = _SR_ESC1.match(data, i)
+                if m and m.start() == i:
+                    i = m.end()              # 2-byte ESC: no grid effect we model
+                    continue
+                # Unrecognized/malformed ESC introducer (e.g. \x1b[ with a
+                # non-final next byte, or \x1b] with no terminator). Swallow the
+                # ESC AND the following byte as one inert unit — exactly what a
+                # real terminal does, and what the oracle's \x1b. fallback does.
+                # Rendering that next byte ([ , ; , a digit) as literal text
+                # would show MORE/other glyphs than the terminal would, breaking
+                # the grid alignment. A trailing lone ESC (no next byte) is just
+                # skipped.
+                i += 2 if i + 1 < n else 1
+                continue
+            if b == 0x0d:                     # CR
+                self._cr()
+                i += 1
+                continue
+            if b == 0x0a:                     # LF
+                self._lf()
+                i += 1
+                continue
+            if b == 0x08:                     # BS
+                self._c = max(0, self._c - 1)
+                i += 1
+                continue
+            if b < 0x20:                      # other C0 control: ignore for the grid
+                i += 1
+                continue
+            if b < 0x80:                      # ASCII printable
+                self._putch(chr(b))
+                i += 1
+                continue
+            # UTF-8 multibyte. The incomplete tail was already held back, so a
+            # decode failure here is genuinely malformed input — substitute a
+            # replacement glyph (a deliberate, documented swallow) so one bad
+            # byte never crashes the live session.
+            length = 2 if b < 0xe0 else 3 if b < 0xf0 else 4
+            try:
+                ch = data[i:i + length].decode('utf-8')
+            except UnicodeDecodeError:
+                ch = '�'
+                length = 1                    # advance one byte; resync on the next
+            self._putch(ch)
+            i += length
+
+    def _apply_csi(self, m) -> int:
+        """Apply one complete CSI to the intent cursor/grid. Private-mode (`?`)
+        sequences (cursor-visibility, sync, etc.) have no grid effect and are
+        skipped. Unknown finals are no-ops. Returns the index past the match."""
+        params = m.group(1)
+        fin = m.group(2)
+        if params.startswith(b'?'):
+            return m.end()                    # private modes: no grid effect
+        if fin == b'm':                       # SGR: mutate the live style state.
+            self._sgr.apply(params)           # no cursor/grid-position effect
+            return m.end()
+        nums = [int(x) if x else 0 for x in params.split(b';')] if params else []
+
+        def p(k: int, default: int = 1) -> int:
+            # CSI params default to 1 when omitted or zero (per ECMA-48).
+            return nums[k] if k < len(nums) and nums[k] != 0 else default
+
+        if fin == b'A':                       # CUU — clamp-FREE (the desync we track)
+            self._r = self._r - p(0)
+        elif fin == b'B':                     # CUD — clamp-free
+            self._r = self._r + p(0)
+        elif fin == b'C':                     # CUF
+            self._c = self._c + p(0)
+            self._pending = False
+        elif fin == b'D':                     # CUB
+            self._c = self._c - p(0)
+            self._pending = False
+        elif fin == b'G':                     # CHA — absolute column
+            self._c = p(0) - 1
+            self._pending = False
+        elif fin == b'H' or fin == b'f':      # CUP — absolute row;col
+            self._r = p(0) - 1
+            self._c = p(1) - 1
+            self._pending = False
+        elif fin == b'd':                     # VPA — absolute row
+            self._r = p(0) - 1
+        elif fin == b'K':                     # EL — erase in line (0/1/2)
+            self._erase_line(nums[0] if nums else 0)
+        elif fin == b'J':                     # ED — erase display (only 2 modeled)
+            if (nums[0] if nums else 0) == 2:
+                self._g = [[' '] * self.W for _ in range(self.H)]
+                self._sty = [[self._default_key] * self.W for _ in range(self.H)]
+        # SGR (m) is handled above (mutates the style plane). DSR (n) and any
+        # other final: no grid-position effect here.
+        return m.end()
+
+    def _erase_line(self, mode: int) -> None:
+        """EL: clear to-end (0), to-start (1), or whole line (2). A no-op when the
+        cursor row is off-screen (claude walks it off during the desync) — the bug
+        is that those erases hit the wrong row on a clamping terminal; modeling
+        them clamp-free + clipping the write is exactly the repair."""
+        if not (0 <= self._r < self.H):
+            return
+        row = self._g[self._r]
+        sty = self._sty[self._r]
+        dk = self._default_key
+        if mode == 0:
+            for c in range(max(0, self._c), self.W):
+                row[c] = ' '; sty[c] = dk
+        elif mode == 1:
+            for c in range(0, min(self.W, self._c + 1)):
+                row[c] = ' '; sty[c] = dk
+        else:
+            for c in range(self.W):
+                row[c] = ' '; sty[c] = dk
+
+# Env flag that disables the cursor-repair stage entirely (instant rollback to
+# the pre-ScreenRepair wrapper, no code change). Default ON. Only these explicit
+# off-values disable it; anything else (including unset) leaves repair enabled.
+_REPAIR_OFF_VALUES = frozenset({"0", "off", "false", "no"})
+# Where the safety barricade logs the ONE time repair trips an exception and
+# degrades to passthrough. Best-effort; a logging failure never breaks the loop.
+REPAIR_DEBUG_LOG = "/tmp/claude-theme-wrap-repair.log"
+
+
+def repair_enabled() -> bool:
+    """True unless CLAUDE_WRAP_REPAIR is set to an explicit off-value. Read once
+    at startup so a mid-session env change can't flip the pipeline shape."""
+    val = os.environ.get("CLAUDE_WRAP_REPAIR", "").strip().lower()
+    return val not in _REPAIR_OFF_VALUES
+
+
+class RepairState:
+    """Session-scoped holder for the output-correction pipeline so main()'s loop,
+    its SIGWINCH closure, and the idle/shutdown drains all share ONE object
+    instead of several free variables (containment over a sprawling loop, per
+    cc-routine-and-class-design). Groups the two pure transforms (ScreenRepair +
+    FrameMux) and the two sticky booleans that gate them.
+
+    enabled  — the env flag's decision, fixed for the session.
+    disabled — the safety barricade tripped (a ScreenRepair exception). Once set,
+               repair is bypassed for the REST of the session: bytes flow through
+               FrameMux+apply_subs exactly as the pre-repair wrapper did, so the
+               session never breaks or freezes.
+    """
+
+    __slots__ = ("sr", "mux", "enabled", "disabled", "_logged")
+
+    def __init__(self, rows: int, cols: int) -> None:
+        self.enabled = repair_enabled()
+        # Only build the (stateful) ScreenRepair when repair is on; when off, the
+        # output path is byte-identical to today's mux-only wrapper.
+        self.sr = ScreenRepair(rows, cols) if self.enabled else None
+        self.mux = FrameMux()
+        self.disabled = False
+        self._logged = False
+
+    def active(self) -> bool:
+        """True when the repair stage should run for the next chunk."""
+        return self.enabled and not self.disabled and self.sr is not None
+
+    def _trip(self, where: str, exc: BaseException) -> None:
+        """Barricade: disable repair for the rest of the session and log ONCE.
+        Logging is best-effort — a failure to write the debug file must never
+        propagate into the live I/O loop."""
+        self.disabled = True
+        if self._logged:
+            return
+        self._logged = True
+        try:
+            with open(REPAIR_DEBUG_LOG, "a") as f:
+                f.write(f"[claude-theme-wrap] repair disabled at {where}: "
+                        f"{type(exc).__name__}: {exc}\n")
+        except OSError:
+            pass
+
+    def correct(self, data: bytes) -> bytes:
+        """Run the cursor-repair stage on a chunk, guarded. Returns the corrected
+        bytes (claude's intended grid, with faithful original SGR) when repair is
+        active; the raw bytes unchanged when repair is off/disabled. ANY exception
+        from ScreenRepair.feed trips the barricade and returns the raw bytes, so
+        downstream FrameMux+apply_subs still themes them — degraded, never broken."""
+        if not self.active():
+            return data
+        try:
+            return self.sr.feed(data)
+        except Exception as exc:                 # noqa: BLE001 - barricade: never raise
+            self._trip("feed", exc)
+            return data
+
+    def correct_drain(self) -> bytes:
+        """Flush the repair stage's held tail (idle/shutdown), guarded the same
+        way as correct(). Returns b'' when repair is off/disabled or nothing is
+        held."""
+        if not self.active():
+            return b''
+        try:
+            return self.sr.drain()
+        except Exception as exc:                 # noqa: BLE001 - barricade: never raise
+            self._trip("drain", exc)
+            return b''
+
+    def repair_pending(self) -> bool:
+        """True while the repair stage holds an incomplete token (drives the idle
+        backstop). False when repair is off/disabled."""
+        return self.active() and self.sr.has_pending()
+
+    def on_resize(self, rows: int, cols: int) -> None:
+        """SIGWINCH: track the new geometry in the virtual grid so post-resize
+        content lands on the right rows. reset() clears any held tail, so a resize
+        mid-stream can't strand a half-parsed token. Guarded — a reset failure
+        trips the barricade rather than killing the resize path."""
+        if self.sr is None:
+            return
+        try:
+            self.sr.reset(rows, cols)
+        except Exception as exc:                 # noqa: BLE001 - barricade
+            self._trip("reset", exc)
+
+
+def process_output(data: bytes, state: "RepairState") -> bytes:
+    """The master_fd -> stdout pipeline for one chunk:
+
+        claude bytes -> ScreenRepair (cursor-desync repair, faithful SGR)
+                     -> FrameMux.feed (apply_subs theming, frame-bracketing)
+                     -> bytes to write
+
+    With repair OFF/disabled, `state.correct` returns `data` unchanged, so this is
+    byte-identical to the pre-repair wrapper's `mux.feed(data)`. ScreenRepair never
+    emits a BSU/ESU, so FrameMux only ever sees out-of-frame bytes here and its
+    dormant in-frame path stays untouched; if a genuine 2026 frame were present it
+    would still be FrameMux — the sole frame handler — that brackets it downstream."""
+    return state.mux.feed(state.correct(data))
+
+
+def drain_output(state: "RepairState") -> bytes:
+    """Idle/shutdown flush of BOTH pipeline stages, in pipeline order: drain the
+    repair stage first so its bytes reach FrameMux, then drain FrameMux. Returns
+    everything still buffered (so the final frame and any held tail aren't lost)."""
+    out = bytearray()
+    tail = state.correct_drain()
+    if tail:
+        out += state.mux.feed(tail)
+    out += state.mux.drain()
+    return bytes(out)
+
+
 def write_all(fd: int, data: bytes) -> None:
     """Write every byte, looping on short writes.
 
@@ -422,21 +1166,29 @@ def main() -> int:
 
     os.close(slave_fd)
 
+    # Output-correction pipeline state (ScreenRepair + FrameMux + the flag/
+    # barricade booleans), shared by the loop, the SIGWINCH closure, and the
+    # drains. Sized to the current geometry; SIGWINCH re-sizes the virtual grid.
+    state = RepairState(rows, cols)
+
     def on_resize(*_):
         r, c = get_term_size()
         set_winsize(master_fd, r, c)
+        # Track the new size in the virtual grid so post-resize content lands on
+        # the right rows (after set_winsize, like FrameMux's clockless contract).
+        state.on_resize(r, c)
     signal.signal(signal.SIGWINCH, on_resize)
 
-    mux = FrameMux()
     try:
         while True:
             r, _, _ = select.select([stdin_fd, master_fd], [], [], IDLE_FLUSH_SECS)
             if not r:
-                # Time backstop: an open frame whose ESU hasn't arrived (or a
-                # held partial-marker tail) would otherwise freeze the screen.
-                # The mux is clockless, so the loop owns this flush.
-                if mux.has_open_frame():
-                    write_all(stdout_fd, mux.drain())
+                # Time backstop: a frame whose ESU hasn't arrived, a held partial
+                # marker, OR a held partial repair token would otherwise freeze
+                # the screen. Both transforms are clockless, so the loop owns this
+                # flush — drain the repair stage into the mux, then the mux.
+                if state.mux.has_open_frame() or state.repair_pending():
+                    write_all(stdout_fd, drain_output(state))
                 continue
             if stdin_fd in r:
                 try:
@@ -453,11 +1205,11 @@ def main() -> int:
                     break
                 if not data:
                     break
-                write_all(stdout_fd, mux.feed(data))
+                write_all(stdout_fd, process_output(data, state))
     finally:
-        # Drain whatever the mux still holds so the final frame isn't lost.
+        # Drain whatever the pipeline still holds so the final frame isn't lost.
         try:
-            write_all(stdout_fd, mux.drain())
+            write_all(stdout_fd, drain_output(state))
         except OSError:
             pass
         termios.tcsetattr(stdin_fd, termios.TCSADRAIN, old_attrs)
