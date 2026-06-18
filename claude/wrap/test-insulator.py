@@ -438,11 +438,16 @@ def test_bonus_empty_feed_is_empty():
     assert ins.drain() == b"", "empty drain should produce no output"
 
 
-def test_bonus_screenrepair_still_intact():
-    """Phase 3 keeps the old ScreenRepair class alive (Phase 4 retires it)."""
-    assert hasattr(M, "ScreenRepair"), "ScreenRepair removed prematurely"
-    sr = M.ScreenRepair(10, 40)
-    assert hasattr(sr, "feed") and hasattr(sr, "drain"), "ScreenRepair API changed"
+def test_bonus_screenrepair_retired():
+    """Phase 4 retires ScreenRepair: the Insulator is the sole output transform.
+    The class (and its _SR_* regex helpers) must be GONE from the module so no
+    dead, leaky parser can be reintroduced by accident."""
+    assert not hasattr(M, "ScreenRepair"), "ScreenRepair must be retired in Phase 4"
+    assert not hasattr(M, "_SR_CSI"), "ScreenRepair's _SR_* regexes must be removed too"
+    # The Insulator carries the same public surface the loop depends on.
+    ins = M.Insulator(10, 40)
+    assert all(hasattr(ins, n) for n in ("feed", "drain", "reset", "has_pending")), \
+        "Insulator must expose the feed/drain/reset/has_pending contract"
 
 
 def main():
