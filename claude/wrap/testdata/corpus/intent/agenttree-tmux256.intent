@@ -1,0 +1,39 @@
+   └ Survey ~/Documents directory · 4 tool uses · 16.7k tokens
+     ⎿  Done
+
+⏺ All 5 agents finished concurrently. Here are their 2-line reports:
+
+  ┌────────────────┬───────────┬──────────────────────────────────────────────────────────────────────────────────────────────┐
+  │      Dir       │   Files   │                                           Summary                                            │
+  ├────────────────┼───────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │                │           │ ~100 entries: app repos (loopback, upublish, omniping), MCP servers (grug-brain,             │
+  │ ~/repos        │ 1,114,582 │ claude-mux), Zig/Nvim tooling, dotfiles. Read: grug-brain MCP README (FTS5 memory), loopback │
+  │                │           │  package.json (Expo/RN + PowerSync/Supabase/Drizzle), starship.toml prompt config.           │
+  ├────────────────┼───────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │                │           │ Dotfiles repo with per-tool dirs (nvim, tmux, zsh, ghostty, i3, aerospace, .claude, thegrid) │
+  │ ~/.config      │ 2,246     │  + Makefile/CLAUDE.md. Read: readme (dotfiles setup), Makefile (wraps bin/dabootstrap),      │
+  │                │           │ CLAUDE.md (table-formatting guidance).                                                       │
+  ├────────────────┼───────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │                │           │ Config + state (sessions, history, telemetry) + runtime (daemon, hooks, jobs) + extensions   │
+  │ ~/.claude      │ 39,745    │ (agents, skills, plugins). Read: daemon.status.json (idle supervisor), settings.json         │
+  │                │           │ (Bash(*) allow, grug hooks, vim mode), stats-cache (340 sessions / 88,772 msgs, mostly       │
+  │                │           │ opus-4-6).                                                                                   │
+  ├────────────────┼───────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │                │           │ Top level: NuGet, claude, containers, mise, nvim, sketchybar_lua, thegrid, tmux, uv. Read:   │
+  │ ~/.local/share │ 73,259    │ tmux-resurrect snapshot (Claude panes), claude Info.plist (com.anthropic.claude-code agent   │
+  │                │           │ app), empty nvim harpoon list.                                                               │
+  ├────────────────┼───────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  │                │           │ ~15 subdirs (repos, recordings, booking, interline) + airline/NDC docs, PDFs, diagrams.      │
+  │ ~/Documents    │ 109,200   │ Read: flight-change JSON skeleton, QPX itinerary-shop XML (SEA↔LAX 2021), trivial C# "Test"  │
+  │                │           │ stub.                                                                                        │
+  └────────────────┴───────────┴──────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Takeaway: All directories are heavily dev/Claude-tooling oriented; the ~1.1M file count under ~/repos dominates
+  (node_modules/build artifacts), and ~/Documents mixes airline-booking work with personal PDFs.
+
+✻ Cooked for 39s
+
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ have each agent read 3 more files and go deeper
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  -- INSERT -- ← for agents

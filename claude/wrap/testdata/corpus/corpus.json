@@ -1,0 +1,50 @@
+{
+  "schema": "claude-wrap insulator corpus v1",
+  "oracle": "real terminal (tmux capture-pane); vtmodel only mints static intent",
+  "live_capture_gap": "qa/scroll/paste are synthetic well-formed VT streams rendered through the REAL tmux oracle; live `claude -p` capture was flaky (exits before TUI bytes). See phase-1 discovery.",
+  "fixtures": [
+    {
+      "file": "startup.bin",
+      "label": "correct",
+      "cols": 129,
+      "rows": 41,
+      "note": "Real claude boot stream: kitty keyboard, Primary-DA \\x1b[c, ?2004, ?25, OSC7 cwd. Renders cleanly at 129x41."
+    },
+    {
+      "file": "agenttree-tmux256.bin",
+      "label": "buggy",
+      "cols": 129,
+      "rows": 41,
+      "intent_file": "intent/agenttree-tmux256.intent",
+      "note": "Relative-cursor clamp-desync repro (tmux-256color). Raw render displaces the prompt input line into a border row; intent puts it on the '>' prompt with borders intact."
+    },
+    {
+      "file": "agenttree-xterm256.bin",
+      "label": "correct",
+      "cols": 129,
+      "rows": 41,
+      "note": "Same workload, xterm-256color. FINDING: renders raw==vtmodel-noclamp-intent in a real 129x41 pane (does NOT diverge under this oracle), so labeled 'correct' not 'buggy' despite README. Using as 'buggy' would be vacuous."
+    },
+    {
+      "file": "qa.bin",
+      "label": "correct",
+      "cols": 129,
+      "rows": 41,
+      "note": "Synthetic plain Q&A (SGR prompt+answer, cursor hide/show, bracketed-paste toggle). Real-terminal-validated; live claude -p capture was flaky (see discovery)."
+    },
+    {
+      "file": "scroll.bin",
+      "label": "correct",
+      "cols": 129,
+      "rows": 41,
+      "note": "Synthetic long-scroll: 80 lines into 41-row pane forces scroll. Real-terminal-validated."
+    },
+    {
+      "file": "paste.bin",
+      "label": "correct",
+      "cols": 129,
+      "rows": 41,
+      "note": "Synthetic bracketed-paste + mouse-mode view. Real-terminal-validated."
+    }
+  ]
+}
