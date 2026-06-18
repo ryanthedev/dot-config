@@ -364,6 +364,12 @@ class VT500Parser:
         self._osc_payload = b""
         self._utf8_buf = b""     # raw bytes of an incomplete trailing codepoint
         self._string_kind = None  # which of SOS/PM/APC we are inside
+        self._str_cont = 0       # UTF-8 continuation bytes still expected in a
+        #                          string control (OSC/DCS/...). claude emits
+        #                          UTF-8 titles/labels inside OSC; a 0x9c that is
+        #                          a UTF-8 continuation byte must NOT be mistaken
+        #                          for the 8-bit ST terminator (the leak that put
+        #                          an OSC title's tail into the grid as text).
 
     # -- public API ---------------------------------------------------------
     def feed(self, data: bytes) -> list:
@@ -373,6 +379,13 @@ class VT500Parser:
         for b in data:
             self._step(b, out)
         return out
+
+    def has_pending(self) -> bool:
+        """True while the parser is holding an incomplete trailing token — a
+        partial control sequence (non-GROUND state / collected bytes) or a
+        partial UTF-8 codepoint. The Insulator/I-O loop uses this to decide
+        whether the idle-timeout backstop must drain a stuck partial sequence."""
+        return bool(self._seq) or bool(self._utf8_buf) or self._state != self._GROUND
 
     def drain(self) -> list:
         """Flush any held sequence/codepoint as terminal events. After drain the
@@ -406,6 +419,35 @@ class VT500Parser:
         self._intermediates = b""
         self._osc_payload = b""
         self._string_kind = None
+        self._str_cont = 0
+
+    @staticmethod
+    def _utf8_len(b: int) -> int:
+        """UTF-8 continuation-byte count expected AFTER lead byte `b` (0 if `b`
+        is not a lead byte)."""
+        if 0xc0 <= b <= 0xdf:
+            return 1
+        if 0xe0 <= b <= 0xef:
+            return 2
+        if 0xf0 <= b <= 0xf7:
+            return 3
+        return 0
+
+    def _str_is_8bit_st(self, b: int) -> bool:
+        """True iff byte `b` should terminate the current string control as an
+        8-bit ST (0x9c). It is NOT a terminator when it is a UTF-8 continuation
+        byte of a multibyte codepoint inside the string body — claude's OSC
+        titles carry UTF-8 (e.g. ✳ = \\xe2\\x9c\\xb3, whose \\x9c byte must not be
+        read as ST). Tracks remaining continuation bytes as the body is
+        collected (see `_str_collect_utf8`)."""
+        return b == 0x9c and self._str_cont == 0
+
+    def _str_collect_utf8(self, b: int) -> None:
+        """Advance the in-string UTF-8 continuation tracker for one body byte."""
+        if self._str_cont > 0:
+            self._str_cont -= 1
+        else:
+            self._str_cont = self._utf8_len(b)
 
     def _emit_unterminated(self, out: list) -> None:
         """Emit the held, never-terminated sequence as its inert event type."""
@@ -417,7 +459,7 @@ class VT500Parser:
                     self._DCS_PASSTHROUGH, self._DCS_IGNORE):
             out.append(Dcs(raw))
         elif st == self._SOS_PM_APC_STRING:
-            out.append({"sos": Sos, "pm": Pm, "apc": Apc}.get(
+            out.append({"sos": Sos, "pm": Pm, "apc": Apc, "esck": Pm}.get(
                 self._string_kind, Sos)(raw))
         else:
             # An incomplete ESC/CSI: no dispatch happened, but the bytes are
@@ -590,6 +632,17 @@ class VT500Parser:
             self._string_kind = "apc"
             self._state = self._SOS_PM_APC_STRING
             return
+        if b == 0x6b:  # 'k' -> screen/tmux window-title string (ESC k ... ST).
+            # NOT standard VT500, but the wrapper runs under tmux, which (like
+            # GNU screen) consumes ESC k <title> ST as the window name. Treating
+            # it as a 2-byte ESC dispatch would PRINT the title body as text (the
+            # leak that put "/tmp" / agent labels into the grid). It terminates
+            # on ST ONLY (a BEL inside the title is data) — modeled by the
+            # SOS/PM/APC string state, which terminates on ST. Emitted inert
+            # (kind "esck") and forwarded verbatim by the Router.
+            self._string_kind = "esck"
+            self._state = self._SOS_PM_APC_STRING
+            return
         if 0x30 <= b <= 0x7e:  # final byte -> esc_dispatch
             out.append(EscDispatch(self._intermediates, b, self._seq))
             self._reset_seq()
@@ -685,7 +738,7 @@ class VT500Parser:
         # OSC (emitting it as an Osc event for the bytes so far) and the trailing
         # '\' becomes an EscDispatch — both typed control events, never Print, so
         # the OSC introducer can never leak. Losslessness holds across the split.
-        if b in (0x07, 0x9c):
+        if b == 0x07 or self._str_is_8bit_st(b):
             self._seq += bytes([b])
             out.append(Osc(self._osc_payload, self._seq))
             self._reset_seq()
@@ -693,6 +746,7 @@ class VT500Parser:
             return
         if not self._collect_seq(b, out):
             return
+        self._str_collect_utf8(b)
         self._osc_payload += bytes([b])
 
     def _st_dcs_entry(self, b: int, out: list) -> None:
@@ -747,33 +801,38 @@ class VT500Parser:
     def _st_dcs_passthrough(self, b: int, out: list) -> None:
         # Body bytes pass through until ST. The 7-bit ST (ESC \) is routed by the
         # anywhere ESC-transition (which flushes this DCS as a Dcs event); an
-        # 8-bit ST (0x9c) terminates here directly.
-        if b == 0x9c:
+        # 8-bit ST (0x9c) terminates here directly — unless it is a UTF-8
+        # continuation byte of a multibyte char in the body (then it is data).
+        if self._str_is_8bit_st(b):
             self._seq += bytes([b])
             out.append(Dcs(self._seq))
             self._reset_seq()
             self._state = self._GROUND
             return
-        self._collect_seq(b, out)
+        if self._collect_seq(b, out):
+            self._str_collect_utf8(b)
 
     def _st_dcs_ignore(self, b: int, out: list) -> None:
-        if b == 0x9c:
+        if self._str_is_8bit_st(b):
             self._seq += bytes([b])
             out.append(Dcs(self._seq))
             self._reset_seq()
             self._state = self._GROUND
             return
-        self._collect_seq(b, out)
+        if self._collect_seq(b, out):
+            self._str_collect_utf8(b)
 
     def _st_sos_pm_apc_string(self, b: int, out: list) -> None:
-        cls = {"sos": Sos, "pm": Pm, "apc": Apc}.get(self._string_kind, Sos)
-        if b == 0x9c:  # 8-bit ST
+        cls = {"sos": Sos, "pm": Pm, "apc": Apc, "esck": Pm}.get(
+            self._string_kind, Sos)
+        if self._str_is_8bit_st(b):  # 8-bit ST (not a UTF-8 continuation byte)
             self._seq += bytes([b])
             out.append(cls(self._seq))
             self._reset_seq()
             self._state = self._GROUND
             return
-        self._collect_seq(b, out)
+        if self._collect_seq(b, out):
+            self._str_collect_utf8(b)
 
     # State -> handler dispatch table (built after methods are defined).
     _DISPATCH = {}
@@ -1570,6 +1629,499 @@ class ScreenRepair:
         else:
             for c in range(self.W):
                 row[c] = ' '; sty[c] = dk
+
+
+# === Insulator engine (Phase 3) ============================================
+#
+# The insulation layer proper. It supersedes ScreenRepair's two fatal flaws by
+# construction:
+#
+#   1. ScreenRepair parsed the stream with ad-hoc regex, so a sequence outside
+#      its regex vocabulary (e.g. \x1b[>1u) LEAKED to the terminal as glyphs.
+#      The Insulator instead drives a canonical VT500Parser, whose state machine
+#      classifies EVERY byte — a control sequence can never be mistaken for text.
+#
+#   2. ScreenRepair DROPPED claude's entire non-grid control plane (cursor
+#      visibility, bracketed paste, kitty keyboard, mouse, OSC, and the DA/DSR
+#      queries claude waits on). The Insulator's Router FORWARDS the control
+#      plane VERBATIM, at its correct stream position, so behavior is preserved.
+#
+# Pipeline per chunk:
+#   bytes -> VT500Parser -> [events] -> Router{ GRID -> _Screen (clamp-free) |
+#            CONTROL -> forward event.raw verbatim } ; on each control event the
+#            Emitter first diff-renders the Screen mutated so far (painting prior
+#            visible state), then the control raw is appended, then rendering
+#            continues -> a forwarded query lands BETWEEN the cells before and
+#            after it, not deferred past the flush (the ORDERING gate, DW-3.3).
+#
+# Pure and clockless: feed/drain are a deterministic function of (state, bytes).
+# Defensive: feed never raises on any input (the caller's barricade, Phase 4,
+# falls back to passthrough on any escaped exception, but feed itself must not
+# escalate malformed input into a crash).
+
+# CSI finals the Router treats as GRID operations (cursor motion / erase / SGR).
+# This set is INTENTIONALLY EXACTLY the subset the intent oracle (vtmodel, which
+# minted the frozen correction intent) models — A/B/C/D/G/H/f/d/K/J/m — so the
+# re-rendered grid equals the frozen intent byte-for-byte (the DW-3.2 gate).
+# Everything else (DECSTBM r, save/restore s/u, scroll-region motion, CUE/CUF1
+# E/F, HPA `, ESC 7/8) is routed CONTROL and FORWARDED verbatim rather than
+# dropped: those reach the real terminal, but the emitter's absolute-CUP repaint
+# owns final positioning, so forwarding them is grid-inert in the output while
+# still preserving the control plane (the improvement over ScreenRepair, which
+# dropped them). Honoring them in the Screen would desync from claude's intent
+# exactly the way the clamp does, which is the corruption we exist to absorb.
+_INSU_GRID_FINALS = frozenset(b"ABCDGHfdKJm")
+# CSI finals that are device QUERIES — CONTROL even though they carry no private
+# marker (DA primary \x1b[c, DSR \x1b[6n). Dropping these hangs claude.
+_INSU_QUERY_FINALS = frozenset(b"cn")
+# Private-mode params that ENTER the alternate screen buffer. When seen, the
+# Insulator steps aside (forwards everything verbatim) until the matching exit,
+# since claude's alt-screen — if it ever uses one — is full-screen app output
+# that should not be re-rendered through the intent grid.
+_INSU_ALT_ENTER = frozenset((b"?1049", b"?47", b"?1047"))
+_INSU_ALT_EXIT = frozenset((b"?1049", b"?47", b"?1047"))
+
+
+class _Screen:
+    """Clamp-free authoritative screen, driven by VT500Parser EVENTS.
+
+    Same intent model as ScreenRepair (clamp-free cursor; grid + per-cell SGR
+    plane; scroll + scrollback capture; CR/LF/BS; CUU..CUP/VPA/CHA; EL/ED; SGR;
+    DECSC/DECRC) — but every mutation is applied from a typed Event whose params
+    were already parsed by the canonical state machine, so no byte is ever
+    re-parsed (and thus no byte can leak). Writes are clipped to the visible
+    grid; the cursor is tracked clamp-free (recovering claude's INTENT — the
+    desync the insulator exists to absorb).
+
+    This is a containment helper of Insulator, not a public class.
+    """
+
+    __slots__ = ("H", "W", "_g", "_sgr", "_default_key", "_sty", "_r", "_c",
+                 "_pending", "_scrolloff", "_scrolloff_sty")
+
+    def __init__(self, rows: int, cols: int) -> None:
+        self.reset(rows, cols)
+
+    def reset(self, rows: int, cols: int) -> None:
+        self.H = max(1, rows)
+        self.W = max(1, cols)
+        self._g = [[' '] * self.W for _ in range(self.H)]
+        self._sgr = _SGR()
+        self._default_key = _SGR().copy_key()
+        self._sty = [[self._default_key] * self.W for _ in range(self.H)]
+        self._r = 0
+        self._c = 0
+        self._pending = False
+        self._scrolloff = []
+        self._scrolloff_sty = []
+
+    def take_scrolloff(self):
+        """Return (lines, styles) that scrolled off since the last call, then
+        clear them. The Emitter consumes these to push real scroll history."""
+        lines, styles = self._scrolloff, self._scrolloff_sty
+        self._scrolloff, self._scrolloff_sty = [], []
+        return lines, styles
+
+    # -- grid primitives (mirrors ScreenRepair, event-fed) -----------------
+    def _scroll(self) -> None:
+        self._scrolloff.append(''.join(self._g[0]).rstrip())
+        self._scrolloff_sty.append(list(self._sty[0]))
+        self._g.pop(0)
+        self._g.append([' '] * self.W)
+        self._sty.pop(0)
+        self._sty.append([self._default_key] * self.W)
+
+    def _lf(self) -> None:
+        # Match ScreenRepair exactly: a bottom-row LF scrolls; any other LF
+        # advances the (clamp-free) virtual row counter. This is the intent
+        # model the frozen agenttree intent was minted against.
+        self._pending = False
+        if self._r == self.H - 1:
+            self._scroll()
+        else:
+            self._r += 1
+
+    def _cr(self) -> None:
+        self._pending = False
+        self._c = 0
+
+    def _bs(self) -> None:
+        self._pending = False
+        self._c = max(0, self._c - 1)
+
+    def _putch(self, ch: str) -> None:
+        if self._pending:
+            self._cr()
+            self._lf()
+        if 0 <= self._r < self.H and 0 <= self._c < self.W:
+            self._g[self._r][self._c] = ch
+            self._sty[self._r][self._c] = self._sgr.copy_key()
+        if self._c == self.W - 1:
+            self._pending = True
+        else:
+            self._c += 1
+
+    def ri(self) -> None:
+        """RI (ESC M) — reverse index: move the cursor UP one row, clamp-free.
+        A real terminal scrolls DOWN if at the top margin; claude only uses RI to
+        step back up after an LF (the startup '/tmp' line), and the emitter owns
+        absolute positioning, so a plain clamp-free decrement is the faithful
+        intent without injecting a real-terminal scroll."""
+        self._pending = False
+        self._r -= 1
+
+    def ind(self) -> None:
+        """IND (ESC D) — index: move the cursor DOWN one row (LF semantics)."""
+        self._lf()
+
+    def nel(self) -> None:
+        """NEL (ESC E) — next line: CR + LF."""
+        self._cr()
+        self._lf()
+
+    def print(self, text: str) -> None:
+        for ch in text:
+            self._putch(ch)
+
+    def execute(self, byte: int) -> None:
+        if byte == 0x0d:
+            self._cr()
+        elif byte == 0x0a:
+            self._lf()
+        elif byte == 0x08:
+            self._bs()
+        elif byte == 0x09:                  # HT: advance to next 8-col tab stop
+            self._pending = False
+            nxt = (self._c // 8 + 1) * 8
+            self._c = min(nxt, self.W - 1)
+        # other C0 (BEL etc.): no grid effect
+
+    def csi(self, private: bytes, params: bytes, final: int) -> None:
+        """Apply one GRID CsiDispatch. The Router only routes the intent-model
+        subset here (A/B/C/D/G/H/f/d/K/J/m); params were already validated by the
+        parser, but we still parse defensively (never raise on odd values). The
+        cursor is moved CLAMP-FREE — that is the desync the insulator recovers."""
+        fin = chr(final).encode()
+        if fin == b'm':                                 # SGR
+            self._sgr.apply(params)
+            return
+        nums = []
+        for x in params.split(b';'):
+            try:
+                nums.append(int(x) if x else 0)
+            except ValueError:
+                nums.append(0)
+
+        def p(k: int, default: int = 1) -> int:
+            return nums[k] if k < len(nums) and nums[k] != 0 else default
+
+        if fin == b'A':                                 # CUU — clamp-free
+            self._r -= p(0)
+        elif fin == b'B':                               # CUD — clamp-free
+            self._r += p(0)
+        elif fin == b'C':                               # CUF
+            self._c += p(0); self._pending = False
+        elif fin == b'D':                               # CUB
+            self._c -= p(0); self._pending = False
+        elif fin == b'G':                               # CHA — absolute col
+            self._c = p(0) - 1; self._pending = False
+        elif fin in (b'H', b'f'):                        # CUP / HVP — absolute
+            self._r = p(0) - 1; self._c = p(1) - 1; self._pending = False
+        elif fin == b'd':                                # VPA — absolute row
+            self._r = p(0) - 1
+        elif fin == b'K':                                # EL
+            self._erase_line(nums[0] if nums else 0)
+        elif fin == b'J':                                # ED
+            self._erase_display(nums[0] if nums else 0)
+        # any other routed final: no modeled position effect (defensive)
+
+    def _erase_line(self, mode: int) -> None:
+        if not (0 <= self._r < self.H):
+            return
+        row = self._g[self._r]; sty = self._sty[self._r]; dk = self._default_key
+        if mode == 0:
+            rng = range(max(0, self._c), self.W)
+        elif mode == 1:
+            rng = range(0, min(self.W, self._c + 1))
+        else:
+            rng = range(self.W)
+        for c in rng:
+            row[c] = ' '; sty[c] = dk
+
+    def _erase_display(self, mode: int) -> None:
+        """ED — erase in display. Mode 2/3 clears everything; mode 0 clears from
+        the cursor to the end of the screen; mode 1 from the start to the cursor.
+        A real terminal honors all of these, so to stay transparent on correct
+        streams we model them too — but ONLY when the cursor is within the
+        visible grid. During claude's clamp-desync the cursor is walked off-grid;
+        honoring a cursor-relative erase against an off-grid virtual cursor would
+        wipe valid intent rows (the corruption), so an off-grid ED 0/1 is a
+        no-op. ED 2 is absolute (whole screen) and always applies. This matches
+        BOTH the real-terminal oracle on correct streams and the no-clamp intent
+        on the buggy stream."""
+        dk = self._default_key
+        if mode == 2 or mode == 3:
+            self._g = [[' '] * self.W for _ in range(self.H)]
+            self._sty = [[dk] * self.W for _ in range(self.H)]
+            return
+        if not (0 <= self._r < self.H):
+            return                                       # off-grid relative erase: skip
+        if mode == 0:
+            self._erase_line(0)
+            for r in range(self._r + 1, self.H):
+                self._g[r] = [' '] * self.W
+                self._sty[r] = [dk] * self.W
+        elif mode == 1:
+            for r in range(0, self._r):
+                self._g[r] = [' '] * self.W
+                self._sty[r] = [dk] * self.W
+            self._erase_line(1)
+
+
+class Insulator:
+    """Terminal-insulation engine: maintain claude's intended screen from the
+    VT500 event stream, re-render it correctly via absolute positioning, and
+    forward the control plane verbatim at its correct stream position.
+
+    Public surface (the Phase-4 contract, identical shape to ScreenRepair so the
+    swap is mechanical):
+        __init__(rows, cols)
+        feed(data: bytes) -> bytes      # corrected + forwarded-control output
+        drain() -> bytes                # flush held tail + final repaint
+        reset(rows, cols)               # SIGWINCH
+        has_pending() -> bool           # an incomplete token is held
+
+    GUARANTEES
+      * No leak: every byte is classified by the canonical state machine; a
+        control sequence is never emitted as a printable glyph.
+      * Transparency: on a stream claude renders correctly, the Insulator's
+        output rendered in a REAL terminal is grid-identical to the raw stream
+        (control plane forwarded, grid re-painted to the same result).
+      * Correction: on the clamp-desync stream, the output renders to claude's
+        INTENT grid (the corruption is gone).
+      * Ordering: a forwarded query (\x1b[c, \x1b[6n, ...) appears in the output
+        between the rendered cells before and after it — never deferred past a
+        flush boundary (the prior regression).
+      * Defensive: feed never raises on any input; pure/clockless/deterministic.
+    """
+
+    def __init__(self, rows: int, cols: int) -> None:
+        self.reset(rows, cols)
+
+    def reset(self, rows: int, cols: int) -> None:
+        """(Re)initialize for a (new) size. Clears the parser, screen, last-
+        emitted snapshot, and alt-screen state so a resize mid-stream can never
+        strand a half-parsed token or a stale grid."""
+        self.H = max(1, rows)
+        self.W = max(1, cols)
+        self._parser = VT500Parser()
+        self._screen = _Screen(rows, cols)
+        self._default_key = _SGR().copy_key()
+        # Last-emitted viewport snapshot, for the diff. Blank origin: the first
+        # flush repaints only rows differing from blank (correct on a fresh pane,
+        # self-correcting on any pane via absolute CUP + clear).
+        self._prev = [[' '] * self.W for _ in range(self.H)]
+        self._prev_sty = [[self._default_key] * self.W for _ in range(self.H)]
+        self._alt = False             # inside the alternate screen buffer?
+
+    def has_pending(self) -> bool:
+        """True while the parser holds an incomplete token (partial ESC sequence
+        or partial UTF-8 codepoint). The loop uses this to decide whether the
+        idle-timeout backstop must drain."""
+        return self._parser.has_pending()
+
+    # -- public stream API --------------------------------------------------
+    def feed(self, data: bytes) -> bytes:
+        """Consume `data`; return the corrected + forwarded-control output. Never
+        raises on any bytes (defensive: malformed input degrades, never crashes).
+        `feed(b'')` with no held tail is b''."""
+        try:
+            events = self._parser.feed(data)
+            return self._route(events)
+        except Exception:                # noqa: BLE001 - feed must never raise
+            # Should be unreachable (the parser is total and the screen clips all
+            # writes), but the insulator's #1 contract is "never crash the live
+            # session": surface the bytes unchanged so the terminal still gets
+            # them rather than freezing on an internal defect.
+            return data
+
+    def drain(self) -> bytes:
+        """Flush the parser's held tail and emit the resulting repaint. Called by
+        the loop on idle timeout and at shutdown. Idempotent once empty."""
+        try:
+            events = self._parser.drain()
+            return self._route(events)
+        except Exception:                # noqa: BLE001 - drain must never raise
+            return b''
+
+    # -- the Router + interleaving emitter ----------------------------------
+    def _route(self, events) -> bytes:
+        """Walk events in stream order. GRID events mutate the Screen; a CONTROL
+        event first flushes the diff for everything painted so far (so the prior
+        visible state is on the terminal), then appends its raw bytes verbatim,
+        then rendering continues. A final flush closes the batch. This is what
+        puts a forwarded query at its CORRECT stream position."""
+        out = bytearray()
+        for ev in events:
+            if self._alt:
+                # Stepped aside: forward EVERYTHING verbatim until alt-exit.
+                out += ev.raw
+                if self._is_alt_exit(ev):
+                    self._alt = False
+                continue
+            if self._is_alt_enter(ev):
+                # Flush intent painted so far, THEN forward the alt-enter and
+                # switch to passthrough for the alt buffer.
+                out += self._flush_diff()
+                out += ev.raw
+                self._alt = True
+                continue
+            if self._is_grid(ev):
+                self._apply_grid(ev)
+            else:
+                # CONTROL: forward verbatim AT its stream position. Paint prior
+                # visible state first so the control lands between the cells
+                # before and after it (ordering), then append the raw bytes.
+                out += self._flush_diff()
+                out += ev.raw
+        out += self._flush_diff()
+        return bytes(out)
+
+    @staticmethod
+    def _is_grid(ev) -> bool:
+        """Classify one event: True = GRID (mutate Screen), False = CONTROL
+        (forward raw). The single source of truth for the Router."""
+        if isinstance(ev, Print):
+            return True
+        if isinstance(ev, Execute):
+            return ev.byte in (0x0d, 0x0a, 0x08, 0x09)   # CR LF BS HT
+        if isinstance(ev, EscDispatch):
+            # CURSOR/SCROLL positioning ESC dispatches (DECSC/DECRC ESC 7/8,
+            # RI ESC M, IND ESC D, NEL ESC E) are GRID: the emitter's absolute-
+            # CUP repaint OWNS positioning, so these are consumed as no-ops in
+            # the Screen and NOT forwarded — forwarding a bare RI at the top
+            # margin would scroll the real terminal and shift the whole repaint
+            # down by a row (the spurious blank top row bug). Charset designators
+            # (intermediates present), keypad-mode ESC =/>, title ESC k, and ST
+            # ESC \ are CONTROL (forwarded verbatim) and return False below.
+            return (not ev.intermediates) and ev.final in (0x37, 0x38, 0x4d,
+                                                            0x44, 0x45)
+        if isinstance(ev, CsiDispatch):
+            if ev.final < 0:
+                return False                              # malformed CSI: forward inert raw
+            if ev.private:
+                return False                              # ?/</=/> private: CONTROL
+            final = ev.final
+            if final in _INSU_QUERY_FINALS:               # DA / DSR: CONTROL
+                return False
+            return final in _INSU_GRID_FINALS
+        # Osc / Dcs / Sos / Pm / Apc: CONTROL
+        return False
+
+    def _apply_grid(self, ev) -> None:
+        if isinstance(ev, Print):
+            self._screen.print(ev.text)
+        elif isinstance(ev, Execute):
+            self._screen.execute(ev.byte)
+        elif isinstance(ev, CsiDispatch):
+            self._screen.csi(ev.private, ev.params, ev.final)
+        elif isinstance(ev, EscDispatch):
+            # Positioning ESC dispatches the Router routes to GRID. DECSC/DECRC
+            # (ESC 7/8) are no-ops here (the emitter owns positioning and the
+            # frozen intent oracle ignores them); RI/IND/NEL move the cursor.
+            if ev.final == 0x4d:                         # RI — reverse index (up)
+                self._screen.ri()
+            elif ev.final == 0x44:                       # IND — index (down)
+                self._screen.ind()
+            elif ev.final == 0x45:                       # NEL — next line
+                self._screen.nel()
+
+    @staticmethod
+    def _is_alt_enter(ev) -> bool:
+        return (isinstance(ev, CsiDispatch) and ev.final in (ord('h'),)
+                and (ev.private + ev.params) in _INSU_ALT_ENTER)
+
+    @staticmethod
+    def _is_alt_exit(ev) -> bool:
+        return (isinstance(ev, CsiDispatch) and ev.final in (ord('l'),)
+                and (ev.private + ev.params) in _INSU_ALT_EXIT)
+
+    # -- emission (diff render, reused logic) -------------------------------
+    def _flush_diff(self) -> bytes:
+        """Emit absolute-positioned updates for the Screen since the last flush:
+        first push any scrolled-off lines into real scrollback (bottom row +
+        CRLF), then repaint rows whose chars OR style changed. Returns b'' when
+        nothing changed, so an interleaved control event that follows an
+        already-painted state appends NO redundant repaint."""
+        scrolloff, scrolloff_sty = self._screen.take_scrolloff()
+        out = bytearray()
+        g = self._screen._g
+        sty_plane = self._screen._sty
+        if scrolloff:
+            # A scroll happened: push each scrolled-off line into REAL scrollback
+            # (write it at the bottom row, then CRLF — the CRLF is a real scroll
+            # on the clamping terminal, so the line enters tmux history exactly as
+            # claude intended). The CRLF scrolls shift every visible row on the
+            # real terminal in ways a per-row diff against the pre-scroll snapshot
+            # cannot track, so after the scroll we do a FULL absolute repaint of
+            # the viewport (like ScreenRepair's scroll path) to re-sync the
+            # clamping terminal to intent deterministically — this is what keeps
+            # the result chunk-invariant (whole == 1-byte == random).
+            for line, sty in zip(scrolloff, scrolloff_sty):
+                out += b'\x1b[%d;1H' % self.H
+                out += b'\x1b[2K'
+                out += self._render_row(list(line) + [' '] * self.W, sty)
+                out += b'\r\n'
+            for r in range(self.H):
+                out += b'\x1b[%d;1H' % (r + 1)
+                out += b'\x1b[2K'
+                out += self._render_row(g[r], sty_plane[r])
+                self._prev[r] = list(g[r])
+                self._prev_sty[r] = list(sty_plane[r])
+            return bytes(out)
+        # No scroll: cheap diff — repaint only rows whose chars OR style changed.
+        for r in range(self.H):
+            row = g[r]
+            if row != self._prev[r] or sty_plane[r] != self._prev_sty[r]:
+                out += b'\x1b[%d;1H' % (r + 1)
+                out += b'\x1b[2K'
+                out += self._render_row(row, sty_plane[r])
+                self._prev[r] = list(row)
+                self._prev_sty[r] = list(sty_plane[r])
+        return bytes(out)
+
+    def _render_row(self, row, sty) -> bytes:
+        """Render one row to bytes, re-emitting claude's SGR per styled run so
+        colors/attributes match intent EXACTLY and downstream apply_subs needles
+        round-trip. Identical faithful-SGR strategy as ScreenRepair: a leading
+        \x1b[0m opens the row from a clean baseline before the first styled run;
+        precise per-attribute off-tokens (\x1b[22m/\x1b[39m/...) close styled
+        runs so \x1b[1mBash\x1b[22m and \x1b[38;5;153m stay paired."""
+        last = -1
+        for c in range(len(row) - 1, -1, -1):
+            if row[c] != ' ':
+                last = c
+                break
+        if last < 0:
+            return b''
+        out = bytearray()
+        cur = _SGR()
+        opened = False
+        for c in range(last + 1):
+            key = sty[c] if c < len(sty) else self._default_key
+            if key != cur.copy_key():
+                want = _sgr_from_key(key)
+                if not want.is_default() and not opened:
+                    out += b'\x1b[0m'
+                    opened = True
+                want.replay_from(cur, out)
+                cur = want
+            ch = row[c]
+            out += ch.encode('utf-8', 'replace') if ch != ' ' else b' '
+        if not cur.is_default():
+            cur.replay_to_default(out)
+        return bytes(out)
+
 
 # Env flag that disables the cursor-repair stage entirely (instant rollback to
 # the pre-ScreenRepair wrapper, no code change). Default ON. Only these explicit
