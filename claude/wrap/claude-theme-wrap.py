@@ -1493,6 +1493,10 @@ class Insulator:
         self._prev = [[' '] * self.W for _ in range(self.H)]
         self._prev_sty = [[self._default_key] * self.W for _ in range(self.H)]
         self._alt = False             # inside the alternate screen buffer?
+        # Last cursor position we re-placed the REAL terminal cursor at. Seeded to
+        # the home origin (the screen's start) so a first empty/no-op feed emits
+        # nothing; updated whenever we emit a trailing CUP (see _route).
+        self._last_cursor = (0, 0)
 
     def has_pending(self) -> bool:
         """True while the parser holds an incomplete token (partial ESC sequence
@@ -1555,6 +1559,29 @@ class Insulator:
                 out += self._flush_diff()
                 out += ev.raw
         out += self._flush_diff()
+        # Re-place the REAL cursor at claude's tracked cursor. The diff repaints
+        # rows and leaves the terminal cursor wherever the last row repaint ended,
+        # NOT where claude's logical cursor is — so the user's input cursor never
+        # tracked their typing, and a SPACE (an invisible blank glyph that also
+        # changes no grid cell, so the row-diff emits nothing) gave zero visible
+        # feedback. Emit an absolute CUP to the cursor, clamped on-screen (the
+        # cursor is tracked clamp-free; only the visible cursor must stay in the
+        # viewport). Skipped in alt-screen passthrough, where claude owns the
+        # cursor directly. Content-only oracles (capture-pane) can't see cursor
+        # position, which is why this regressed silently — covered now by a real
+        # tmux cursor-position test.
+        if not self._alt:
+            cr = min(max(self._screen._r, 0), self.H - 1)
+            cc = min(max(self._screen._c, 0), self.W - 1)
+            # Emit only when something was painted (a repaint displaces the real
+            # cursor) OR the logical cursor moved since the last emit. This keeps
+            # an empty/no-op feed byte-for-byte empty, while still re-placing the
+            # cursor for the invisible cases — typing a SPACE into an already-blank
+            # cell changes no grid value (no repaint) yet moves the cursor, which
+            # is the regression this restores.
+            if out or (cr, cc) != self._last_cursor:
+                out += b'\x1b[%d;%dH' % (cr + 1, cc + 1)
+            self._last_cursor = (cr, cc)
         return bytes(out)
 
     @staticmethod
@@ -1709,18 +1736,14 @@ _REPAIR_OFF_VALUES = frozenset({"0", "off", "false", "no"})
 REPAIR_DEBUG_LOG = "/tmp/claude-theme-wrap-repair.log"
 
 
-_REPAIR_ON_VALUES = frozenset({"1", "on", "true", "yes"})
-
-
 def repair_enabled() -> bool:
-    """OPT-IN (default OFF). Reverted from default-ON after a live interactive
-    regression (typed spaces did not advance the cursor — the re-render did not
-    re-place the terminal cursor at claude's input position; the capture-pane
-    corpus oracle validates grid CONTENT but not cursor POSITION, so it missed it).
-    Enable explicitly with CLAUDE_WRAP_REPAIR=1 once interactive cursor tracking is
-    fixed and covered. Read once at startup."""
+    """DEFAULT-ON. The Insulator now re-places the real cursor at claude's tracked
+    cursor after each batch, so typed spaces (and all input) track correctly — the
+    interactive regression that forced a temporary opt-in revert is fixed and
+    locked by a real-tmux cursor-position test (test-cursor.py). Unset / empty /
+    any non-off value -> True; only 0/off/false/no -> False. Read once at startup."""
     val = os.environ.get("CLAUDE_WRAP_REPAIR", "").strip().lower()
-    return val in _REPAIR_ON_VALUES
+    return val not in _REPAIR_OFF_VALUES
 
 
 class RepairState:

@@ -189,3 +189,29 @@ def load_intent(fixture: dict) -> list[str]:
     path = os.path.join(CORPUS_DIR, fixture["intent_file"])
     with open(path, "r") as f:
         return _normalize(f.read())
+
+
+def render_real_cursor(stream, cols, rows):
+    """Render `stream` in a fresh tmux pane and return its cursor as (x, y),
+    0-based. The content oracle (render_real / capture-pane) cannot see cursor
+    POSITION; a default-on insulator regression (typed spaces not advancing the
+    cursor) slipped past content-only checks, so cursor position is its own
+    oracle dimension."""
+    import subprocess, tempfile, os, time
+    f = tempfile.NamedTemporaryFile(delete=False, suffix=".bin")
+    f.write(stream); f.close()
+    sess = "hcursor"
+    subprocess.run(["tmux", "kill-session", "-t", sess], capture_output=True)
+    subprocess.run(["tmux", "new-session", "-d", "-s", sess, "-x", str(cols),
+                    "-y", str(rows), "sh", "-c",
+                    "/bin/cat %s; sleep 30" % f.name], capture_output=True)
+    try:
+        time.sleep(0.6)
+        out = subprocess.run(["tmux", "display-message", "-p", "-t", sess,
+                              "#{cursor_x},#{cursor_y}"], capture_output=True,
+                             text=True).stdout.strip()
+    finally:
+        subprocess.run(["tmux", "kill-session", "-t", sess], capture_output=True)
+        os.unlink(f.name)
+    x, y = out.split(",")
+    return (int(x), int(y))
