@@ -1709,12 +1709,18 @@ _REPAIR_OFF_VALUES = frozenset({"0", "off", "false", "no"})
 REPAIR_DEBUG_LOG = "/tmp/claude-theme-wrap-repair.log"
 
 
+_REPAIR_ON_VALUES = frozenset({"1", "on", "true", "yes"})
+
+
 def repair_enabled() -> bool:
-    """True unless CLAUDE_WRAP_REPAIR is set to an explicit off-value (default ON).
-    Read once at startup so a mid-session env change can't flip the pipeline shape.
-    Unset / empty / any non-off value -> True; only 0/off/false/no -> False."""
+    """OPT-IN (default OFF). Reverted from default-ON after a live interactive
+    regression (typed spaces did not advance the cursor — the re-render did not
+    re-place the terminal cursor at claude's input position; the capture-pane
+    corpus oracle validates grid CONTENT but not cursor POSITION, so it missed it).
+    Enable explicitly with CLAUDE_WRAP_REPAIR=1 once interactive cursor tracking is
+    fixed and covered. Read once at startup."""
     val = os.environ.get("CLAUDE_WRAP_REPAIR", "").strip().lower()
-    return val not in _REPAIR_OFF_VALUES
+    return val in _REPAIR_ON_VALUES
 
 
 class RepairState:
