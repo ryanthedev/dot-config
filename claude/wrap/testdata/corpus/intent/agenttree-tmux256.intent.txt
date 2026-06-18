@@ -1,0 +1,45 @@
+# Known-correct INTENT grid for agenttree-tmux256.bin (129x41).
+# Minted via vtmodel clamp=False as a STARTING POINT, then frozen.
+# Sanity check by eye: input text 'have each agent read 3 more files
+# and go deeper' sits ON the prompt line (after '>') with box borders
+# INTACT below it -- NOT displaced into a border row (the bug).
+#------------------------------------------------------------------------------
+  0|   └ Survey ~/Documents directory · 4 tool uses · 16.7k tokens
+  1|     ⎿  Done
+  2|
+  3|⏺ All 5 agents finished concurrently. Here are their 2-line reports:
+  4|
+  5|  ┌────────────────┬───────────┬──────────────────────────────────────────────────────────────────────────────────────────────┐
+  6|  │      Dir       │   Files   │                                           Summary                                            │
+  7|  ├────────────────┼───────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+  8|  │                │           │ ~100 entries: app repos (loopback, upublish, omniping), MCP servers (grug-brain,             │
+  9|  │ ~/repos        │ 1,114,582 │ claude-mux), Zig/Nvim tooling, dotfiles. Read: grug-brain MCP README (FTS5 memory), loopback │
+ 10|  │                │           │  package.json (Expo/RN + PowerSync/Supabase/Drizzle), starship.toml prompt config.           │
+ 11|  ├────────────────┼───────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+ 12|  │                │           │ Dotfiles repo with per-tool dirs (nvim, tmux, zsh, ghostty, i3, aerospace, .claude, thegrid) │
+ 13|  │ ~/.config      │ 2,246     │  + Makefile/CLAUDE.md. Read: readme (dotfiles setup), Makefile (wraps bin/dabootstrap),      │
+ 14|  │                │           │ CLAUDE.md (table-formatting guidance).                                                       │
+ 15|  ├────────────────┼───────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+ 16|  │                │           │ Config + state (sessions, history, telemetry) + runtime (daemon, hooks, jobs) + extensions   │
+ 17|  │ ~/.claude      │ 39,745    │ (agents, skills, plugins). Read: daemon.status.json (idle supervisor), settings.json         │
+ 18|  │                │           │ (Bash(*) allow, grug hooks, vim mode), stats-cache (340 sessions / 88,772 msgs, mostly       │
+ 19|  │                │           │ opus-4-6).                                                                                   │
+ 20|  ├────────────────┼───────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+ 21|  │                │           │ Top level: NuGet, claude, containers, mise, nvim, sketchybar_lua, thegrid, tmux, uv. Read:   │
+ 22|  │ ~/.local/share │ 73,259    │ tmux-resurrect snapshot (Claude panes), claude Info.plist (com.anthropic.claude-code agent   │
+ 23|  │                │           │ app), empty nvim harpoon list.                                                               │
+ 24|  ├────────────────┼───────────┼──────────────────────────────────────────────────────────────────────────────────────────────┤
+ 25|  │                │           │ ~15 subdirs (repos, recordings, booking, interline) + airline/NDC docs, PDFs, diagrams.      │
+ 26|  │ ~/Documents    │ 109,200   │ Read: flight-change JSON skeleton, QPX itinerary-shop XML (SEA↔LAX 2021), trivial C# "Test"  │
+ 27|  │                │           │ stub.                                                                                        │
+ 28|  └────────────────┴───────────┴──────────────────────────────────────────────────────────────────────────────────────────────┘
+ 29|
+ 30|  Takeaway: All directories are heavily dev/Claude-tooling oriented; the ~1.1M file count under ~/repos dominates
+ 31|  (node_modules/build artifacts), and ~/Documents mixes airline-booking work with personal PDFs.
+ 32|
+ 33|✻ Cooked for 39s
+ 34|
+ 35|─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 36|❯ have each agent read 3 more files and go deeper
+ 37|─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 38|  -- INSERT -- ← for agents

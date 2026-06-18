@@ -38,4 +38,8 @@ services/plists/
 claude/wrap/*
 !claude/wrap/claude-theme-wrap.py
 !claude/wrap/test-*.py
+!claude/wrap/test_harness.py
+!claude/wrap/replay-live.py
+!claude/wrap/testdata/
+!claude/wrap/testdata/**
 .damachine
