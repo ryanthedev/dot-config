@@ -944,6 +944,11 @@ class ScreenRepair:
 # the pre-ScreenRepair wrapper, no code change). Default ON. Only these explicit
 # off-values disable it; anything else (including unset) leaves repair enabled.
 _REPAIR_OFF_VALUES = frozenset({"0", "off", "false", "no"})
+# Repair is OPT-IN (default OFF): it is a young, high-blast-radius transform that
+# rewrites the whole TUI byte stream, and a missed sequence silently mis-renders
+# (the barricade only catches exceptions, not bad output). Enable explicitly with
+# CLAUDE_WRAP_REPAIR=1 once you've confirmed it's clean for your usage.
+_REPAIR_ON_VALUES = frozenset({"1", "on", "true", "yes"})
 # Where the safety barricade logs the ONE time repair trips an exception and
 # degrades to passthrough. Best-effort; a logging failure never breaks the loop.
 REPAIR_DEBUG_LOG = "/tmp/claude-theme-wrap-repair.log"
@@ -953,7 +958,7 @@ def repair_enabled() -> bool:
     """True unless CLAUDE_WRAP_REPAIR is set to an explicit off-value. Read once
     at startup so a mid-session env change can't flip the pipeline shape."""
     val = os.environ.get("CLAUDE_WRAP_REPAIR", "").strip().lower()
-    return val not in _REPAIR_OFF_VALUES
+    return val in _REPAIR_ON_VALUES
 
 
 class RepairState:
