@@ -1,0 +1,68 @@
+# herdr configuration — vim bindings, bamboo palette, ctrl+space prefix
+# Hot-reload with: herdr server reload-config
+
+onboarding = false
+
+[theme]
+# Tokyo Night — swapped from "terminal" (ghostty ANSI passthrough) 2026-07-03
+name = "tokyo-night"
+
+[theme.custom]
+# Transparent panels so ghostty's #0d120d + 0.96 opacity shows through
+panel_bg = "reset"
+
+[keys]
+# Same prefix as tmux (C-Space muscle memory).
+prefix = "ctrl+space"
+
+# Keybinding help popup — H for Help. (Default is prefix+? ; shift+h keeps hjkl
+# pane focus intact since bare prefix+h is focus_pane_left.) Auto-reflects config.
+help = "prefix+shift+h"
+
+# Workspace navigation — vim J/K walks the sidebar, shift+1..9 jumps direct
+next_workspace = "prefix+shift+j"
+previous_workspace = "prefix+shift+k"
+switch_workspace = "prefix+shift+1..9"
+
+# Agent cycling — a / A steps through the agent panel
+next_agent = "prefix+a"
+previous_agent = "prefix+shift+a"
+
+# Pane back-and-forth (hjkl focus + v/minus splits are the built-in defaults)
+last_pane = "prefix+backtick"
+
+# Worktree flow — new (shift+g) is default; add open + remove
+open_worktree = "prefix+shift+o"
+remove_worktree = "prefix+shift+e"
+
+# lazygit in a throwaway pane
+[[keys.command]]
+key = "prefix+shift+l"
+type = "pane"
+command = "lazygit"
+
+# Scrollback in floating nvim (editable/yankable) — clone of tmux `prefix v`.
+# Captures the source pane's ansi scrollback, opens it in nvim with baleia
+# colorizing, q to quit, G to bottom. prefix+shift+v (prefix+v is split-vertical).
+[[keys.command]]
+key = "prefix+shift+v"
+type = "pane"
+command = "/Users/r/.config/herdr/scripts/scrollback-nvim.sh"
+
+[ui]
+# Tokyo Night blue accent (was bamboo #81af58 to match tmux/nvim)
+accent = "#7aa2f7"
+# Attention queue on top instead of grouping by space
+agent_panel_sort = "priority"
+# Label split panes with the detected agent
+show_agent_labels_on_pane_borders = true
+# Instant tabs; rename later with prefix+shift+t
+prompt_new_tab_name = false
+
+[ui.toast]
+# Background agents ping macOS notifications directly
+delivery = "system"
+
+[experimental]
+# Keep pane screen history across full server restarts
+pane_history = true

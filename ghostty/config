@@ -9,40 +9,12 @@ window-decoration = true
 macos-non-native-fullscreen = true
 
 # ──────────────────────────────────────────────
-# Matrix Theme
-# Design: monochromatic green core, CRT phosphor aesthetic
-# Foreground is desaturated for daily use; bright green (#00ff41)
-# reserved for accents. All hues shifted toward the digital family.
+# Theme: Tokyo Night — matches herdr (theme.name = tokyo-night, accent #7aa2f7).
+# Terminal stays neutral so herdr drives the look; ghostty's bg shows through
+# herdr's panel_bg="reset" panels at 0.96 opacity.
+# (was: monochromatic Matrix green / CRT phosphor — removed 2026-07-06)
 # ──────────────────────────────────────────────
-
-# Core colors
-background = #0d120d
-foreground = #80cc80
-cursor-color = #00ff41
-
-# ANSI Normal (0-7)
-palette = 0=#1a241a
-palette = 1=#c43030
-palette = 2=#00b350
-palette = 3=#a0a830
-palette = 4=#3878a0
-palette = 5=#885a88
-palette = 6=#2a9888
-palette = 7=#80a880
-
-# ANSI Bright (8-15)
-palette = 8=#4a5e4a
-palette = 9=#ff4040
-palette = 10=#00ff41
-palette = 11=#ccff00
-palette = 12=#55a8d0
-palette = 13=#bb77bb
-palette = 14=#00e8a0
-palette = 15=#c0e8c0
-
-# Selection colors
-selection-background = #1a3a1e
-selection-foreground = #c0e8c0
+theme = TokyoNight Night
 
 # Send newline on Shift+Enter for Claude CLI
 keybind = shift+enter=text:\x1b\r

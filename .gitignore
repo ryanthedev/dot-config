@@ -42,4 +42,10 @@ claude/wrap/*
 !claude/wrap/replay-live.py
 !claude/wrap/testdata/
 !claude/wrap/testdata/**
+!herdr/
+herdr/*.log
+herdr/*.sock
+herdr/session.json
+herdr/session-history.json
+herdr/release-notes.json
 .damachine
