@@ -130,9 +130,9 @@ borders:
 layouts:
   - id: three-column
     name: "Three Column"
-    description: "Left (tabs), Notify (skinny), Right (tabs)"
+    description: "Three equal-width columns, each tabbed"
     grid:
-      columns: ["5fr", "1fr", "5fr"]
+      columns: ["1fr", "1fr", "1fr"]
       rows: ["1fr"]
     cells:
       - id: left
