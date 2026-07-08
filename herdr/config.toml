@@ -58,6 +58,14 @@ key = "prefix+shift+l"
 type = "pane"
 command = "lazygit"
 
+# Live ticking clock in a throwaway pane (prefix+shift+c). Pure-bash block-digit
+# clock — the statusline clock only refreshes on activity, so the real-time one
+# lives here. q or ctrl+c to close; herdr disposes the pane on exit.
+[[keys.command]]
+key = "prefix+shift+c"
+type = "pane"
+command = "/Users/r/.config/herdr/scripts/clock.sh"
+
 # Scrollback in floating nvim (editable/yankable) — clone of tmux `prefix v`.
 # Captures the source pane's ansi scrollback, opens it in nvim with baleia
 # colorizing, q to quit, G to bottom. prefix+shift+v (prefix+v is split-vertical).
