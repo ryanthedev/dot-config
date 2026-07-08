@@ -13,12 +13,15 @@
       "Bash(*)",
       "mcp__grug-brain__*",
       "mcp__plugin_grug-brain_grug-brain__*",
+      "mcp__plugin_engram_engram__*",
       "mcp__claude-mux__*",
       "mcp__thegrid__*",
       "mcp__claude_ai_Google_Drive__*",
       "mcp__plugin_penman_penman__*",
       "mcp__plugin_stripe_stripe__*",
-      "mcp__plugin_upublish_upublish__*"
+      "mcp__plugin_oberskills_skill-eval__*",
+      "mcp__plugin_oberskills_mcp-browser__*",
+      "mcp__craft__*"
     ],
     "deny": [
       "Bash(rm -rf *)",
@@ -93,13 +96,22 @@
     "ask": [
       "Bash(launchctl bootout*)",
       "Bash(launchctl bootstrap*)",
-      "Bash(pkill *)",
-      "mcp__plugin_upublish_upublish__publish",
-      "mcp__plugin_upublish_upublish__delete"
+      "Bash(pkill *)"
     ]
   },
-  "model": "claude-opus-4-6[1m]",
+  "model": "claude-opus-4-8[1m]",
   "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.local/share/thegrid/hooks/claude-answered.sh"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Write",
@@ -163,15 +175,33 @@
             "command": "~/.local/share/thegrid/hooks/claude-asking.sh"
           }
         ]
-      }
-    ],
-    "PostToolUse": [
+      },
       {
-        "matcher": "AskUserQuestion",
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "~/.local/share/thegrid/hooks/claude-answered.sh"
+            "command": "rtk hook claude"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/r/repos/baton/hooks/session-start.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/Users/r/.claude/hooks/herdr-agent-state.sh' session",
+            "timeout": 10
           }
         ]
       }
@@ -181,28 +211,28 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'CRITICAL: Before making any code changes, check the grug MCP and docs MCP for project conventions and constraints.'"
+            "command": "echo 'CRITICAL: Before making any code changes, check the engram MCP and docs MCP for project conventions and constraints.'"
           }
         ]
       }
     ]
   },
   "enabledPlugins": {
-    "svelte-foundations@/Users/r/repos/svelte-foundations.skill": true,
-    "pyright-lsp@claude-plugins-official": true,
-    "typescript-lsp@claude-plugins-official": true,
-    "swift-lsp@claude-plugins-official": true,
-    "security-guidance@claude-plugins-official": true,
     "ast-grep@ast-grep-marketplace": true,
+    "clangd-lsp@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true,
     "ruby-lsp@claude-plugins-official": true,
     "rust-analyzer-lsp@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
-    "upublish@omni-ping-upublish": true,
     "stripe@claude-plugins-official": true,
-    "clangd-lsp@claude-plugins-official": true
+    "svelte-foundations@/Users/r/repos/svelte-foundations.skill": true,
+    "swift-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "upublish@upublish.skill": true
   },
   "extraKnownMarketplaces": {
-    "omni-ping-upublish": {
+    "upublish.skill": {
       "source": {
         "source": "github",
         "repo": "omni-ping/upublish.skill"
@@ -210,11 +240,18 @@
     }
   },
   "alwaysThinkingEnabled": true,
+  "tui": "fullscreen",
   "autoMemoryEnabled": false,
   "skipDangerousModePermissionPrompt": true,
+  "skipWorkflowUsageWarning": true,
+  "theme": "dark",
   "editorMode": "vim",
   "autoCompactEnabled": false,
   "feedbackSurveyState": {
     "lastShownTime": 1754078816059
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "/Users/r/.config/claude/statusline.sh"
   }
 }
