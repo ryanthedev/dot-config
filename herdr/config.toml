@@ -10,6 +10,16 @@ name = "tokyo-night"
 [theme.custom]
 # Transparent panels so ghostty's #0d120d + 0.96 opacity shows through
 panel_bg = "reset"
+# Inactive/secondary rows (subtext0/overlay0/overlay1) left at theme defaults —
+# no more dimming; everything reads at full strength.
+# Selected/active row highlight bar. Verified by screenshot diagnostic: THIS slot
+# paints the sidebar selection bar (and section dividers) — not surface0/1 (tab
+# backgrounds). NOTE: herdr renders the row's normal multi-colored LIGHT text
+# (name white, state label orange/green/blue) on the selected row and exposes no
+# working font-color override (`selected_text` is silently ignored). So the bar
+# must stay DARK for that light text to read. Dark indigo: clearly elevated from
+# the near-black panel, still legible. `herdr server reload-config` after edits.
+surface_dim = "#34406b"
 
 [keys]
 # Same prefix as tmux (C-Space muscle memory).
@@ -35,6 +45,13 @@ last_pane = "prefix+backtick"
 open_worktree = "prefix+shift+o"
 remove_worktree = "prefix+shift+e"
 
+# Insta agent-switch — bare ctrl+1..9 jumps straight to an agent row, no prefix,
+# no typing, no goto-navigator "/" step. With agent_panel_sort = "priority"
+# (below) row 1 is always the agent most needing attention, row 2 the next, etc.
+# ctrl (not alt) so no macOS option-as-alt hack is needed.
+[keys.indexed]
+agents = "ctrl"
+
 # lazygit in a throwaway pane
 [[keys.command]]
 key = "prefix+shift+l"
@@ -50,8 +67,8 @@ type = "pane"
 command = "/Users/r/.config/herdr/scripts/scrollback-nvim.sh"
 
 [ui]
-# Tokyo Night blue accent (was bamboo #81af58 to match tmux/nvim)
-accent = "#7aa2f7"
+# Focus accent — Tokyo Night green so the focused pane border + active row pop
+accent = "#9ece6a"
 # Attention queue on top instead of grouping by space
 agent_panel_sort = "priority"
 # Label split panes with the detected agent
