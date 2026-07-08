@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Claude Code statusLine — renders one line beneath the input box:
 #
-#      Opus  ·   high  ·   12%
-#     model      effort     context used
+#      12:34  ·   Opus  ·   high  ·   12%
+#     time        model      effort     context used
 #
-# (The live clock lives in a dedicated herdr pane — scripts/clock.sh — because
-#  the statusLine only refreshes on conversation activity, not on a timer.)
+# NOTE: the clock only refreshes on conversation activity (keystroke / tool call /
+# response) — Claude Code re-runs this on message updates, not on a timer. So the
+# time is current whenever you're working, and can lag while the session is idle.
 #
 # Reads the session JSON on stdin (schema: code.claude.com/docs/en/statusline).
 # Fields Claude omits are skipped: effort.level is absent on non-reasoning models,
@@ -28,6 +29,7 @@ DIM="${esc}[38;2;86;95;137m"       # separators
 SEP=" ${DIM}\xc2\xb7${R} "         # " · "
 
 # Nerd-font glyphs as UTF-8 bytes (Font Awesome codepoints).
+CLOCK=$(printf '\xef\x80\x97')     # U+F017 clock (time)
 CHIP=$(printf '\xef\x8b\x9b')      # U+F2DB microchip (model)
 BOLT=$(printf '\xef\x83\xa7')      # U+F0E7 bolt (effort)
 GAUGE=$(printf '\xef\x83\xa4')     # U+F0E4 tachometer (context)
@@ -39,6 +41,7 @@ read -r model effort pct < <(printf '%s' "$input" | jq -r '
     (.context_window.used_percentage // "") ] | @tsv')
 
 parts=()
+parts+=("${GREEN}${CLOCK}${R} $(date '+%H:%M')")
 [ -n "$model" ]  && parts+=("${BLUE}${CHIP}${R} ${FG}${model}${R}")
 [ -n "$effort" ] && parts+=("${PEACH}${BOLT}${R} ${FG}${effort}${R}")
 if [ -n "$pct" ]; then
