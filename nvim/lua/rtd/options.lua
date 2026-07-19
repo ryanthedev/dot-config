@@ -11,7 +11,10 @@ opt.expandtab = true -- expand tab to spaces
 opt.autoindent = true -- copy indent from current line when starting new one
 
 -- line wrapping
-opt.wrap = false -- disable line wrapping
+opt.wrap = false -- off by default; wrapping.nvim turns it on for prose filetypes (markdown, tex, ...)
+opt.linebreak = true -- when wrap is on, break at word boundaries instead of mid-word
+opt.breakindent = true -- wrapped lines keep the indent of their start (list items stay aligned)
+opt.showbreak = "↪ " -- marker shown at the start of each wrapped continuation line
 
 -- search settings
 opt.ignorecase = true -- ignore case when searching
