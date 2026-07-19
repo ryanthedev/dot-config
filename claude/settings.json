@@ -175,15 +175,6 @@
             "command": "~/.local/share/thegrid/hooks/claude-asking.sh"
           }
         ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "rtk hook claude"
-          }
-        ]
       }
     ],
     "SessionStart": [

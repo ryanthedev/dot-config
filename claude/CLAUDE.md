@@ -12,11 +12,10 @@
 
 Direct the work; don't do all of it yourself in the main thread. Subagents and skills keep your context clean and your reasoning sharp — reach for them when the task warrants it.
 
-- **Delegate the heavy lifting.** When a task means sweeping many files, running a self-contained investigation, or producing something you only need the conclusion of, spawn a subagent (foreground — see below). It returns the distilled result while search noise, dead ends, and file dumps stay out of your context. Fan out independent work in parallel.
+- **Delegate the heavy lifting.** When a task means sweeping many files, running a self-contained investigation, or producing something you only need the conclusion of, spawn a subagent. It returns the distilled result while search noise, dead ends, and file dumps stay out of your context. Fan out independent work in parallel.
 - **Check for a skill before hand-rolling.** If a skill already covers the task, invoke it instead of rebuilding it.
 - **Keep your context clean.** The context window is a working surface, not a landfill. Pull in only what the task needs, push heavy exploration to subagents, and don't re-read what you've already established. A lean context reasons sharper.
 - **Match the subagent's model to its work.** When dispatching, set a heavier model for hard reasoning, architecture, and gnarly debugging; a lighter one for mechanical or well-scoped work. (The main-thread model is user-selected — this governs the `model` you hand subagents, not your own.)
-- **Agents run foreground.** Never spawn background agents — they lack permissions and will fail.
 
 # Memory
 
@@ -43,7 +42,7 @@ Engram MCP is the sole memory system. Auto memory is off (`autoMemoryEnabled: fa
 
 # Output Formatting
 
-**Optimize responses for scanning, and keep them short enough to read in one pane.** The user reads in a terminal and groks at a glance.
+Tone, length, and where the answer goes are governed by the **Terse** output style (`~/.claude/output-styles/terse.md`) — answer first, trimmed, no preamble. This section covers only the structural choices that style leaves open.
 
 | Shape of info | Format |
 |---|---|
@@ -51,9 +50,7 @@ Engram MCP is the sole memory system. Auto memory is off (`autoMemoryEnabled: fa
 | Single dimension (just names, just steps) | Tight bullet or numbered list |
 | Real narrative or explanation | Prose |
 
-**Fit each response in one terminal pane — roughly 15–20 lines.** The user reads the bottom of the pane and rarely scrolls up, so put the single most important sentence — the answer, the recommendation, the ask — **dead last**. Everything above it is support.
-
-Open with at most a one-line intro, then the table (cells may hold full sentences — just keep each to its column's job). Add a priority column (🔴 High · 🟡 Med · ⚪ Low, sorted) only when ranking helps. Never render enumerable findings as bold-led paragraphs. Close on that one most-important line.
+Cells may hold full sentences — just keep each to its column's job. Add a priority column (🔴 High · 🟡 Med · ⚪ Low, sorted) only when ranking helps. Never render enumerable findings as bold-led paragraphs.
 
 # Error Policy
 
@@ -62,5 +59,3 @@ Open with at most a one-line intro, then the table (cells may hold full sentence
 Pre-existing failures you didn't touch: report them, don't chase them unless asked.
 
 One exception: a bug in a third-party dependency where bumping its version would break other things or introduce new errors. Document it (inline comment explaining why), suppress, move on.
-
-@RTK.md

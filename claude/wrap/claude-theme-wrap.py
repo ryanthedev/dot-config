@@ -1736,14 +1736,33 @@ _REPAIR_OFF_VALUES = frozenset({"0", "off", "false", "no"})
 REPAIR_DEBUG_LOG = "/tmp/claude-theme-wrap-repair.log"
 
 
+def in_herdr() -> bool:
+    """True when running inside a herdr-managed pane. herdr exports a per-pane
+    HERDR_PANE_ID (e.g. "w3:p1") into every pane it spawns; its presence is the
+    unambiguous signal (HERDR_ENV=1 is the sibling flag). Env is external input
+    (cc-defensive-programming) — read only as a boolean gate, never parsed for
+    structure, so a malformed value can at worst mis-gate, never crash. Cheap;
+    only consulted at startup by set_pane_title() and repair_enabled()."""
+    return bool(os.environ.get("HERDR_PANE_ID", "").strip())
+
+
 def repair_enabled() -> bool:
     """DEFAULT-ON. The Insulator now re-places the real cursor at claude's tracked
     cursor after each batch, so typed spaces (and all input) track correctly — the
     interactive regression that forced a temporary opt-in revert is fixed and
-    locked by a real-tmux cursor-position test (test-cursor.py). Unset / empty /
-    any non-off value -> True; only 0/off/false/no -> False. Read once at startup."""
+    locked by a real-tmux cursor-position test (test-cursor.py).
+
+    Precedence: an EXPLICIT CLAUDE_WRAP_REPAIR always wins (any non-off value ->
+    True; 0/off/false/no -> False). When UNSET, default ON everywhere EXCEPT inside
+    a herdr pane, where it defaults OFF (Phase 1): the Insulator's absolute-CUP
+    re-render is not yet proven to preserve the OSC-2 title and screen regions herdr
+    scrapes to derive claude's agent state, so an unproven re-render would blank the
+    agent panel. Set CLAUDE_WRAP_REPAIR=on to force the Insulator on under herdr for
+    Phase-2 transparency testing. Read once at startup."""
     val = os.environ.get("CLAUDE_WRAP_REPAIR", "").strip().lower()
-    return val not in _REPAIR_OFF_VALUES
+    if val:                       # explicit opt-in / opt-out always wins
+        return val not in _REPAIR_OFF_VALUES
+    return not in_herdr()         # unset: default ON, but OFF inside herdr
 
 
 class RepairState:
@@ -1892,6 +1911,13 @@ def write_all(fd: int, data: bytes) -> None:
         mv = mv[n:]
 
 def set_pane_title() -> None:
+    # Inside herdr, leave the title alone. herdr derives claude's live working/
+    # idle agent state from the OSC-2 title (Braille spinner = working, ✳ = idle);
+    # a static "🤖 <ver>" here — and worse, the `tmux rename-window` manual-rename
+    # pin below — defeat those osc_title rules and blank the agent panel. Let claude
+    # own its title under herdr (Phase 1: keep the herdr-visible stream == raw claude).
+    if in_herdr():
+        return
     # OSC 2 sets tmux pane title (and iTerm/kitty window title). Independent
     # of `allow-rename`, which only gates the legacy \ek...\e\\ sequence.
     # Default to bare "claude" so we still win over "python" even if the

@@ -2,12 +2,6 @@ pipe_path: ~/.local/state/thegrid/notify.pipe
 pipe_source_label: pipe
 max_count: 200
 
-tmux:
-  enabled: true
-  interval: 60
-  repo_dir: /Users/r/repos/theGrid
-  model: claude-haiku-4-5
-
 animations:
   default:
     idle: [marquee_title, spinner, breathing, fade_to_ghost]
