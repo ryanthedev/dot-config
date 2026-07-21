@@ -17,6 +17,15 @@ Direct the work; don't do all of it yourself in the main thread. Subagents and s
 - **Keep your context clean.** The context window is a working surface, not a landfill. Pull in only what the task needs, push heavy exploration to subagents, and don't re-read what you've already established. A lean context reasons sharper.
 - **Match the subagent's model to its work.** When dispatching, set a heavier model for hard reasoning, architecture, and gnarly debugging; a lighter one for mechanical or well-scoped work. (The main-thread model is user-selected — this governs the `model` you hand subagents, not your own.)
 
+# Effort & Time Estimates
+
+Estimate in **agent active-time, not human-calendar time.** Anchoring on training-data human durations ("a 2-day refactor") is the wrong unit — and per-task minute predictions aren't reliable, so give a band or a relative ranking, never false precision.
+
+- **The unit.** A single well-scoped ask ≈ **5–9 active-min / 5–15 tool calls**, regardless of task type. Sessions balloon with **turn count**, not task "type."
+- **Rank by agent effort.** When weighing two approaches, rank by tool round-trips + tool latency, not by how long a human team would take.
+- **Condition on repo, not phrasing.** Which repo predicts effort (weakly but really); the task-type you infer from wording predicts nothing.
+- **Base rates:** `~/.claude/reference/effort-calibration.md` — read it when you need the per-repo/per-turn numbers.
+
 # Memory
 
 Engram MCP is the sole memory system. Auto memory is off (`autoMemoryEnabled: false` in settings.json). Engram is **append-only with async extraction**: you ingest raw events, and the server extracts and reconciles them into episodic + semantic tiers on its own schedule. There is no read-a-path, no delete, no update — you only search and ingest.

@@ -42,6 +42,8 @@ claude/wrap/*
 !claude/wrap/replay-live.py
 !claude/wrap/testdata/
 !claude/wrap/testdata/**
+claude/reference/effort-calibration-study/*.csv
+claude/reference/effort-calibration-study/*.json
 !herdr/
 herdr/*.log
 herdr/*.sock
