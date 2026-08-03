@@ -64,7 +64,7 @@ command = "lazygit"
 [[keys.command]]
 key = "prefix+shift+c"
 type = "pane"
-command = "/Users/r/.config/herdr/scripts/clock.sh"
+command = "~/.config/herdr/scripts/clock.sh"
 
 # Scrollback in floating nvim (editable/yankable) — clone of tmux `prefix v`.
 # Captures the source pane's ansi scrollback, opens it in nvim with baleia
