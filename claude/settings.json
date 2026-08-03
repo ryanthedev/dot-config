@@ -1,7 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "env": {
-    "USE_BUILTIN_RIPGREP": "0"
+    "USE_BUILTIN_RIPGREP": "0",
+    "CLAUDE_CODE_NO_FLICKER": "1"
   },
   "permissions": {
     "allow": [
@@ -21,7 +22,13 @@
       "mcp__plugin_stripe_stripe__*",
       "mcp__plugin_oberskills_skill-eval__*",
       "mcp__plugin_oberskills_mcp-browser__*",
-      "mcp__craft__*"
+      "mcp__craft__*",
+      "mcp__plugin_upublish_upublish__*",
+      "mcp__plugin_claude-mux_tmux__*",
+      "mcp__plugin_ado_ado__*",
+      "mcp__plugin_sabre_sabre__*",
+      "mcp__plugin_sumo_sumo__*",
+      "mcp__tmux__*"
     ],
     "deny": [
       "Bash(rm -rf *)",
@@ -182,7 +189,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/r/repos/baton/hooks/session-start.sh"
+            "command": "~/repos/baton/hooks/session-start.sh"
           }
         ]
       },
@@ -191,7 +198,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash '/Users/r/.claude/hooks/herdr-agent-state.sh' session",
+            "command": "bash ~/.claude/hooks/herdr-agent-state.sh session",
             "timeout": 10
           }
         ]
@@ -202,7 +209,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'CRITICAL: Before making any code changes, check the engram MCP and docs MCP for project conventions and constraints.'"
+            "command": "echo 'CRITICAL: Before making any code changes, check the grug MCP and docs MCP for project conventions and constraints.'"
           }
         ]
       }
@@ -243,6 +250,6 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "/Users/r/.config/claude/statusline.sh"
+    "command": "~/.config/claude/statusline.sh"
   }
 }
