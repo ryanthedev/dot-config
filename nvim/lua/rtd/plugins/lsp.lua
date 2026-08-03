@@ -47,6 +47,8 @@ return {
 	},
 	{
 		"j-hui/fidget.nvim",
+		-- LSP progress UI — nothing to render until a server attaches.
+		event = "LspAttach",
 		config = function()
 			require("fidget").setup()
 		end,
@@ -73,16 +75,26 @@ return {
     },
     config = function(_, opts)
       require("mason").setup(opts)
-      local ensure = { "roslyn", "prettier" }
-      local mr = require("mason-registry")
-      mr.refresh(function()
-        for _, name in ipairs(ensure) do
-          local pkg = mr.get_package(name)
-          if not pkg:is_installed() then
-            pkg:install()
-          end
-        end
-      end)
+      -- Deferred to VeryLazy: mason-registry pulls in its GitHub source module
+      -- and hits the network, neither of which belongs on the startup path.
+      -- Mason itself still loads eagerly so its bin/ is on PATH before any
+      -- server (or conform's prettier) is resolved.
+      vim.api.nvim_create_autocmd("User", {
+        pattern = "VeryLazy",
+        once = true,
+        callback = function()
+          local ensure = { "roslyn", "prettier" }
+          local mr = require("mason-registry")
+          mr.refresh(function()
+            for _, name in ipairs(ensure) do
+              local ok, pkg = pcall(mr.get_package, name)
+              if ok and not pkg:is_installed() then
+                pkg:install()
+              end
+            end
+          end)
+        end,
+      })
     end,
 	},
 	-- Autocompletion
