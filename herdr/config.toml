@@ -72,7 +72,7 @@ command = "/Users/r/.config/herdr/scripts/clock.sh"
 [[keys.command]]
 key = "prefix+shift+v"
 type = "pane"
-command = "/Users/r/.config/herdr/scripts/scrollback-nvim.sh"
+command = "~/.config/herdr/scripts/scrollback-nvim.sh"
 
 [ui]
 # Focus accent — Tokyo Night green so the focused pane border + active row pop
