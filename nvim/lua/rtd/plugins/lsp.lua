@@ -73,7 +73,7 @@ return {
     },
     config = function(_, opts)
       require("mason").setup(opts)
-      local ensure = { "roslyn" }
+      local ensure = { "roslyn", "prettier" }
       local mr = require("mason-registry")
       mr.refresh(function()
         for _, name in ipairs(ensure) do
@@ -166,53 +166,91 @@ return {
 		dependencies = {
 			{ "hrsh7th/cmp-nvim-lsp" },
 			{ "williamboman/mason-lspconfig.nvim" },
+			{ "b0o/SchemaStore.nvim" },
 		},
 		config = function()
-			local lsp_zero = require("lsp-zero")
-			lsp_zero.extend_lspconfig()
+			-- Keymaps are bound from an LspAttach autocmd rather than a per-server
+			-- on_attach: mason-lspconfig v2 starts servers via vim.lsp.enable(), so
+			-- lspconfig's setup() hooks (and lsp-zero's on_attach) never fire for them.
+			vim.api.nvim_create_autocmd("LspAttach", {
+				callback = function(event)
+					local client = vim.lsp.get_client_by_id(event.data.client_id)
+					on_lsp_attach(client, event.buf)
+				end,
+			})
 
-			lsp_zero.on_attach(function(client, bufnr)
-				on_lsp_attach(client, bufnr)
-			end)
-			lsp_zero.set_server_config({
-				capabilities = {
+			local lsp_capabilities = vim.tbl_deep_extend(
+				"force",
+				require("cmp_nvim_lsp").default_capabilities(),
+				{
 					textDocument = {
 						foldingRange = {
 							dynamicRegistration = false,
 							lineFoldingOnly = true,
 						},
 					},
+				}
+			)
+
+			-- Applies to every server, including those auto-enabled by mason-lspconfig
+			vim.lsp.config("*", { capabilities = lsp_capabilities })
+
+			require("mason-lspconfig").setup({
+				ensure_installed = { "vtsls", "eslint", "jsonls", "yamlls" },
+			})
+
+			vim.lsp.config("helm_ls", {
+				settings = {
+					["helm-ls"] = {
+						yamlls = {
+							path = "yaml-language-server",
+						},
+					},
 				},
 			})
 
-			local lsp_capabilities = require("cmp_nvim_lsp").default_capabilities()
+			vim.lsp.config("vtsls", {
+				settings = {
+					typescript = {
+						updateImportsOnFileMove = { enabled = "always" },
+						suggest = { completeFunctionCalls = true },
+						inlayHints = {
+							parameterNames = { enabled = "literals" },
+							parameterTypes = { enabled = true },
+							variableTypes = { enabled = true },
+							propertyDeclarationTypes = { enabled = true },
+							functionLikeReturnTypes = { enabled = true },
+						},
+					},
+					javascript = {
+						updateImportsOnFileMove = { enabled = "always" },
+						inlayHints = {
+							parameterNames = { enabled = "literals" },
+							variableTypes = { enabled = true },
+						},
+					},
+				},
+			})
 
-			require("mason-lspconfig").setup({
-				ensure_installed = {},
-				handlers = {
-					lsp_zero.default_setup,
-					helm_ls = function()
-						require("lspconfig").helm_ls.setup({
-							capabilities = lsp_capabilities,
-							settings = {
-								["helm-ls"] = {
-									yamlls = {
-										path = "yaml-language-server",
-									},
-								},
-							},
-						})
-					end,
+			vim.lsp.config("jsonls", {
+				settings = {
+					json = {
+						schemas = require("schemastore").json.schemas(),
+						validate = { enable = true },
+					},
+				},
+			})
+
+			vim.lsp.config("yamlls", {
+				settings = {
+					yaml = {
+						schemaStore = { enable = false, url = "" },
+						schemas = require("schemastore").yaml.schemas(),
+					},
 				},
 			})
 
 			-- Swift: sourcekit-lsp (bundled with Xcode, not managed by Mason)
-			vim.lsp.config("sourcekit", {
-				capabilities = lsp_capabilities,
-				on_attach = function(client, bufnr)
-					on_lsp_attach(client, bufnr)
-				end,
-			})
 			vim.lsp.enable("sourcekit")
 		end,
 	},
