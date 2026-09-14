@@ -13,15 +13,14 @@
       "Bash(*)",
       "mcp__grug-brain__*",
       "mcp__plugin_grug-brain_grug-brain__*",
-      "mcp__plugin_engram_engram__*",
       "mcp__claude-mux__*",
-      "mcp__thegrid__*",
-      "mcp__claude_ai_Google_Drive__*",
+      "mcp__plugin_claude-mux_tmux__*",
       "mcp__plugin_penman_penman__*",
-      "mcp__plugin_stripe_stripe__*",
-      "mcp__plugin_oberskills_skill-eval__*",
+      "mcp__jjira__*",
+      "mcp__plugin_janky-jira_jjira__*",
+      "mcp__plugin_herderp_derp__*",
       "mcp__plugin_oberskills_mcp-browser__*",
-      "mcp__craft__*"
+      "mcp__plugin_oberskills_skill-eval__*"
     ],
     "deny": [
       "Bash(rm -rf *)",
@@ -56,11 +55,13 @@
       "Bash(git rebase * --exec*)",
       "Bash(kill -9 *)",
       "Bash(killall *)",
+      "Bash(pkill *)",
       "Bash(sudo kill*)",
       "Bash(shutdown*)",
       "Bash(reboot*)",
       "Bash(halt*)",
       "Bash(launchctl unload*)",
+      "Bash(launchctl bootout*)",
       "Bash(npm publish*)",
       "Bash(npx npm publish*)",
       "Bash(yarn publish*)",
@@ -99,7 +100,7 @@
       "Bash(pkill *)"
     ]
   },
-  "model": "claude-opus-4-8[1m]",
+  "model": "opus[1m]",
   "hooks": {
     "PostToolUse": [
       {
@@ -107,142 +108,87 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.local/share/thegrid/hooks/claude-answered.sh"
+            "command": "tmux set-option -pu @claude-waiting 2>/dev/null; true"
           }
         ]
       }
     ],
     "PreToolUse": [
       {
-        "matcher": "Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/memory-redirect.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Read",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/memory-read-augment.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/memory-edit-block.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Glob",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/memory-glob-block.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "mcp__grug-brain__grug-write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"REMINDER: Use oberskills:write skill to humanize this content before writing to grug brain. If you have not already done so, stop and run the content through ober write first.\"}}'"
-          }
-        ]
-      },
-      {
-        "matcher": "Grep",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/memory-grep-block.sh"
-          }
-        ]
-      },
-      {
         "matcher": "AskUserQuestion",
         "hooks": [
           {
             "type": "command",
-            "command": "~/.local/share/thegrid/hooks/claude-asking.sh"
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/Users/r/repos/baton/hooks/session-start.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash '/Users/r/.claude/hooks/herdr-agent-state.sh' session",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo 'CRITICAL: Before making any code changes, check the engram MCP and docs MCP for project conventions and constraints.'"
+            "command": "tmux set-option -p @claude-waiting 1 2>/dev/null; true"
           }
         ]
       }
     ]
   },
-  "enabledPlugins": {
-    "ast-grep@ast-grep-marketplace": true,
-    "clangd-lsp@claude-plugins-official": true,
-    "pyright-lsp@claude-plugins-official": true,
-    "ruby-lsp@claude-plugins-official": true,
-    "rust-analyzer-lsp@claude-plugins-official": true,
-    "security-guidance@claude-plugins-official": true,
-    "skill-creator@claude-plugins-official": true,
-    "stripe@claude-plugins-official": true,
-    "svelte-foundations@/Users/r/repos/svelte-foundations.skill": true,
-    "swift-lsp@claude-plugins-official": true,
-    "typescript-lsp@claude-plugins-official": true,
-    "upublish@upublish.skill": true
+  "statusLine": {
+    "type": "command",
+    "command": "/Users/RHayden/.config/claude/statusline.sh"
   },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "swift-lsp@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "grug-brain@rtd": true,
+    "claude-mux@rtd": true,
+    "oberskills@rtd": true,
+    "penman@rtd": true,
+    "code-foundations@rtd": true,
+    "slack@claude-plugins-official": true,
+    "design-for-ai@rtd": true,
+    "herderp@rtd": true,
+    "what@rtd": true
+  },
+  "alwaysThinkingEnabled": true,
+  "effortLevel": "medium",
+  "modelSettings": {
+    "claude-fable-5-1": {
+      "effortLevel": "low"
+    },
+    "claude-sonnet-5": {
+      "effortLevel": "high"
+    },
+    "claude-opus-5": {
+      "effortLevel": "medium"
+    }
+  },
+  "advisorModel": "fable",
+  "autoMemoryEnabled": false,
+  "skipDangerousModePermissionPrompt": true,
+  "skipWorkflowUsageWarning": true,
+  "editorMode": "vim",
+  "preferredNotifChannel": "terminal_bell",
+  "feedbackSurveyState": {
+    "lastShownTime": 1754078816059
+  },
+  "autoCompactEnabled": false,
+  "theme": "dark",
+  "tui": "fullscreen",
+  "outputStyle": "Terse",
   "extraKnownMarketplaces": {
     "upublish.skill": {
       "source": {
         "source": "github",
         "repo": "omni-ping/upublish.skill"
       }
+    },
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    },
+    "rtd": {
+      "source": {
+        "source": "github",
+        "repo": "ryanthedev/rtd-claude-inn"
+      }
     }
-  },
-  "alwaysThinkingEnabled": true,
-  "tui": "fullscreen",
-  "autoMemoryEnabled": false,
-  "skipDangerousModePermissionPrompt": true,
-  "skipWorkflowUsageWarning": true,
-  "theme": "dark",
-  "editorMode": "vim",
-  "autoCompactEnabled": false,
-  "feedbackSurveyState": {
-    "lastShownTime": 1754078816059
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "/Users/r/.config/claude/statusline.sh"
   }
 }

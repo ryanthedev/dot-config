@@ -397,21 +397,6 @@ setup_claude() {
 
     local repo_path="${SKILLS_REPO/#\~/$HOME}"
 
-    # Check if skills repo exists
-    if [[ ! -d "$repo_path" ]]; then
-        warn "  Skills repo not found at: $repo_path"
-        warn "  Skipping Claude skills setup"
-        return
-    fi
-
-    # Pull latest
-    info "  Pulling latest from skills repo..."
-    if git -C "$repo_path" pull --quiet 2>/dev/null; then
-        info "  Updated skills repo"
-    else
-        warn "  Could not pull skills repo (offline or not a git repo)"
-    fi
-
     # Create directories
     mkdir -p "$HOME/.claude/skills"
     mkdir -p "$HOME/.claude/commands"
@@ -422,7 +407,26 @@ setup_claude() {
         info "  Linked global CLAUDE.md"
     fi
 
-    # Merge hooks from dotfiles settings.json into user settings
+    # Symlink output styles and reference docs from dotfiles
+    for dir_name in output-styles reference; do
+        if [[ -d "$CONFIG_DIR/claude/$dir_name" ]]; then
+            # A previous run may have left a real directory here; replace it.
+            [[ -d "$HOME/.claude/$dir_name" && ! -L "$HOME/.claude/$dir_name" ]] \
+                && mv "$HOME/.claude/$dir_name" "$HOME/.claude/$dir_name.bak.$(date +%s)"
+            ln -sfn "$CONFIG_DIR/claude/$dir_name" "$HOME/.claude/$dir_name"
+            info "  Linked $dir_name"
+        fi
+    done
+
+    # Merge dotfiles settings.json into user settings.
+    #
+    # The repo copy is the source of truth for every key it declares — not just
+    # hooks and permissions. Merging only those two is what let statusLine,
+    # editorMode and the rest silently vanish on a fresh machine.
+    #
+    # Keys only the live file has are preserved (Claude Code writes runtime
+    # state there), and the two registry maps are unioned so plugins or
+    # marketplaces added through the UI survive a bootstrap.
     if [[ -f "$CONFIG_DIR/claude/settings.json" ]]; then
         python3 - << 'PYEOF'
 import json
@@ -431,29 +435,47 @@ from pathlib import Path
 dotfiles_settings = Path.home() / ".config/claude/settings.json"
 user_settings = Path.home() / ".claude/settings.json"
 
-# Load dotfiles settings (source of hooks)
 with open(dotfiles_settings) as f:
-    hooks_config = json.load(f)
+    repo_config = json.load(f)
 
-# Load or create user settings
 if user_settings.exists():
     with open(user_settings) as f:
         user_config = json.load(f)
 else:
     user_config = {"$schema": "https://json.schemastore.org/claude-code-settings.json"}
 
-# Merge hooks and permissions from dotfiles into user settings
-if "hooks" in hooks_config:
-    user_config["hooks"] = hooks_config["hooks"]
-if "permissions" in hooks_config:
-    user_config["permissions"] = hooks_config["permissions"]
+UNION_KEYS = ("enabledPlugins", "extraKnownMarketplaces")
 
-# Write back
+for key, value in repo_config.items():
+    if key in UNION_KEYS and isinstance(user_config.get(key), dict):
+        merged = dict(user_config[key])
+        merged.update(value)
+        user_config[key] = merged
+    else:
+        user_config[key] = value
+
 with open(user_settings, "w") as f:
     json.dump(user_config, f, indent=2)
     f.write("\n")
 PYEOF
-        info "  Merged hooks and permissions into settings.json"
+        info "  Merged dotfiles settings into settings.json"
+    fi
+
+    # The skills repo is optional. Everything above (CLAUDE.md symlink, settings
+    # merge) must run regardless — bailing out here used to skip it, which let
+    # ~/.claude/CLAUDE.md stay a regular file and silently drift from the repo.
+    if [[ ! -d "$repo_path" ]]; then
+        warn "  Skills repo not found at: $repo_path"
+        warn "  Skipping skill symlinks (CLAUDE.md + settings were still linked)"
+        return
+    fi
+
+    # Pull latest
+    info "  Pulling latest from skills repo..."
+    if git -C "$repo_path" pull --quiet 2>/dev/null; then
+        info "  Updated skills repo"
+    else
+        warn "  Could not pull skills repo (offline or not a git repo)"
     fi
 
     # Symlink all skills
