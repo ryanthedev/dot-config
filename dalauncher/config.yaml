@@ -27,7 +27,7 @@ actions:
 
 # theGrid integration for window management
 thegrid:
-  path: /Users/r/repos/theGrid/grid-cli/bin/thegrid
+  path: /Users/RHayden/repos/theGrid/grid-cli/bin/thegrid
   window:
     width: 600
     height: 400

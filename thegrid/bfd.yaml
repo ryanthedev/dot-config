@@ -70,7 +70,7 @@ hotkeys:
   cmd-2: "@layout apply two-column"
   cmd-3: "@layout apply three-column"
   cmd-4: "@layout apply four-column"
-  cmd-9: rm /Users/r/.local/state/thegrid/thegrid*
+  cmd-9: rm /Users/RHayden/.local/state/thegrid/thegrid*
   alt-a: "@layout refresh"
   alt-s: "@cell mode"
 
