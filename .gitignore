@@ -54,3 +54,5 @@ herdr/.plugins.lock
 .damachine
 !fonts/
 fonts/berkeley/src/
+__pycache__/
+*.bak-*
