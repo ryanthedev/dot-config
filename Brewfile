@@ -27,8 +27,6 @@ brew "gh"
 brew "go"
 # Kubernetes package manager
 brew "helm"
-# Agent multiplexer that lives in your terminal
-brew "herdr", restart_service: :changed
 # Run and Test HTTP Requests with plain text and curl
 brew "hurl"
 # Lightweight and flexible command-line JSON processor
