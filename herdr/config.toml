@@ -91,3 +91,10 @@ delivery = "system"
 [experimental]
 # Keep pane screen history across full server restarts
 pane_history = true
+
+# Pass the kitty graphics protocol through to the outer terminal (Ghostty).
+# Off by default, which is why inline images silently showed nothing — herdr
+# swallows the APC sequences unless this is on. NOTE: a pane's embedded
+# terminal only calls enable_kitty_graphics() at spawn time, so flipping this
+# does NOT retrofit already-running panes — open a NEW pane to get images.
+kitty_graphics = true
