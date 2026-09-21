@@ -108,91 +108,7 @@
   },
   "model": "claude-opus-4-8[1m]",
   "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "AskUserQuestion",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.local/share/thegrid/hooks/claude-answered.sh"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/memory-redirect.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Read",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/memory-read-augment.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/memory-edit-block.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Glob",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/memory-glob-block.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "mcp__grug-brain__grug-write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"REMINDER: Use oberskills:write skill to humanize this content before writing to grug brain. If you have not already done so, stop and run the content through ober write first.\"}}'"
-          }
-        ]
-      },
-      {
-        "matcher": "Grep",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/memory-grep-block.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "AskUserQuestion",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.local/share/thegrid/hooks/claude-asking.sh"
-          }
-        ]
-      }
-    ],
     "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/repos/baton/hooks/session-start.sh"
-          }
-        ]
-      },
       {
         "matcher": "*",
         "hooks": [
@@ -200,16 +116,6 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/herdr-agent-state.sh session",
             "timeout": 10
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo 'CRITICAL: Before making any code changes, check the grug MCP and docs MCP for project conventions and constraints.'"
           }
         ]
       }
