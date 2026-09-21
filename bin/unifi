@@ -1,0 +1,278 @@
+#!/usr/bin/env python3
+"""
+unifi - CLI for the UniFi Network controller on the local gateway (UDR7).
+
+Auth: local admin credentials from the macOS Keychain (service "unifi-admin",
+account = username). Nothing is read from env vars or files, so no secret can
+land in this repo.  Store/rotate with:
+    security add-generic-password -a admin -s unifi-admin -U -w
+
+  unifi sites                          sites on the controller
+  unifi devices                        adopted UniFi devices (short table)
+  unifi clients [--all] [--json]       active clients (or every known client)
+  unifi client <mac|name|hostname|ip>  full record(s) for one client
+  unifi networks                       networks with subnet + DHCP range
+  unifi fixed-ip <client> <ip>         reserve <ip> for a client (DHCP reservation)
+  unifi fixed-ip <client> --clear      remove the reservation
+  unifi name <client> <name>           set the client's display name
+  unifi get|post|put|delete <path> [json|-]
+        raw call under /proxy/network/api/s/<site>/ (e.g. rest/user, stat/sta, stat/device)
+        add --v2 for /proxy/network/v2/api/site/<site>/ (apgroups, firewall-policies, ...)
+
+The session cookie is cached (0600) under ~/.cache/unifi/ so repeated calls
+don't trip the gateway's login rate limit; it re-logs-in on 401.
+
+Env: UNIFI_HOST (default 192.168.1.1), UNIFI_SITE (default "default"),
+     UNIFI_KEYCHAIN_SERVICE (default unifi-admin), UNIFI_DEBUG=1.
+"""
+import argparse
+import http.cookiejar
+import json
+import time
+import os
+import pathlib
+import ssl
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+
+HOST = os.environ.get("UNIFI_HOST", "192.168.1.1")
+SITE = os.environ.get("UNIFI_SITE", "default")
+SERVICE = os.environ.get("UNIFI_KEYCHAIN_SERVICE", "unifi-admin")
+DEBUG = os.environ.get("UNIFI_DEBUG", "").lower() in ("1", "true", "yes")
+BASE = f"https://{HOST}"
+CACHE = pathlib.Path(os.environ.get("XDG_CACHE_HOME", pathlib.Path.home() / ".cache")) / "unifi" / f"session-{HOST}.json"
+
+
+def debug(msg):
+    if DEBUG:
+        print(f"[unifi] {msg}", file=sys.stderr)
+
+
+def die(msg, code=1):
+    print(f"unifi: {msg}", file=sys.stderr)
+    sys.exit(code)
+
+
+def credentials():
+    """(username, password) from Keychain. The account field holds the username."""
+    r = subprocess.run(["security", "find-generic-password", "-s", SERVICE],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        die(f"no Keychain item for service {SERVICE!r}.\n"
+            f'  security add-generic-password -a <username> -s {SERVICE} -U -w')
+    user = None
+    for line in r.stdout.splitlines():
+        line = line.strip()
+        if line.startswith('"acct"<blob>='):
+            user = line.split("=", 1)[1].strip().strip('"')
+    pw = subprocess.run(["security", "find-generic-password", "-s", SERVICE, "-w"],
+                        capture_output=True, text=True).stdout.strip()
+    if not user or not pw:
+        die(f"Keychain item {SERVICE!r} is missing the account (username) or password")
+    return user, pw
+
+
+class Controller:
+    def __init__(self):
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE  # gateway serves a self-signed cert
+        self.jar = http.cookiejar.CookieJar()
+        self.opener = urllib.request.build_opener(
+            urllib.request.HTTPSHandler(context=ctx),
+            urllib.request.HTTPCookieProcessor(self.jar))
+        self.csrf = None
+        self.token = None
+        if not self._load_session():
+            self._login()
+
+    def _call(self, method, url, body=None, headers=None):
+        data = None
+        h = {"Accept": "application/json"}
+        if headers:
+            h.update(headers)
+        if self.csrf:
+            h["X-CSRF-Token"] = self.csrf
+        if self.token:
+            h["Cookie"] = f"TOKEN={self.token}"
+        if body is not None:
+            data = json.dumps(body).encode()
+            h["Content-Type"] = "application/json"
+        debug(f"{method} {url}")
+        req = urllib.request.Request(url, data=data, method=method, headers=h)
+        try:
+            with self.opener.open(req, timeout=20) as resp:
+                tok = resp.headers.get("X-CSRF-Token") or resp.headers.get("X-Updated-Csrf-Token")
+                if tok:
+                    self.csrf = tok
+                text = resp.read().decode()
+        except urllib.error.HTTPError as e:
+            text = e.read().decode(errors="replace")
+            if e.code == 401 and not url.endswith("/api/auth/login") and not getattr(self, "_relogin", False):
+                debug("session expired; logging in again")
+                self._relogin = True
+                self._login()
+                return self._call(method, url, body, headers)
+            if e.code == 429:
+                die("the gateway is rate-limiting logins (HTTP 429). Wait a few minutes; "
+                    "the cached session in " + str(CACHE) + " avoids this once one login succeeds.")
+            die(f"HTTP {e.code} {method} {url.replace(BASE, '')}\n{text[:800]}")
+        except urllib.error.URLError as e:
+            die(f"cannot reach {HOST}: {e.reason}")
+        return json.loads(text) if text else None
+
+    def _login(self):
+        user, pw = credentials()
+        self.token = None
+        self._call("POST", f"{BASE}/api/auth/login",
+                   {"username": user, "password": pw, "rememberMe": True})
+        for ck in self.jar:
+            if ck.name == "TOKEN":
+                self.token = ck.value
+        if not self.csrf or not self.token:
+            die("login succeeded but no CSRF token / session cookie was returned")
+        self._save_session()
+
+    def _load_session(self):
+        try:
+            d = json.loads(CACHE.read_text())
+        except (OSError, ValueError):
+            return False
+        if d.get("host") != HOST or time.time() - d.get("at", 0) > 6 * 3600:
+            return False
+        self.csrf, self.token = d.get("csrf"), d.get("token")
+        return bool(self.csrf and self.token)
+
+    def _save_session(self):
+        CACHE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = CACHE.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"host": HOST, "csrf": self.csrf, "token": self.token, "at": time.time()}))
+        os.chmod(tmp, 0o600)
+        tmp.replace(CACHE)
+
+    # --- Network app (legacy) API under /proxy/network/api/s/<site>/ ---
+    def api(self, method, path, body=None, v2=False):
+        path = path.lstrip("/")
+        root = f"{BASE}/proxy/network/v2/api/site/{SITE}" if v2 else f"{BASE}/proxy/network/api/s/{SITE}"
+        resp = self._call(method, f"{root}/{path}", body)
+        if isinstance(resp, dict) and resp.get("meta", {}).get("rc") not in (None, "ok"):
+            die(f"{method} {path}: {resp['meta']}")
+        return resp.get("data", resp) if isinstance(resp, dict) else resp
+
+    def sites(self):
+        return self._call("GET", f"{BASE}/proxy/network/api/self/sites")["data"]
+
+    def find_client(self, who):
+        """Match by mac, name, hostname, or current ip across known + active clients."""
+        w = who.lower()
+        active = {c["mac"]: c for c in self.api("GET", "stat/sta")}
+        rows = []
+        for u in self.api("GET", "rest/user"):
+            u = {**u, **{k: active.get(u["mac"], {}).get(k) for k in ("ip", "is_wired", "last_seen")}}
+            rows.append(u)
+        hits = [r for r in rows if w in {
+            str(r.get(k, "") or "").lower() for k in ("mac", "name", "hostname", "ip")}]
+        if not hits:
+            die(f"no client matching {who!r}")
+        if len(hits) > 1:
+            die("ambiguous, matched: " + ", ".join(f"{h['mac']} ({h.get('name') or h.get('hostname')})" for h in hits))
+        return hits[0]
+
+    def lan_network_id(self, ip):
+        import ipaddress
+        for n in self.api("GET", "rest/networkconf"):
+            sub = n.get("ip_subnet")
+            if sub and ipaddress.ip_address(ip) in ipaddress.ip_network(sub, strict=False):
+                return n["_id"], n["name"]
+        die(f"no network contains {ip}")
+
+
+def out(obj):
+    print(json.dumps(obj, indent=2, sort_keys=True, default=str))
+
+
+def table(rows, cols):
+    widths = [max(len(c), *(len(str(r.get(c, "") or "")) for r in rows)) for c in cols] if rows else [len(c) for c in cols]
+    print("  ".join(c.ljust(w) for c, w in zip(cols, widths)))
+    for r in rows:
+        print("  ".join(str(r.get(c, "") or "").ljust(w) for c, w in zip(cols, widths)))
+
+
+def parse_body(arg):
+    if arg is None:
+        return None
+    return json.load(sys.stdin) if arg == "-" else json.loads(arg)
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="unifi", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("sites")
+    p = sub.add_parser("devices"); p.add_argument("--json", action="store_true")
+    p = sub.add_parser("clients"); p.add_argument("--all", action="store_true"); p.add_argument("--json", action="store_true")
+    p = sub.add_parser("client"); p.add_argument("who")
+    sub.add_parser("networks")
+    p = sub.add_parser("fixed-ip"); p.add_argument("who"); p.add_argument("ip", nargs="?"); p.add_argument("--clear", action="store_true")
+    p = sub.add_parser("name"); p.add_argument("who"); p.add_argument("name")
+    for verb in ("get", "post", "put", "delete"):
+        p = sub.add_parser(verb); p.add_argument("path")
+        p.add_argument("--v2", action="store_true", help="use /proxy/network/v2/api/site/<site>/ instead of the legacy API")
+        if verb != "get":
+            p.add_argument("body", nargs="?", help="JSON, or - for stdin")
+    a = ap.parse_args()
+    c = Controller()
+
+    if a.cmd == "sites":
+        out(c.sites())
+    elif a.cmd == "devices":
+        rows = c.api("GET", "stat/device")
+        if a.json:
+            out(rows)
+        else:
+            table([{"name": d.get("name"), "model": d.get("model"), "ip": d.get("ip"), "mac": d.get("mac"),
+                    "version": d.get("version"), "state": {1: "online", 0: "offline"}.get(d.get("state"), d.get("state")),
+                    "uptime_h": round((d.get("uptime") or 0) / 3600, 1)} for d in rows],
+                  ["name", "model", "ip", "mac", "version", "state", "uptime_h"])
+    elif a.cmd == "clients":
+        rows = c.api("GET", "rest/user" if a.all else "stat/sta")
+        if a.json:
+            out(rows)
+        else:
+            rows = sorted(rows, key=lambda r: tuple(int(x) for x in (r.get("ip") or "0.0.0.0").split(".")))
+            table([{"ip": r.get("ip"), "mac": r.get("mac"), "name": r.get("name") or r.get("hostname"),
+                    "fixed": r.get("fixed_ip") if r.get("use_fixedip") else "",
+                    "link": "wired" if r.get("is_wired") else "wifi" if r.get("is_wired") is not None else ""} for r in rows],
+                  ["ip", "mac", "name", "fixed", "link"])
+    elif a.cmd == "client":
+        out(c.find_client(a.who))
+    elif a.cmd == "networks":
+        table([{"name": n.get("name"), "subnet": n.get("ip_subnet"), "purpose": n.get("purpose"),
+                "dhcp": f"{n.get('dhcpd_start')}-{n.get('dhcpd_stop')}" if n.get("dhcpd_enabled") else "",
+                "id": n.get("_id")} for n in c.api("GET", "rest/networkconf")],
+              ["name", "subnet", "purpose", "dhcp", "id"])
+    elif a.cmd == "fixed-ip":
+        cl = c.find_client(a.who)
+        if a.clear:
+            body = {"use_fixedip": False}
+        else:
+            if not a.ip:
+                die("give an ip, or --clear")
+            net_id, net_name = c.lan_network_id(a.ip)
+            body = {"use_fixedip": True, "fixed_ip": a.ip, "network_id": net_id}
+        res = c.api("PUT", f"rest/user/{cl['_id']}", body)
+        r = res[0] if isinstance(res, list) and res else res
+        print(f"{r.get('name') or r.get('hostname')} ({r['mac']}): use_fixedip={r.get('use_fixedip')} fixed_ip={r.get('fixed_ip')}")
+    elif a.cmd == "name":
+        cl = c.find_client(a.who)
+        res = c.api("PUT", f"rest/user/{cl['_id']}", {"name": a.name})
+        r = res[0] if isinstance(res, list) and res else res
+        print(f"{r['mac']}: name={r.get('name')!r}")
+    else:
+        out(c.api(a.cmd.upper(), a.path, parse_body(getattr(a, "body", None)), v2=a.v2))
+
+
+if __name__ == "__main__":
+    main()
