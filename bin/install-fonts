@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Install the kitty-repaired Berkeley Mono Nerd Font family into ~/Library/Fonts.
+#
+#   install-fonts            install prebuilt fonts from fonts/berkeley/dist
+#   install-fonts --rebuild  regenerate dist/ from fonts/berkeley/src first (needs python3 + fontTools)
+#
+# Why: see fonts/berkeley/patch.py. Existing files are backed up to ~/Library/Fonts.bak.
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+FONTS="$HERE/fonts/berkeley"
+DST="$HOME/Library/Fonts"
+BAK="$HOME/Library/Fonts.bak"
+FACES=(Regular Bold Oblique BoldOblique)
+
+if [[ "${1:-}" == "--rebuild" ]]; then
+  python3 -c 'import fontTools' 2>/dev/null || { echo "✗ fontTools missing: pip3 install fonttools"; exit 1; }
+  for f in "${FACES[@]}"; do
+    [[ -f "$FONTS/src/BerkeleyMonoNerdFont-$f.otf" ]] || { echo "✗ missing $FONTS/src/BerkeleyMonoNerdFont-$f.otf (put the original Nerd Font files there)"; exit 1; }
+  done
+  echo "[1/3] Rebuilding from originals…"
+  python3 "$FONTS/patch.py" "$FONTS/src" "$FONTS/dist"
+else
+  echo "[1/3] Using prebuilt fonts in $FONTS/dist"
+fi
+
+echo "[2/3] Installing to $DST (backups in $BAK)…"
+mkdir -p "$DST" "$BAK"
+changed=0
+for f in "${FACES[@]}"; do
+  src="$FONTS/dist/BerkeleyMonoNerdFont-$f.otf"; dst="$DST/BerkeleyMonoNerdFont-$f.otf"
+  [[ -f "$src" ]] || { echo "✗ missing $src (run with --rebuild)"; exit 1; }
+  if [[ -f "$dst" ]] && cmp -s "$src" "$dst"; then echo "  = $f (unchanged)"; continue; fi
+  [[ -f "$dst" ]] && cp -p "$dst" "$BAK/BerkeleyMonoNerdFont-$f.otf.$(date +%Y%m%d-%H%M%S)"
+  cp "$src" "$dst"; echo "  ✓ $f"; changed=1
+done
+
+echo "[3/3] Refreshing font registry…"
+if [[ $changed -eq 1 ]]; then
+  # macOS caches font traits per path; a metadata change is only noticed after fontd restarts.
+  killall fontd 2>/dev/null && echo "  ✓ fontd restarted" || echo "  ! could not restart fontd; log out/in if bold still falls back to Menlo"
+else
+  echo "  nothing to refresh"
+fi
+echo "Done. Open a new kitty window. Verify with: kitty --debug-font-fallback 2>&1 | grep -E 'Bold:|Italic:'"

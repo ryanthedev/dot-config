@@ -52,3 +52,5 @@ herdr/session-history.json
 herdr/release-notes.json
 herdr/.plugins.lock
 .damachine
+!fonts/
+fonts/berkeley/src/

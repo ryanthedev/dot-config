@@ -4,7 +4,7 @@
 SHELL := /bin/bash
 BOOTSTRAP := $(HOME)/.config/bin/dabootstrap
 
-.PHONY: all check symlinks services cleanup thegrid terminfo claude status help
+.PHONY: all check symlinks services cleanup thegrid fonts terminfo claude status help
 .PHONY: cleanup-aerospace cleanup-yabai cleanup-skhd
 
 # Default target
@@ -40,6 +40,9 @@ thegrid:
 	@$(BOOTSTRAP) thegrid
 
 # Install Ghostty terminfo on remote hosts
+fonts:
+	@bin/install-fonts
+
 terminfo:
 	@$(BOOTSTRAP) terminfo
 
@@ -64,6 +67,7 @@ help:
 	@echo "  services  Generate and install launchd services"
 	@echo "  cleanup   Remove all legacy window managers"
 	@echo "  thegrid   Setup theGrid"
+	@echo "  fonts     Install kitty-repaired Berkeley Mono fonts"
 	@echo "  terminfo  Install Ghostty terminfo on remote hosts"
 	@echo "  claude    Setup Claude Code skills"
 	@echo "  status    Show service status"
