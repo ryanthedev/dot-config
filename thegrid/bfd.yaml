@@ -72,11 +72,11 @@ hotkeys:
   cmd-4: "@layout apply four-column"
   cmd-9: rm /Users/r/.local/state/thegrid/thegrid*
   alt-a: "@layout refresh"
-  alt-s: "@cell mode"
+  cmd+ctrl-s: "@cell mode"
 
   # Apps (no repeat for launchers)
   cmd-return:
-    run: open -na /Applications/Ghostty.app
+    run: open -na /Applications/kitty.app
     repeat: false
   cmd-escape:
     run: "@pick"
