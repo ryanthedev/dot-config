@@ -51,4 +51,5 @@ herdr/session.json
 herdr/session-history.json
 herdr/release-notes.json
 !Brewfile
+herdr/.plugins.lock
 .damachine

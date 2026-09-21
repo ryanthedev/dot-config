@@ -19,6 +19,9 @@ return  {
   {
     'm00qek/baleia.nvim',
     version = '*',
+    -- Only ever invoked by herdr/scripts/scrollback-nvim.sh via `+BaleiaColorize`,
+    -- so the lazy cmd stub covers every real use.
+    cmd = 'BaleiaColorize',
     config = function()
       vim.g.baleia = require('baleia').setup({
         async = true,

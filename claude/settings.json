@@ -1,7 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "env": {
-    "USE_BUILTIN_RIPGREP": "0"
+    "USE_BUILTIN_RIPGREP": "0",
+    "CLAUDE_CODE_NO_FLICKER": "1"
   },
   "permissions": {
     "allow": [
@@ -20,7 +21,8 @@
       "mcp__plugin_janky-jira_jjira__*",
       "mcp__plugin_herderp_derp__*",
       "mcp__plugin_oberskills_mcp-browser__*",
-      "mcp__plugin_oberskills_skill-eval__*"
+      "mcp__plugin_oberskills_skill-eval__*",
+      "mcp__claude_ai_Carvana_Fastlane__*"
     ],
     "deny": [
       "Bash(rm -rf *)",
@@ -127,24 +129,59 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "/Users/RHayden/.config/claude/statusline.sh"
+    "command": "~/.config/claude/statusline.sh"
   },
   "enabledPlugins": {
-    "frontend-design@claude-plugins-official": true,
-    "pyright-lsp@claude-plugins-official": true,
-    "typescript-lsp@claude-plugins-official": true,
-    "swift-lsp@claude-plugins-official": true,
-    "security-guidance@claude-plugins-official": true,
-    "grug-brain@rtd": true,
     "claude-mux@rtd": true,
+    "code-foundations@rtd": true,
+    "design-for-ai@rtd": true,
+    "frontend-design@claude-plugins-official": true,
+    "grug-brain@rtd": true,
+    "herderp@rtd": true,
     "oberskills@rtd": true,
     "penman@rtd": true,
-    "code-foundations@rtd": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
     "slack@claude-plugins-official": true,
-    "design-for-ai@rtd": true,
-    "herderp@rtd": true,
-    "what@rtd": true
+    "swift-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "what@rtd": true,
+    "janky-jira@janky-jira-local": true,
+    "ephemeral-environment@carvana-claude-code-marketplace": true
   },
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    },
+    "rtd": {
+      "source": {
+        "source": "github",
+        "repo": "ryanthedev/rtd-claude-inn"
+      }
+    },
+    "upublish.skill": {
+      "source": {
+        "source": "github",
+        "repo": "omni-ping/upublish.skill"
+      }
+    },
+    "janky-jira-local": {
+      "source": {
+        "source": "github",
+        "repo": "CVNA-DEVOPS-PRIVATE/janky-jira"
+      }
+    },
+    "carvana-claude-code-marketplace": {
+      "source": {
+        "source": "git",
+        "url": "git@github.com:CVNA-Pathfinders/Carvana-Claude-Marketplace.git"
+      }
+    }
+  },
+  "outputStyle": "Terse",
   "alwaysThinkingEnabled": true,
   "effortLevel": "medium",
   "modelSettings": {
@@ -159,36 +196,15 @@
     }
   },
   "advisorModel": "fable",
+  "tui": "fullscreen",
   "autoMemoryEnabled": false,
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
+  "theme": "dark",
   "editorMode": "vim",
   "preferredNotifChannel": "terminal_bell",
+  "autoCompactEnabled": false,
   "feedbackSurveyState": {
     "lastShownTime": 1754078816059
-  },
-  "autoCompactEnabled": false,
-  "theme": "dark",
-  "tui": "fullscreen",
-  "outputStyle": "Terse",
-  "extraKnownMarketplaces": {
-    "upublish.skill": {
-      "source": {
-        "source": "github",
-        "repo": "omni-ping/upublish.skill"
-      }
-    },
-    "claude-plugins-official": {
-      "source": {
-        "source": "github",
-        "repo": "anthropics/claude-plugins-official"
-      }
-    },
-    "rtd": {
-      "source": {
-        "source": "github",
-        "repo": "ryanthedev/rtd-claude-inn"
-      }
-    }
   }
 }

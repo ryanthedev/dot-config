@@ -28,6 +28,9 @@ end
 
 return {
   "kevinhwang91/nvim-ufo",
+  -- Folds only matter once a real file is in a buffer; this still lands before
+  -- the first fold is drawn, and keeps ufo + promise-async off the startup path.
+  event = "BufReadPost",
   dependencies = {
     {'kevinhwang91/promise-async'},
   },

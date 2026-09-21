@@ -30,14 +30,11 @@ ZSH_THEME="powerlevel10k/powerlevel10k"
 # Case-sensitive completion must be off. _ and - will be interchangeable.
 # HYPHEN_INSENSITIVE="true"
 
-# Uncomment the following line to disable bi-weekly auto-update checks.
-# DISABLE_AUTO_UPDATE="true"
-
-# Uncomment the following line to automatically update without prompting.
-# DISABLE_UPDATE_PROMPT="true"
-
-# Uncomment the following line to change how often to auto-update (in days).
-# export UPDATE_ZSH_DAYS=13
+# Don't let OMZ's bi-weekly update check run at shell start: it makes a network
+# call to the GitHub API and can prompt, blocking the prompt for seconds (and
+# widening p10k's instant-prompt window, which is what turns stray keystrokes
+# into ^? garbage). Update deliberately instead with `omz update`.
+zstyle ':omz:update' mode disabled
 
 # Uncomment the following line if pasting URLs and other text is messed up.
 # DISABLE_MAGIC_FUNCTIONS="true"
@@ -101,12 +98,18 @@ export TMUX_CONF=~/.config/tmux/tmux.conf
 export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" --no-use  # Defer node version activation
 
-# Add nvm default node to PATH (for tools like Claude Code that don't init nvm)
-# Resolves default alias (lts/*), falls back to latest installed if not yet installed
-nvm_default_path="$(nvm which default 2>/dev/null)" || \
-  nvm_default_path="$NVM_DIR/versions/node/$(command ls "$NVM_DIR/versions/node/" 2>/dev/null | sort -V | tail -1)/bin/node"
-[ -x "$nvm_default_path" ] && export PATH="${nvm_default_path%/*}:$PATH"
-unset nvm_default_path
+# Add nvm default node to PATH (for tools like Claude Code that don't init nvm).
+# `nvm which default` costs ~500ms, so cache the resolved bin dir and only
+# re-resolve when the default alias changes or the cached version goes away.
+() {
+  local cache="${XDG_CACHE_HOME:-$HOME/.cache}/nvm-default-bin" bin
+  [[ -s $cache && $cache -nt $NVM_DIR/alias/default ]] && bin="$(<$cache)"
+  if [[ ! -x $bin/node ]]; then
+    bin="$(nvm which default 2>/dev/null)"; bin="${bin%/*}"
+    [[ -x $bin/node ]] && { mkdir -p "${cache:h}"; print -r -- "$bin" >| "$cache" }
+  fi
+  [[ -x $bin/node ]] && export PATH="$bin:$PATH"
+}
 
 # You may need to manually set your language environment
 # export LANG=en_US.UTF-8
@@ -194,12 +197,14 @@ export PATH="$HOME/.grug-brain/bin:$PATH"
 
 
 # Added by Antigravity CLI installer
-export PATH="/Users/RHayden/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
 
 # >>> grok installer >>>
-export PATH="$HOME/.grok/bin:$PATH"
-fpath=(~/.grok/completions/zsh $fpath)
-autoload -Uz compinit && compinit -C
+if [[ -d ~/.grok ]]; then
+  export PATH="$HOME/.grok/bin:$PATH"
+  fpath=(~/.grok/completions/zsh $fpath)
+  autoload -Uz compinit && compinit -C
+fi
 # <<< grok installer <<<
 
 # bun
