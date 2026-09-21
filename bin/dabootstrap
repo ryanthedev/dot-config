@@ -23,7 +23,6 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; }
 load_config() {
     THEGRID_DEV="${THEGRID_DEV:-false}"
     THEGRID_REPO="${THEGRID_REPO:-}"
-    SKILLS_REPO="${SKILLS_REPO:-$HOME/repos/oberskills}"
     SSH_HOSTS="${SSH_HOSTS:-linode}"
 
     if [[ -f "$DAMACHINE" ]]; then
@@ -392,86 +391,6 @@ setup_remote_terminfo() {
     done
 }
 
-setup_claude() {
-    info "Setting up Claude Code skills..."
-
-    local repo_path="${SKILLS_REPO/#\~/$HOME}"
-
-    # Check if skills repo exists
-    if [[ ! -d "$repo_path" ]]; then
-        warn "  Skills repo not found at: $repo_path"
-        warn "  Skipping Claude skills setup"
-        return
-    fi
-
-    # Pull latest
-    info "  Pulling latest from skills repo..."
-    if git -C "$repo_path" pull --quiet 2>/dev/null; then
-        info "  Updated skills repo"
-    else
-        warn "  Could not pull skills repo (offline or not a git repo)"
-    fi
-
-    # Create directories
-    mkdir -p "$HOME/.claude/skills"
-    mkdir -p "$HOME/.claude/commands"
-
-    # Symlink global CLAUDE.md from dotfiles
-    if [[ -f "$CONFIG_DIR/claude/CLAUDE.md" ]]; then
-        ln -sf "$CONFIG_DIR/claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
-        info "  Linked global CLAUDE.md"
-    fi
-
-    # Merge hooks from dotfiles settings.json into user settings
-    if [[ -f "$CONFIG_DIR/claude/settings.json" ]]; then
-        python3 - << 'PYEOF'
-import json
-from pathlib import Path
-
-dotfiles_settings = Path.home() / ".config/claude/settings.json"
-user_settings = Path.home() / ".claude/settings.json"
-
-# Load dotfiles settings (source of hooks)
-with open(dotfiles_settings) as f:
-    hooks_config = json.load(f)
-
-# Load or create user settings
-if user_settings.exists():
-    with open(user_settings) as f:
-        user_config = json.load(f)
-else:
-    user_config = {"$schema": "https://json.schemastore.org/claude-code-settings.json"}
-
-# Merge hooks and permissions from dotfiles into user settings
-if "hooks" in hooks_config:
-    user_config["hooks"] = hooks_config["hooks"]
-if "permissions" in hooks_config:
-    user_config["permissions"] = hooks_config["permissions"]
-
-# Write back
-with open(user_settings, "w") as f:
-    json.dump(user_config, f, indent=2)
-    f.write("\n")
-PYEOF
-        info "  Merged hooks and permissions into settings.json"
-    fi
-
-    # Symlink all skills
-    local skills_dir="$repo_path/skills"
-    if [[ -d "$skills_dir" ]]; then
-        for skill in "$skills_dir"/*/; do
-            if [[ -d "$skill" ]]; then
-                local skill_name
-                skill_name=$(basename "$skill")
-                ln -sf "$skill" "$HOME/.claude/skills/$skill_name"
-                info "  Linked skill: $skill_name"
-            fi
-        done
-    fi
-
-    info "  Claude skills setup complete"
-}
-
 verify_status() {
     info "Verifying services..."
     echo ""
@@ -516,7 +435,6 @@ run_all() {
     cleanup_skhd
     setup_thegrid
     setup_remote_terminfo
-    setup_claude
     verify_status
 
     echo ""
@@ -563,15 +481,12 @@ run_target() {
         terminfo)
             setup_remote_terminfo
             ;;
-        claude)
-            setup_claude
-            ;;
         status)
             verify_status
             ;;
         *)
             error "Unknown target: $target"
-            echo "Available targets: all, check, symlinks, services, cleanup, cleanup-aerospace, cleanup-yabai, cleanup-skhd, thegrid, terminfo, claude, status"
+            echo "Available targets: all, check, symlinks, services, cleanup, cleanup-aerospace, cleanup-yabai, cleanup-skhd, thegrid, terminfo, status"
             exit 1
             ;;
     esac

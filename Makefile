@@ -4,7 +4,7 @@
 SHELL := /bin/bash
 BOOTSTRAP := $(HOME)/.config/bin/dabootstrap
 
-.PHONY: all check symlinks services cleanup thegrid fonts terminfo claude status help
+.PHONY: all check symlinks services cleanup thegrid fonts terminfo status help
 .PHONY: cleanup-aerospace cleanup-yabai cleanup-skhd
 
 # Default target
@@ -39,16 +39,13 @@ cleanup-skhd:
 thegrid:
 	@$(BOOTSTRAP) thegrid
 
-# Install Ghostty terminfo on remote hosts
+# Install kitty-repaired Berkeley Mono fonts
 fonts:
 	@bin/install-fonts
 
+# Install Ghostty terminfo on remote hosts
 terminfo:
 	@$(BOOTSTRAP) terminfo
-
-# Setup Claude Code skills
-claude:
-	@$(BOOTSTRAP) claude
 
 # Show service status
 status:
@@ -69,7 +66,6 @@ help:
 	@echo "  thegrid   Setup theGrid"
 	@echo "  fonts     Install kitty-repaired Berkeley Mono fonts"
 	@echo "  terminfo  Install Ghostty terminfo on remote hosts"
-	@echo "  claude    Setup Claude Code skills"
 	@echo "  status    Show service status"
 	@echo ""
 	@echo "Cleanup targets:"
