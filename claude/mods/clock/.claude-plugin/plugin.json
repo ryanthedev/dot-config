@@ -1,0 +1,1 @@
+{ "name": "clock", "version": "0.1.0", "description": "A small live clock in the status line, ticking on a timer instead of on activity" }

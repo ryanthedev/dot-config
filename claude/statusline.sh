@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 # Claude Code statusLine — renders one line beneath the input box:
 #
-#      12:34  ·   Opus  ·   high  ·   12%  ·   main  ·   db16221
-#     time        model      effort     context    branch     commit
+#      Opus  ·   high  ·   12%  ·   main  ·   db16221
+#     model      effort     context    branch     commit
 #
-# NOTE: the clock only refreshes on conversation activity (keystroke / tool call /
-# response) — Claude Code re-runs this on message updates, not on a timer. So the
-# time is current whenever you're working, and can lag while the session is idle.
-# Same goes for the git segments: they refresh on activity, not on `git checkout`.
+# NOTE: this re-runs on conversation activity, not on a timer, so the git segments
+# refresh on activity, not on `git checkout`. The clock lives in a Claude Code mod
+# instead (dev-mods/…/clock), which ticks on a real timer.
 #
 # Reads the session JSON on stdin (schema: code.claude.com/docs/en/statusline).
 # Fields Claude omits are skipped: effort.level is absent on non-reasoning models,
@@ -30,7 +29,7 @@
 input=$(cat)
 
 esc=$'\033'; R="${esc}[0m"
-GREEN="${esc}[38;2;158;206;106m"   # accent green — time
+GREEN="${esc}[38;2;158;206;106m"   # accent green — context when low
 BLUE="${esc}[38;2;122;162;247m"    # model
 PEACH="${esc}[38;2;224;175;104m"   # effort
 RED="${esc}[38;2;247;118;142m"     # context when high
@@ -41,7 +40,6 @@ DIM="${esc}[38;2;86;95;137m"       # separators
 SEP=" ${DIM}\xc2\xb7${R} "         # " · "
 
 # Nerd-font glyphs as UTF-8 bytes (Font Awesome codepoints).
-CLOCK=$(printf '\xef\x80\x97')     # U+F017 clock (time)
 CHIP=$(printf '\xef\x8b\x9b')      # U+F2DB microchip (model)
 BOLT=$(printf '\xef\x83\xa7')      # U+F0E7 bolt (effort)
 GAUGE=$(printf '\xef\x83\xa4')     # U+F0E4 tachometer (context)
@@ -55,7 +53,7 @@ PAD=2          # right-edge breathing room
 MAX_BRANCH=24  # longer branch names are elided, not dropped
 
 # Lowest priority first. Anything not named here is never dropped (context %).
-DROP_ORDER="commit branch effort clock model"
+DROP_ORDER="commit branch effort model"
 
 # IFS must be tab-only: display_name contains spaces ("Opus 5 (1M context)"), and
 # default IFS would shred it across the other three variables.
@@ -69,7 +67,6 @@ IFS=$'\t' read -r model effort pct dir < <(printf '%s' "$input" | jq -r '
 names=(); texts=(); widths=()
 addseg() { names+=("$1"); texts+=("$2"); widths+=("$3"); }
 
-addseg clock "${GREEN}${CLOCK}${R} $(date '+%H:%M')" $((GLYPH_W + 1 + 5))
 [ -n "$model" ]  && addseg model  "${BLUE}${CHIP}${R} ${FG}${model}${R}"   $((GLYPH_W + 1 + ${#model}))
 [ -n "$effort" ] && addseg effort "${PEACH}${BOLT}${R} ${FG}${effort}${R}" $((GLYPH_W + 1 + ${#effort}))
 if [ -n "$pct" ]; then
