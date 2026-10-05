@@ -121,6 +121,7 @@
     "ask": [
       "Bash(launchctl bootout*)",
       "Bash(launchctl bootstrap*)",
+      "Bash(pkill *)",
       "Bash(pkill -f*)",
       "Bash(pkill -*f *)",
       "Bash(pkill --full*)",
