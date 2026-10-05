@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "env": {
     "USE_BUILTIN_RIPGREP": "0",
-    "CLAUDE_CODE_NO_FLICKER": "1"
+    "CLAUDE_CODE_PLUGIN_DIRS": "~/.config/claude/mods/clock"
   },
   "permissions": {
     "allow": [
@@ -11,24 +11,26 @@
       "Read",
       "Edit",
       "Write",
-      "Bash(*)",
-      "mcp__grug-brain__*",
-      "mcp__plugin_grug-brain_grug-brain__*",
-      "mcp__plugin_engram_engram__*",
+      "Skill",
       "mcp__claude-mux__*",
-      "mcp__thegrid__*",
+      "mcp__claude_ai_Craft__*",
+      "mcp__claude_ai_Gmail__*",
       "mcp__claude_ai_Google_Drive__*",
-      "mcp__plugin_penman_penman__*",
-      "mcp__plugin_stripe_stripe__*",
+      "mcp__cloudflare-bindings__*",
+      "mcp__cloudflare-docs__*",
+      "mcp__cloudflare-graphql__*",
+      "mcp__cloudflare-observability__*",
+      "mcp__craft__*",
+      "mcp__plugin_engram_engram__*",
+      "mcp__plugin_grug-brain_grug-brain__*",
+      "mcp__plugin_herderp_derp__*",
       "mcp__plugin_oberskills_skill-eval__*",
       "mcp__plugin_oberskills_mcp-browser__*",
-      "mcp__craft__*",
+      "mcp__plugin_penman_penman__*",
+      "mcp__plugin_sdd_sdd__*",
+      "mcp__plugin_stripe_stripe__*",
       "mcp__plugin_upublish_upublish__*",
-      "mcp__plugin_claude-mux_tmux__*",
-      "mcp__plugin_ado_ado__*",
-      "mcp__plugin_sabre_sabre__*",
-      "mcp__plugin_sumo_sumo__*",
-      "mcp__tmux__*"
+      "mcp__thegrid__*"
     ],
     "deny": [
       "Bash(rm -rf *)",
@@ -64,6 +66,23 @@
       "Bash(kill -9 *)",
       "Bash(killall *)",
       "Bash(sudo kill*)",
+      "Bash(pkill -9*)",
+      "Bash(pkill *-9 *)",
+      "Bash(pkill *-KILL*)",
+      "Bash(pkill *-SIGKILL*)",
+      "Bash(pkill*-u *)",
+      "Bash(pkill*-U *)",
+      "Bash(pkill*-G *)",
+      "Bash(pkill*-g *)",
+      "Bash(pkill*-s *)",
+      "Bash(pkill*-t *)",
+      "Bash(pkill*-P *)",
+      "Bash(pkill .*)",
+      "Bash(pkill *claude*)",
+      "Bash(pkill *node*)",
+      "Bash(pkill *bun*)",
+      "Bash(pkill *tmux*)",
+      "Bash(pkill *herdr*)",
       "Bash(shutdown*)",
       "Bash(reboot*)",
       "Bash(halt*)",
@@ -102,37 +121,11 @@
     "ask": [
       "Bash(launchctl bootout*)",
       "Bash(launchctl bootstrap*)",
-      "Bash(pkill *)"
+      "Bash(pkill -f*)",
+      "Bash(pkill -*f *)",
+      "Bash(pkill --full*)",
+      "Bash(pkill *--full *)"
     ]
-  },
-  "model": "claude-opus-4-8[1m]",
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/hooks/herdr-agent-state.sh session",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
-  },
-  "enabledPlugins": {
-    "ast-grep@ast-grep-marketplace": true,
-    "clangd-lsp@claude-plugins-official": true,
-    "pyright-lsp@claude-plugins-official": true,
-    "ruby-lsp@claude-plugins-official": true,
-    "rust-analyzer-lsp@claude-plugins-official": true,
-    "security-guidance@claude-plugins-official": true,
-    "skill-creator@claude-plugins-official": true,
-    "stripe@claude-plugins-official": true,
-    "svelte-foundations@/Users/r/repos/svelte-foundations.skill": true,
-    "swift-lsp@claude-plugins-official": true,
-    "typescript-lsp@claude-plugins-official": true,
-    "upublish@upublish.skill": true
   },
   "extraKnownMarketplaces": {
     "upublish.skill": {
@@ -140,21 +133,23 @@
         "source": "github",
         "repo": "omni-ping/upublish.skill"
       }
+    },
+    "rtd": {
+      "source": {
+        "source": "github",
+        "repo": "ryanthedev/rtd-claude-inn"
+      }
     }
   },
-  "alwaysThinkingEnabled": true,
-  "tui": "fullscreen",
-  "autoMemoryEnabled": false,
-  "skipDangerousModePermissionPrompt": true,
-  "skipWorkflowUsageWarning": true,
-  "theme": "dark",
-  "editorMode": "vim",
-  "autoCompactEnabled": false,
-  "feedbackSurveyState": {
-    "lastShownTime": 1754078816059
-  },
+  "outputStyle": "Skimmable",
   "statusLine": {
     "type": "command",
     "command": "~/.config/claude/statusline.sh"
-  }
+  },
+  "theme": "dark",
+  "editorMode": "vim",
+  "tui": "fullscreen",
+  "alwaysThinkingEnabled": true,
+  "autoCompactEnabled": false,
+  "autoMemoryEnabled": false
 }

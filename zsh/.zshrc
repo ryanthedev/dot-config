@@ -191,6 +191,13 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
+# Claude Code: layer the shared, git-tracked settings on top of the per-machine
+# ~/.claude/settings.json. --settings outranks the user file for single values;
+# lists (permissions, hooks, plugins) merge. .zshrc.local extends these aliases
+# with "$aliases[claude] ..." rather than replacing them.
+alias claude='command claude --settings ~/.config/claude/settings.shared.json'
+alias claudew='CLAUDE_WRAP_REPAIR=off python3 ~/.config/claude/wrap/claude-theme-wrap.py --settings ~/.config/claude/settings.shared.json'
+
 # Load machine-local customizations (not tracked in git)
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
 export PATH="$HOME/.grug-brain/bin:$PATH"
