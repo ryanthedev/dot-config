@@ -206,3 +206,7 @@ if [[ -d ~/.grok ]]; then
   autoload -Uz compinit && compinit -C
 fi
 # <<< grok installer <<<
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
