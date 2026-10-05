@@ -97,7 +97,6 @@
       "Bash(* drop table *)",
       "Bash(redis-cli FLUSHALL*)",
       "Bash(redis-cli FLUSHDB*)",
-      "Bash(rsync * *:*)",
       "Bash(sudo *)"
     ],
     "ask": [
