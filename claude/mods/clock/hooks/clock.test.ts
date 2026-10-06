@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { format } from './register'
+import { format, label } from './register'
 
 test('formats local HH:MM from epoch and offset', () => {
   // 2026-10-03 21:05 UTC
@@ -7,4 +7,8 @@ test('formats local HH:MM from epoch and offset', () => {
   expect(format(t, 0)).toBe('21:05')
   expect(format(t, -5 * 3_600_000)).toBe('16:05')
   expect(format(t, 5.5 * 3_600_000)).toBe('02:35')
+})
+
+test('footer label is the white rabbit and the time', () => {
+  expect(label('20:47')).toBe('\u{1F407} 20:47')
 })

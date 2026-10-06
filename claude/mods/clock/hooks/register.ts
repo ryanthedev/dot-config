@@ -1,4 +1,10 @@
+import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
+
+// 🐇 follow the white rabbit
+export const label = (hhmm: string) => `\u{1F407} ${hhmm}`
+
+const time = atom({ plugin: 'clock', key: 'time' } as const, '')
 
 // The module's environment may not share the host's time zone, so the
 // offset comes from the host's own `date` once per load.
@@ -39,12 +45,22 @@ export const register: Register = on => {
       const text = format(now, offset)
       if (text === shown) return
       shown = text
-      $.ui.status(text)
+      await update($, time, () => text)
     }
 
+    // Earlier versions pinned the clock with $.ui.status, which the engine
+    // prefixes with its own icon; clear any such entry a reload left behind.
+    $.ui.status(undefined)
     await tick()
     $.clock.every(5_000, () => void tick())
 
     return started
+  })
+
+  // Drawn as a footer mode label, beside the engine's own (`focus`, ...).
+  on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
+    const now = await read($, time)
+    if (now === '') return next(e)
+    return next({ ...e, props: { ...e.props, modes: [...e.props.modes, label(now)] } })
   })
 }
