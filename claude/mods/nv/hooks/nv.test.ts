@@ -1,8 +1,13 @@
 import { test, expect } from 'claude-code/testing'
-import { launchLine, parseTarget, pickReply, remoteOpenExpr, shellQuote, sockPath } from './lib'
+import { launchLine, parseTarget, pickReply, privateDir, remoteOpenExpr, shellQuote, sockPath } from './lib'
 
 test('one socket per herdr pane, safe characters only', () => {
-  expect(sockPath('w1Y:pW')).toBe('/tmp/claude-nv-w1Y_pW.sock')
+  expect(sockPath('/private/T', 'w1Y:pW')).toBe('/private/T/claude-nv-w1Y_pW.sock')
+})
+
+test('temp files go in the per-user folder, never the shared /tmp', () => {
+  expect(privateDir('/var/folders/dy/abc/T/', '/Users/r')).toBe('/var/folders/dy/abc/T')
+  expect(privateDir(undefined, '/Users/r')).toBe('/Users/r/.cache/claude-nv')
 })
 
 test('parses paths, ~, :line and quotes', () => {

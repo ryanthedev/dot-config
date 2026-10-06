@@ -2,9 +2,16 @@
 
 export type Target = { path: string; line?: number }
 
+/**
+ * The private temp folder: macOS's per-user $TMPDIR (mode 0700) rather than
+ * the shared /tmp, where another account could plant a socket or a symlink.
+ */
+export const privateDir = (tmpdir: string | undefined, home: string): string =>
+  tmpdir ? tmpdir.replace(/\/+$/, '') : `${home}/.cache/claude-nv`
+
 /** One nvim per Claude pane, so two Claude sessions never share an editor. */
-export const sockPath = (paneId: string): string =>
-  `/tmp/claude-nv-${paneId.replace(/[^A-Za-z0-9]/g, '_')}.sock`
+export const sockPath = (dir: string, paneId: string): string =>
+  `${dir}/claude-nv-${paneId.replace(/[^A-Za-z0-9]/g, '_')}.sock`
 
 /** POSIX single-quoting, for the one string herdr types into a fresh shell. */
 export const shellQuote = (s: string): string => `'${s.replaceAll("'", `'\\''`)}'`

@@ -1,6 +1,6 @@
 import type { CommandRunInput, EngineInterface, Register } from 'claude-code'
 
-import { launchLine, parseTarget, pickReply, remoteOpenExpr, sockPath, type Target } from './lib'
+import { launchLine, parseTarget, pickReply, privateDir, remoteOpenExpr, sockPath, type Target } from './lib'
 
 // Only the person at this Mac may open panes on it: a phone (bridge) or
 // another agent running /nv would split a terminal nobody is looking at.
@@ -21,6 +21,9 @@ const run = async ($: EngineInterface, argv: readonly string[]) => {
 
 // `pane split` answers the new pane first; `pane neighbor` answers the whole
 // layout, so its neighbor sits under its own key.
+const tempDir = async ($: EngineInterface) =>
+  privateDir(await $.env.get('TMPDIR'), (await $.env.get('HOME')) ?? '')
+
 const paneIdOf = (json: string): string | undefined => /"pane_id":"([^"]+)"/.exec(json)?.[1]
 const neighborIdOf = (json: string): string | undefined => /"neighbor_pane_id":"([^"]+)"/.exec(json)?.[1]
 
@@ -32,7 +35,7 @@ const neighborIdOf = (json: string): string | undefined => /"neighbor_pane_id":"
 const openInNvim = async ($: EngineInterface, target: Target | undefined, label: string) => {
   const claudePane = await $.env.get('HERDR_PANE_ID')
   if (!claudePane) return 'Not running inside a herdr pane, so there is nowhere to open nvim.'
-  const sock = sockPath(claudePane)
+  const sock = sockPath(await tempDir($), claudePane)
 
   const alive = await run($, ['nvim', '--server', sock, '--remote-expr', '1'])
   if (alive.exitCode === 0) {
@@ -51,6 +54,7 @@ const openInNvim = async ($: EngineInterface, target: Target | undefined, label:
 
   // No nvim answers: clear a socket a dead nvim left behind, or --listen fails.
   await run($, ['rm', '-f', sock])
+  await run($, ['mkdir', '-p', '-m', '700', sock.slice(0, sock.lastIndexOf('/'))])
   const cwd = await $.session.cwd()
   const split = await run($, ['herdr', 'pane', 'split', claudePane, '--direction', 'right', '--focus', '--cwd', cwd])
   const nvimPane = paneIdOf(split.stdout)
@@ -93,7 +97,7 @@ export const register: Register = on => {
     const reply = pickReply(await $.session.messages(), back)
     if (reply === undefined) return { text: `There is no reply ${back} back to yank.` }
 
-    const path = `/tmp/claude-yank/${await $.clock.now()}.md`
+    const path = `${await tempDir($)}/claude-yank/${await $.clock.now()}.md`
     await $.fs.write(path, reply)
     const label = back === 1 ? 'the last reply' : `the reply ${back} back`
     return { text: await openInNvim($, { path }, label) }
