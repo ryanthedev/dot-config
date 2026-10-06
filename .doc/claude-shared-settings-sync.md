@@ -41,10 +41,10 @@ after commit `e727301` (2026-10-05). It is written for the agent doing the work.
    - Remove from the local file any value the shared file now owns **only if it
      is identical**; leave differing values and tell the user which ones the
      shared file will override.
-   - Check the `env` block on both. It is unverified whether `--settings`
-     merges `env` per key or replaces the whole object; if the local file has
-     env vars the shared file lacks, start `claude` and confirm they are still
-     set (e.g. ask it to run `env | grep <NAME>`).
+   - `env` merges per variable (verified 2026-10-05): local-only env vars
+     survive, and on a name both files set, the shared file wins. Only flag
+     local env vars whose names collide with the shared file's
+     (`USE_BUILTIN_RIPGREP`, `CLAUDE_CODE_PLUGIN_DIRS`).
    - Leave `Bash(pkill *)` / `Bash(launchctl bootout*)` out of the local
      **deny** list; a deny rule would override the shared ask rule.
 6. Verify: `cd ~ && claude -p "say ok" </dev/null 2>&1` prints `ok` with no
