@@ -394,14 +394,14 @@ setup_remote_terminfo() {
 setup_claude_links() {
     info "Linking shared Claude Code config into ~/.claude..."
 
-    # Directory links only. Never opens ~/.claude/settings.json: shared settings
-    # are layered at launch via --settings (see the claude alias in zsh/.zshrc).
+    # Links only. Never opens ~/.claude/settings.json: shared settings are
+    # layered at launch via --settings (see the claude alias in zsh/.zshrc).
     mkdir -p "$HOME/.claude"
     local name src dest
-    for name in output-styles; do
+    for name in output-styles keybindings.json; do
         src="$CONFIG_DIR/claude/$name"
         dest="$HOME/.claude/$name"
-        [[ -d "$src" ]] || continue
+        [[ -e "$src" ]] || continue
         if [[ -e "$dest" && ! -L "$dest" ]]; then
             mv "$dest" "$dest.bak-$(date +%Y%m%d-%H%M%S)"
             warn "  Moved existing $dest aside (merge anything you need into $src)"

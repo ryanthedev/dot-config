@@ -1,0 +1,1 @@
+{ "name": "nv", "version": "0.1.0", "description": "/nv opens a file in nvim in a herdr split beside Claude; /yank opens Claude's last reply there" }
