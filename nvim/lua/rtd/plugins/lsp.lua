@@ -83,7 +83,7 @@ return {
         pattern = "VeryLazy",
         once = true,
         callback = function()
-          local ensure = { "roslyn", "prettier" }
+          local ensure = { "roslyn", "html-lsp", "prettier" }
           local mr = require("mason-registry")
           mr.refresh(function()
             for _, name in ipairs(ensure) do
@@ -266,116 +266,123 @@ return {
 			vim.lsp.enable("sourcekit")
 		end,
 	},
-  {
-  "seblj/roslyn.nvim",
-  ft = "cs",
-  -- enabled = false,
-  opts = {
-    silent = true,
-    config = {
-      on_attach = function (client, bufnr)
-        on_lsp_attach(client, bufnr)
+	-- C# / Razor: Roslyn, the same language server VS Code's C# extension uses.
+	-- Server comes from the Crashdummyy mason registry (package "roslyn").
+	{
+		"seblyng/roslyn.nvim",
+		ft = { "cs", "razor" },
+		init = function()
+			-- Must be registered before the plugin loads: its plugin/roslyn.lua calls
+			-- vim.lsp.enable("roslyn"), which starts the client immediately.
+			-- Keymaps come from the shared LspAttach autocmd; inlay hints and code
+			-- lens are switched on in after/plugin/autocommands.lua. Semantic tokens
+			-- need nothing here: nvim 0.12 uses Roslyn's semanticTokens/range natively.
+			vim.lsp.config("roslyn", {
+				settings = {
+					["csharp|inlay_hints"] = {
+						csharp_enable_inlay_hints_for_implicit_object_creation = true,
+						csharp_enable_inlay_hints_for_implicit_variable_types = true,
+						csharp_enable_inlay_hints_for_lambda_parameter_types = true,
+						csharp_enable_inlay_hints_for_types = true,
+						dotnet_enable_inlay_hints_for_indexer_parameters = true,
+						dotnet_enable_inlay_hints_for_literal_parameters = true,
+						dotnet_enable_inlay_hints_for_object_creation_parameters = true,
+						dotnet_enable_inlay_hints_for_other_parameters = true,
+						dotnet_enable_inlay_hints_for_parameters = true,
+						dotnet_suppress_inlay_hints_for_parameters_that_differ_only_by_suffix = true,
+						dotnet_suppress_inlay_hints_for_parameters_that_match_argument_name = true,
+						dotnet_suppress_inlay_hints_for_parameters_that_match_method_intent = true,
+					},
+					["csharp|code_lens"] = {
+						dotnet_enable_references_code_lens = true,
+						dotnet_enable_tests_code_lens = true,
+					},
+					["csharp|completion"] = {
+						dotnet_provide_regex_completions = true,
+						dotnet_show_completion_items_from_unimported_namespaces = true,
+						dotnet_show_name_completion_suggestions = true,
+					},
+					["csharp|background_analysis"] = {
+						dotnet_analyzer_diagnostics_scope = "fullSolution",
+						dotnet_compiler_diagnostics_scope = "fullSolution",
+					},
+					["csharp|symbol_search"] = {
+						dotnet_search_reference_assemblies = true,
+					},
+					["csharp|quick_info"] = {
+						dotnet_show_remarks_in_quick_info = true,
+					},
+					["csharp|highlighting"] = {
+						dotnet_highlight_related_json_components = true,
+						dotnet_highlight_related_regex_components = true,
+					},
+					["csharp|testing"] = {
+						dotnet_use_semantic_test_discovery = true,
+					},
+					["csharp|auto_insert"] = {
+						dotnet_enable_auto_insert = true,
+					},
+					["csharp|formatting"] = {
+						dotnet_organize_imports_on_format = true,
+					},
+					navigation = {
+						dotnet_navigate_to_decompiled_sources = true,
+					},
+				},
+			})
 
-        -- let client know we got this
-        client.server_capabilities = vim.tbl_deep_extend("force", client.server_capabilities, {
-          semanticTokensProvider = {
-            full = true,
-        }})
-
-        -- Save the original request method
-        local original_request = client.request
-
-        -- Override the client's request method
-        client.request = function(method, params, handler, ctx, config)
-          -- Log all LSP requests to a file
-          -- local log_file = io.open("/tmp/nvim_lsp_debug.log", "a")
-          -- if log_file then
-          --   log_file:write(string.format("\n=== LSP Client Request at %s ===\n", os.date()))
-          --   log_file:write("method: " .. method .. "\n")
-          --   log_file:write("params: " .. vim.inspect(params) .. "\n")
-          --   log_file:write("================================\n")
-          --   log_file:close()
-          -- end
-
-          if method == "textDocument/semanticTokens/full" then
-            -- Modify the request to a range request covering the entire document
-
-            -- Convert URI to buffer number
-            local target_bufnr = vim.uri_to_bufnr(params.textDocument.uri)
-
-            -- Ensure the buffer is loaded
-            if not vim.api.nvim_buf_is_loaded(target_bufnr) then
-              vim.notify("[LSP] Buffer not loaded for URI: " .. params.textDocument.uri, vim.log.levels.WARN)
-              return original_request(method, params, handler, ctx, config)
-            end
-
-            -- Get the total number of lines in the buffer
-            local line_count = vim.api.nvim_buf_line_count(target_bufnr)
-
-            -- Get the last line's content
-            local last_line = vim.api.nvim_buf_get_lines(target_bufnr, line_count - 1, line_count, true)[1] or ""
-
-            -- Calculate the end character (0-based index)
-            local end_character = #last_line
-
-            -- Construct the range
-            local range = {
-              start = { line = 0, character = 0 },
-              ["end"] = { line = line_count - 1, character = end_character },
-            }
-
-            -- Construct the new params for the range request
-            local new_params = {
-              textDocument = params.textDocument,
-              range = range,
-            }
-
-            -- Log the modification
-            -- local log_file_range = io.open("/tmp/nvim_lsp_debug.log", "a")
-            -- if log_file_range then
-            --   log_file_range:write("Modified to 'textDocument/semanticTokens/range' with range: " .. vim.inspect(range) .. "\n")
-            --   log_file_range:close()
-            -- end
-
-            -- Send the modified range request
-            return original_request("textDocument/semanticTokens/range", new_params, handler, ctx, config)
-          end
-
-          -- Call the original request method for all other methods
-          return original_request(method, params, handler, ctx, config)
-        end
-      end,
-      settings = {
-        ["csharp|inlay_hints"] = {
-          csharp_enable_inlay_hints_for_implicit_object_creation = true,
-          csharp_enable_inlay_hints_for_implicit_variable_types = true,
-          csharp_enable_inlay_hints_for_lambda_parameter_types = true,
-          csharp_enable_inlay_hints_for_types = true,
-          dotnet_enable_inlay_hints_for_indexer_parameters = true,
-          dotnet_enable_inlay_hints_for_literal_parameters = true,
-          dotnet_enable_inlay_hints_for_object_creation_parameters = true,
-          dotnet_enable_inlay_hints_for_other_parameters = true,
-          dotnet_enable_inlay_hints_for_parameters = true,
-          dotnet_suppress_inlay_hints_for_parameters_that_differ_only_by_suffix = true,
-          dotnet_suppress_inlay_hints_for_parameters_that_match_argument_name = true,
-          dotnet_suppress_inlay_hints_for_parameters_that_match_method_intent = true,
-        },
-        ["csharp|code_lens"] = {
-          dotnet_enable_references_code_lens = true,
-          dotnet_enable_tests_code_lens = true,
-        },
-        ["csharp|completion"] = {
-          dotnet_show_completion_items_from_unimported_namespaces = true,
-          dotnet_show_name_completion_suggestions = true,
-        },
-        ["csharp|background_analysis"] = {
-          background_analysis_dotnet_compiler_diagnostics_scope = "fullSolution",
-        },
-        ["csharp|symbol_search"] = {
-          dotnet_search_reference_assemblies = true,
-        },
-      },
-    },
-  },
-},
+			-- Roslyn's semantic token legend goes well past the LSP standard types,
+			-- and colorschemes rarely define @lsp.type.* for the extras, so those
+			-- tokens silently fall back to treesitter. Link them to treesitter
+			-- captures; `default` lets a colorscheme that does define them win.
+			local roslyn_token_links = {
+				recordClass = "@lsp.type.class",
+				recordStruct = "@lsp.type.struct",
+				delegate = "@type",
+				field = "@variable.member",
+				constant = "@constant",
+				extensionMethod = "@function.method",
+				controlKeyword = "@keyword.conditional",
+				operatorOverloaded = "@operator",
+				label = "@label",
+				excludedCode = "Comment",
+				stringEscapeCharacter = "@string.escape",
+				stringVerbatim = "@string",
+				regexText = "@string.regexp",
+				regexComment = "@comment",
+				regexCharacterClass = "@constant.character",
+				regexAnchor = "@operator",
+				regexQuantifier = "@operator",
+				regexAlternation = "@operator",
+				regexGrouping = "@punctuation.bracket",
+				regexOtherEscape = "@string.escape",
+				regexSelfEscapedCharacter = "@string.escape",
+				jsonPropertyName = "@property",
+				jsonString = "@string",
+				jsonNumber = "@number",
+				jsonKeyword = "@boolean",
+				jsonComment = "@comment",
+				jsonOperator = "@operator",
+				jsonPunctuation = "@punctuation.delimiter",
+				xmlDocCommentName = "@tag",
+				xmlDocCommentAttributeName = "@tag.attribute",
+				xmlDocCommentAttributeQuotes = "@string",
+				xmlDocCommentAttributeValue = "@string",
+				xmlDocCommentDelimiter = "@tag.delimiter",
+				xmlDocCommentEntityReference = "@character.special",
+				xmlDocCommentText = "@comment.documentation",
+				xmlDocCommentComment = "@comment",
+				xmlDocCommentCDataSection = "@comment",
+			}
+			local function link_roslyn_tokens()
+				for token, target in pairs(roslyn_token_links) do
+					vim.api.nvim_set_hl(0, "@lsp.type." .. token, { link = target, default = true })
+				end
+			end
+			link_roslyn_tokens()
+			-- :colorscheme runs `hi clear`, which wipes these links
+			vim.api.nvim_create_autocmd("ColorScheme", { callback = link_roslyn_tokens })
+		end,
+		opts = {},
+	},
 }

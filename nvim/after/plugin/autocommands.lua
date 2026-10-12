@@ -62,6 +62,11 @@ vim.api.nvim_create_autocmd('LspAttach', {
     if client:supports_method('textDocument/inlayHint') then
       vim.lsp.inlay_hint.enable(true, {bufnr = args.buf})
     end
+
+    -- Reference counts and run/debug-test lenses (Roslyn); nvim 0.12 keeps them refreshed
+    if client.name == 'roslyn' and client:supports_method('textDocument/codeLens') then
+      vim.lsp.codelens.enable(true, {bufnr = args.buf})
+    end
   end,
 })
 
