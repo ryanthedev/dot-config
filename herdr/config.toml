@@ -85,8 +85,8 @@ show_agent_labels_on_pane_borders = true
 prompt_new_tab_name = false
 
 [ui.toast]
-# Background agents ping macOS notifications directly
-delivery = "system"
+# In-app toasts only — "system" pinged macOS desktop notifications
+delivery = "herdr"
 
 [experimental]
 # Keep pane screen history across full server restarts
