@@ -142,6 +142,9 @@
       }
     }
   },
+  "enabledPlugins": {
+    "domod@rtd": true
+  },
   "outputStyle": "Skimmable",
   "statusLine": {
     "type": "command",

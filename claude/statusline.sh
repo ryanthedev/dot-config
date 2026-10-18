@@ -45,6 +45,7 @@ BOLT=$(printf '\xef\x83\xa7')      # U+F0E7 bolt (effort)
 GAUGE=$(printf '\xef\x83\xa4')     # U+F0E4 tachometer (context)
 FORK=$(printf '\xef\x84\xa6')      # U+F126 code-fork (branch)
 GIT=$(printf '\xef\x87\x93')       # U+F1D3 git (commit)
+TODO=$(printf '\xef\x81\x86')      # U+F046 check-square-o (domod)
 sep=$(printf "$SEP")
 
 SEP_W=3        # rendered cells of " · "
@@ -53,7 +54,11 @@ PAD=2          # right-edge breathing room
 MAX_BRANCH=24  # longer branch names are elided, not dropped
 
 # Lowest priority first. Anything not named here is never dropped (context %).
-DROP_ORDER="commit branch effort model"
+DROP_ORDER="commit branch effort todo model"
+
+# Open domod items for this project, written by the domod mod
+# (github.com/ryanthedev/domod) as { "<project root>": { "me": n, "claude": n, "waiting": n } }.
+DOMOD_COUNTS="$HOME/.claude/domod/counts.json"
 
 # IFS must be tab-only: display_name contains spaces ("Opus 5 (1M context)"), and
 # default IFS would shred it across the other three variables.
@@ -62,6 +67,7 @@ IFS=$'\t' read -r model effort pct dir < <(printf '%s' "$input" | jq -r '
     (.effort.level // ""),
     (.context_window.used_percentage // ""),
     (.workspace.current_dir // .cwd // "") ] | @tsv')
+project=$(printf '%s' "$input" | jq -r '.workspace.project_dir // .workspace.current_dir // .cwd // ""')
 
 # name / rendered text / cell width, in display order.
 names=(); texts=(); widths=()
@@ -73,6 +79,21 @@ if [ -n "$pct" ]; then
   p=${pct%.*}; [ -z "$p" ] && p=0
   col=$GREEN; [ "$p" -ge 50 ] && col=$PEACH; [ "$p" -ge 80 ] && col=$RED
   addseg context "${col}${GAUGE}${R} ${col}${p}%${R}" $((GLYPH_W + 1 + ${#p} + 1))
+fi
+
+# "3 you" in peach (yours to act on), "1 Claude" plain; skipped when nothing is open.
+if [ -n "$project" ] && [ -r "$DOMOD_COUNTS" ]; then
+  IFS=$'\t' read -r mine claudes < <(jq -r --arg p "$project" \
+    '[(.[$p].me // 0), (.[$p].claude // 0)] | @tsv' "$DOMOD_COUNTS" 2>/dev/null)
+  todo_text=""; todo_plain=""
+  if [ "${mine:-0}" -gt 0 ]; then
+    todo_text="${PEACH}${mine} you${R}"; todo_plain="${mine} you"
+  fi
+  if [ "${claudes:-0}" -gt 0 ]; then
+    [ -n "$todo_plain" ] && { todo_text+=" "; todo_plain+=" "; }
+    todo_text+="${FG}${claudes} Claude${R}"; todo_plain+="${claudes} Claude"
+  fi
+  [ -n "$todo_plain" ] && addseg todo "${PEACH}${TODO}${R} ${todo_text}" $((GLYPH_W + 1 + ${#todo_plain}))
 fi
 
 # Two cheap plumbing calls — no index read, so they stay fast in large repos.

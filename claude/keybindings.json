@@ -5,7 +5,20 @@
     {
       "context": "Chat",
       "bindings": {
-        "ctrl+x y": "command:yank"
+        "ctrl+x y": "command:yank",
+        "ctrl+w l": "abovePrompt:focus",
+        "ctrl+w t": "command:todo",
+        "ctrl+w n": "command:note"
+      }
+    },
+    {
+      "context": "Pane",
+      "bindings": {
+        "ctrl+w h": "abovePrompt:leave",
+        "j": "abovePrompt:next",
+        "k": "abovePrompt:previous",
+        "]": "pane:next",
+        "[": "pane:previous"
       }
     }
   ]
