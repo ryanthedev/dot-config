@@ -155,5 +155,9 @@
   "tui": "fullscreen",
   "alwaysThinkingEnabled": true,
   "autoCompactEnabled": false,
-  "autoMemoryEnabled": false
+  "autoMemoryEnabled": false,
+  "voice": {
+    "enabled": true,
+    "mode": "tap"
+  }
 }
