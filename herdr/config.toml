@@ -88,6 +88,14 @@ prompt_new_tab_name = false
 # In-app toasts only — "system" pinged macOS desktop notifications
 delivery = "herdr"
 
+[ui.sound]
+# herdr has no volume knob, so these are the stock done/request chimes
+# (assets/sounds/ in the herdr repo) re-encoded at half volume:
+#   ffmpeg -i done.mp3 -af volume=0.5 -b:a 256k sounds/done.mp3
+# Lower the factor and re-run to go quieter. Paths resolve from this dir.
+done_path = "sounds/done.mp3"
+request_path = "sounds/request.mp3"
+
 [experimental]
 # Keep pane screen history across full server restarts
 pane_history = true
