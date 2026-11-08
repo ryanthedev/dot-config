@@ -72,6 +72,7 @@ herdr-app/layouts/*
 !herdr-app/backgrounds/
 !herdr-app/mods/
 herdr-app/mods/*
+!herdr-app/mods/fleet/
 !herdr-app/mods/leader/
 !herdr-app/mods/matrix-agents/
 !herdr-app/mods/matrix-art/
