@@ -5,7 +5,39 @@
 
 import { View, div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { spaces, machines, panes, run, openOverlay, exec, hc, theme, shared, setShared, watchFolder, window, layout } from "herdr";
+import { spaces, machines, panes, agents, focused, nextCommand, run, openOverlay, exec, hc, theme, shared, setShared, watchFolder, window, layout } from "herdr";
+
+// A space's agents, most urgent first: needs you, done, working, idle.
+const URGENT = { blocked: 4, done: 3, working: 2, idle: 1 };
+const agentsIn = (id) => agents().filter((a) => a.space === id).sort((x, y) => (URGENT[y.status] ?? 0) - (URGENT[x.status] ?? 0));
+
+const clean = (s) => (s ?? "").replace(/^[^\p{L}\p{N}]+/u, "").trim();
+
+// What an agent is doing: its own title when that says something, else its tab.
+function taskOf(a) {
+  const prog = a.program?.name ?? "";
+  const own = clean(a.title);
+  const telling = own && own.toLowerCase() !== prog.toLowerCase() && own.toLowerCase() !== a.program?.key && !/^[~/]/.test(own);
+  return telling ? own : (a.tab_name && !/^\d+$/.test(a.tab_name) ? a.tab_name : prog || a.address);
+}
+
+// An agent's state, small: spinner working, ! needs you, dot done, ring idle.
+function statusMark(t, st) {
+  if (st === "working") return svg("mods/workspace-chrome/spinner.svg").size(11).flex_none().text_color(t.working).spin(900);
+  if (st === "blocked") return div().size(13).flex_none().rounded(4).bg(t.blocked + "26").text_size(10).font_bold().text_color(t.blocked).flex().items_center().justify_center().child("!");
+  if (st === "done") return div().size(7).flex_none().rounded(4).bg(t.done);
+  return div().size(7).flex_none().rounded(4).border(1.5).border_color(t.idle ?? t.dim);
+}
+
+// The popup of one space's agents (drawn by matrix-agents): arrows move, ←/→
+// switch spaces, Enter goes. Tall enough for the busiest space.
+function openAgents(space, at) {
+  if (!space) return;
+  const counts = {};
+  for (const a of agents()) counts[a.space] = (counts[a.space] ?? 0) + 1;
+  const most = Math.max(1, ...Object.values(counts));
+  openOverlay({ mod: "matrix-agents", kind: "popup", width: 340, height: Math.min(460, 46 + 40 * most + 12), ...(at ? { at } : {}), props: { spaceList: space } });
+}
 
 const home = (path) => (path ?? "").replace(/^\/(Users|home)\/[^/]+/, "~");
 
@@ -72,6 +104,20 @@ export default class Spaces extends View {
     // `git status` walks the whole tree, on another machine a process there:
     // only when its answer could have changed (see `due`).
     cx.timer.every(250, (cx) => this.checkNew(cx));
+    // keys.json (layout:matrix): cmd-g sends "agents" (this space's agents);
+    // ctrl+1..9 send "go1".."go9": space N, at its most urgent agent.
+    cx.spawn(async () => {
+      for (;;) {
+        const c = await nextCommand();
+        if (c === "agents") openAgents(focused()?.space ?? spaces()[0]?.id, { x: 280, y: 120 });
+        const n = /^go([1-9])$/.exec(c)?.[1];
+        const sp = n && spaces()[n - 1];
+        if (!sp) continue;
+        const top = agentsIn(sp.id)[0];
+        if (top) run("pane.focus", { pane: top.pane });
+        else run("space.select", { id: sp.id });
+      }
+    });
   }
 
   checkNew(cx) {
@@ -378,7 +424,8 @@ export default class Spaces extends View {
       .relative()
       .id(`space-${w.id}`)
       .px(8)
-      .h(rowHeight({ tree }))
+      .min_h(rowHeight({ tree }))
+      .py(5)
       .flex_none()
       .justify_center()
       .rounded(8)
@@ -425,9 +472,85 @@ export default class Spaces extends View {
             .child(h_flex().gap(6).items_center()
               .child(div().flex_shrink(0).max_w(150).truncate().text_color(t.foreground).font_medium().child(w.name))
               .child(g ? this.gitTail(g, tree, w.name, t) : div().flex_1())
+              .when(agentsIn(w.id).length > 0, el => el.child(div()
+                .id(`agents-${w.id}`)
+                .h(18)
+                .px(3)
+                .gap(3)
+                .flex()
+                .flex_none()
+                .items_center()
+                .rounded(4)
+                .text_size(11)
+                .text_color(t.dim)
+                .cursor_pointer()
+                .tooltip("List agents (cmd-g)")
+                .hover(s => s.bg(t.hover).text_color(t.foreground))
+                // Its own press: not a row drag or a space select.
+                .on_mouse_down("left", (_e, cx) => {
+                  cx.stop_propagation();
+                  openAgents(w.id);
+                })
+                .child(String(agentsIn(w.id).length))
+                .child(svg("mods/workspace-chrome/chevron-right.svg").size(11).flex_none())))
               .when(w.status === "blocked" || w.status === "done", el => el.child(div().flex_none().text_color(tone(t, w.status)).child("\u25cf"))))
             .child(div().truncate().text_size(11.5).text_color(on ? t.accent : t.dim).child(this.detail(w)))),
-      );
+      )
+      .child(this.tabTree(w, t));
+  }
+
+  // The space as a tree: its tabs, and in each its agents. A tab with one agent
+  // is one line (what the agent is doing); a tab with several lists them under
+  // it; a tab with none shows its name, dimmed. Clicking a line goes there.
+  tabTree(w, t) {
+    const all = agents();
+    const ps = panes();
+    const nodes = [];
+    for (const tab of (w.tabs ?? []).filter((c) => !c.settled)) {
+      const mine = all.filter((a) => a.tab === tab.id);
+      const tabName = tab.named ? tab.name : null;
+      const firstPane = (ps.find((p) => p.tab === tab.id && p.focused) ?? ps.find((p) => p.tab === tab.id))?.pane;
+      if (mine.length === 1) nodes.push({ key: tab.id, label: taskOf(mine[0]), tag: tabName, agent: mine[0], pane: mine[0].pane, kids: [] });
+      else nodes.push({
+        key: tab.id,
+        label: tabName ?? (mine.length ? `tab ${tab.index ?? ""}`.trim() : (ps.find((p) => p.pane === firstPane)?.title || `tab ${tab.index ?? ""}`.trim())),
+        pane: firstPane,
+        dim: mine.length === 0,
+        kids: mine.map((a) => ({ key: a.address, label: taskOf(a), agent: a, pane: a.pane, kids: [] })),
+      });
+    }
+    const lines = [];
+    const walk = (list, lead) => list.forEach((n, i) => {
+      const last = i === list.length - 1;
+      lines.push({ n, lines: [...lead, last ? "\u2514" : "\u251c"] });
+      walk(n.kids, [...lead, last ? "" : "\u2502"]);
+    });
+    walk(nodes, []);
+    if (!lines.length) return div();
+    return v_flex().pl(9).pt(3).children(lines.map(({ n, lines: lead }) => h_flex()
+      .id(`tree-${w.id}-${n.key}`)
+      .h(22)
+      .pr(2)
+      .flex_none()
+      .items_center()
+      .rounded(5)
+      .text_size(12)
+      .when(n.agent?.focused, (el) => el.bg(t.hover))
+      .hover((s) => s.bg(t.hover))
+      .cursor_pointer()
+      // Its own press: not a row drag or a space select.
+      .on_mouse_down("left", (_e, cx) => {
+        cx.stop_propagation();
+        if (n.pane) run("pane.focus", { pane: n.pane });
+      })
+      .children(lead.map((l) => div().self_start().mt(-4).w(9).h(15).mr(4).flex_none()
+        .when(Boolean(l), (el) => el.border_l(1.5).border_color(t.input ?? t.border))
+        .when(l === "\u2514" || l === "\u251c", (el) => el.border_b(1.5).rounded_bl(5))))
+      .child(div().flex_1().min_w(0).truncate()
+        .text_color(n.dim ? t.dim : n.agent && n.agent.status !== "idle" ? t.foreground : t.muted)
+        .child(n.label))
+      .when(Boolean(n.tag), (el) => el.child(div().flex_none().max_w(70).truncate().ml(6).text_size(11).text_color(t.dim).child(n.tag)))
+      .when(Boolean(n.agent), (el) => el.child(h_flex().w(14).ml(6).flex_none().justify_center().child(statusMark(t, n.agent.status))))));
   }
 
   // "~/repos/herdr \u00b7 3 tabs \u00b7 2 working": its folder now, its tabs, its agents' states.

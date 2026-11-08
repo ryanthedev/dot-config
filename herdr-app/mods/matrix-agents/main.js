@@ -78,6 +78,16 @@ function duration(ms) {
   return h < 24 ? `${h}h` : `${Math.floor(h / 24)}d`;
 }
 
+// The popup of one space's agents. Tall enough for the busiest space, since
+// ←/→ inside it move between spaces.
+function openSpaceList(space, at) {
+  if (!space) return;
+  const counts = {};
+  for (const a of agents()) counts[a.space] = (counts[a.space] ?? 0) + 1;
+  const most = Math.max(1, ...Object.values(counts));
+  openOverlay({ mod: "matrix-agents", kind: "popup", width: 340, height: Math.min(460, 46 + 40 * most + 12), ...(at ? { at } : {}), props: { spaceList: space } });
+}
+
 // The agent's icon from the app's program table: a one-color glyph or a picture.
 function icon(p, size, color) {
   if (!p?.icon) return null;
@@ -90,6 +100,7 @@ export default class Agents extends View {
     if (props()?.spaceList) {
       // The popup of one space's agents: arrows or j/k move, Enter goes, 1-9 jump.
       this.at = 0;
+      this.space = props().spaceList;
       this.changed = JSON.parse(localStorage.getItem("changed") ?? "{}");
       this.handle = cx.focus_handle();
       this.handle.focus();
@@ -109,7 +120,12 @@ export default class Agents extends View {
     this.order = [];
     cx.spawn(async (cx) => {
       for (;;) {
-        const n = /^agent([1-9])$/.exec(await nextCommand())?.[1];
+        const c = await nextCommand();
+        if (c === "spaces") {
+          openSpaceList(focused()?.space ?? agents()[0]?.space, { x: 280, y: 120 });
+          continue;
+        }
+        const n = /^agent([1-9])$/.exec(c)?.[1];
         const address = n && this.order[n - 1];
         if (address) run("agent.focus", { terminal: address });
       }
@@ -199,8 +215,17 @@ export default class Agents extends View {
 
   // One space's agents, most urgent first, in a popup that takes the keyboard.
   spaceList(t, cx) {
-    const id = props().spaceList;
+    // Spaces with agents, in sidebar order; ←/→ step through them.
+    const withAgents = spaces().filter((s) => agents().some((a) => a.space === s.id));
+    if (!withAgents.some((s) => s.id === this.space) && withAgents.length) this.space = withAgents[0].id;
+    const id = this.space;
     const sp = spaces().find((s) => s.id === id);
+    const step = (d) => {
+      const i = withAgents.findIndex((s) => s.id === id);
+      if (withAgents.length < 2) return;
+      this.space = withAgents[(i + d + withAgents.length) % withAgents.length].id;
+      this.at = 0;
+    };
     const list = agents()
       .filter((a) => a.space === id)
       .sort((x, y) => (RANK[y.status] ?? 0) - (RANK[x.status] ?? 0) || this.since(y) - this.since(x));
@@ -231,6 +256,8 @@ export default class Agents extends View {
         if (k === "escape") return close();
         if (k === "down" || k === "j") this.at = (this.at + 1) % Math.max(1, list.length);
         else if (k === "up" || k === "k") this.at = (this.at + list.length - 1) % Math.max(1, list.length);
+        else if (k === "right" || k === "l" || k === "tab") step(1);
+        else if (k === "left" || k === "h") step(-1);
         else if (k === "enter") return go(list[this.at]);
         else if (/^[1-9]$/.test(k) && list[+k - 1]) return go(list[+k - 1]);
         else return;
@@ -240,6 +267,7 @@ export default class Agents extends View {
       .child(h_flex().px(8).pt(4).pb(8).gap(8).items_center()
         .child(div().w(3).h(14).flex_none().rounded(2).bg(fill))
         .child(div().flex_1().truncate().text_size(12).font_medium().text_color(t.foreground).child(sp?.name ?? "Space"))
+        .when(withAgents.length > 1, (el) => el.child(div().flex_none().text_size(10.5).text_color(t.dim).child(`${withAgents.findIndex((s) => s.id === id) + 1}/${withAgents.length}  \u2190\u2192`)))
         .child(div().flex_none().text_size(10.5).text_color(t.dim).child("\u2191\u2193 \u21b5  esc")))
       .when(list.length === 0, (el) => el.child(div().px(8).py(6).text_size(12).text_color(t.dim).child("No agents in this space.")))
       .children(list.map((a, i) => {
@@ -582,7 +610,7 @@ export default class Agents extends View {
               .hover((s) => s.bg(t.hover).text_color(t.foreground))
               .on_click((_e, cx) => {
                 cx.stop_propagation();
-                openOverlay({ mod: "matrix-agents", kind: "popup", width: 320, height: Math.min(460, 46 + 40 * g.members.length + 12), props: { spaceList: g.space } });
+                openSpaceList(g.space);
               })
               .child(String(g.members.length))
               .child(svg("mods/workspace-chrome/chevron-right.svg").size(11).flex_none()))

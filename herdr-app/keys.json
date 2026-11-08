@@ -100,14 +100,8 @@
     "cmd-backspace": "send:\u0015"
   },
   "layout:matrix": {
-    "ctrl-1": "matrix-agents.agent1",
-    "ctrl-2": "matrix-agents.agent2",
-    "ctrl-3": "matrix-agents.agent3",
-    "ctrl-4": "matrix-agents.agent4",
-    "ctrl-5": "matrix-agents.agent5",
-    "ctrl-6": "matrix-agents.agent6",
-    "ctrl-7": "matrix-agents.agent7",
-    "ctrl-8": "matrix-agents.agent8",
-    "ctrl-9": "matrix-agents.agent9"
+    "cmd-g": "mod.open:stage",
+    "cmd-shift-m": "layout.toggle:phone-bridge",
+    "cmd-shift-g": "fleet.keys"
   }
 }
