@@ -1,0 +1,16 @@
+{
+  "zoom": 1.2,
+  "sounds": {
+    "enabled": true,
+    "done": "/Users/r/.config/herdr/sounds/done.mp3",
+    "blocked": "/Users/r/.config/herdr/sounds/request.mp3"
+  },
+  "font_ligatures": false,
+  "minimum_contrast": 1.0,
+  "theme": "tokyo-night",
+  "font": "BerkeleyMono Nerd Font",
+  "colors": {
+    "accent": "#9ece6a",
+    "selected": "#34406b"
+  }
+}

@@ -57,3 +57,28 @@ herdr/.plugins.lock
 fonts/berkeley/src/
 __pycache__/
 *.bak-*
+# Herdr desktop app: only what's customized (app state, sockets, telemetry and
+# stock mods stay out; herdr-md lives in its own repo)
+!herdr-app/
+herdr-app/*
+!herdr-app/keys.json
+!herdr-app/settings.json
+!herdr-app/layouts/
+herdr-app/layouts/.state
+herdr-app/layouts/*
+!herdr-app/layouts/matrix.json
+!herdr-app/layouts/my-main.json
+!herdr-app/themes/
+!herdr-app/backgrounds/
+!herdr-app/mods/
+herdr-app/mods/*
+!herdr-app/mods/leader/
+!herdr-app/mods/matrix-agents/
+!herdr-app/mods/matrix-art/
+!herdr-app/mods/matrix-chrome/
+!herdr-app/mods/matrix-rain/
+!herdr-app/mods/matrix-spaces/
+!herdr-app/mods/my-files/
+# rewritten by the app on every start
+herdr-app/mods/*/gpui-kit.d.ts
+herdr-app/mods/*/jsconfig.json

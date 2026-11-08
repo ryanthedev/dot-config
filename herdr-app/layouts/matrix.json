@@ -1,0 +1,207 @@
+{
+  "id": "root",
+  "type": "row",
+  "children": [
+    {
+      "id": "sidebar",
+      "type": "column",
+      "children": [
+        {
+          "id": "brand",
+          "type": "block",
+          "content": {
+            "mod": "matrix-chrome"
+          },
+          "size": {
+            "px": 46
+          },
+          "window_drag": true
+        },
+        {
+          "id": "sidebar-lists",
+          "type": "column",
+          "children": [
+            {
+              "id": "spaces",
+              "type": "block",
+              "content": {
+                "mod": "matrix-spaces"
+              },
+              "size": {
+                "weight": 1
+              },
+              "min": 90
+            },
+            {
+              "id": "agents",
+              "type": "block",
+              "content": {
+                "mod": "matrix-agents"
+              },
+              "size": {
+                "weight": 1
+              },
+              "min": 90
+            }
+          ]
+        },
+        {
+          "id": "sidebar-footer",
+          "type": "block",
+          "content": {
+            "mod": "matrix-chrome",
+            "props": {
+              "footer": true
+            }
+          },
+          "size": {
+            "px": 69
+          }
+        }
+      ],
+      "size": {
+        "px": 268
+      },
+      "min": 44,
+      "max": 480,
+      "background": {
+        "image": "backgrounds/sidebar.png",
+        "fit": "cover"
+      },
+      "resizable": false
+    },
+    {
+      "id": "work",
+      "type": "column",
+      "children": [
+        {
+          "id": "tabs",
+          "type": "block",
+          "content": {
+            "mod": "tabs"
+          },
+          "size": {
+            "px": 42
+          },
+          "window_drag": true
+        },
+        {
+          "id": "work-body",
+          "type": "row",
+          "children": [
+            {
+              "id": "main",
+              "type": "block",
+              "content": {
+                "tab": "active",
+                "pane": {
+                  "header": {
+                    "content": {
+                      "mod": "pane"
+                    },
+                    "reveal": "always",
+                    "height": 30,
+                    "position": "top"
+                  },
+                  "border": {
+                    "width": 1,
+                    "color": "border"
+                  },
+                  "focus": {
+                    "width": 1,
+                    "color": "accent"
+                  },
+                  "radius": 10,
+                  "gap": 8,
+                  "lone": true
+                }
+              },
+              "background": {
+                "image": "backgrounds/matrix.png",
+                "fit": "cover"
+              }
+            },
+            {
+              "id": "panel",
+              "type": "column",
+              "children": [
+                {
+                  "id": "panel-body",
+                  "type": "stack",
+                  "children": [
+                    {
+                      "id": "files",
+                      "type": "block",
+                      "content": {
+                        "mod": "my-files"
+                      }
+                    },
+                    {
+                      "id": "changes",
+                      "type": "block",
+                      "content": {
+                        "mod": "changes"
+                      }
+                    }
+                  ],
+                  "active": "files"
+                }
+              ],
+              "size": {
+                "px": 368
+              },
+              "min": 280,
+              "max": 900,
+              "hidden": true
+            }
+          ],
+          "padding": 8,
+          "gap": 8
+        },
+        {
+          "id": "status",
+          "type": "block",
+          "content": {
+            "mod": "workspace-status"
+          },
+          "size": {
+            "px": 28
+          }
+        }
+      ],
+      "resizable": false
+    },
+    {
+      "id": "rain",
+      "type": "block",
+      "content": {
+        "mod": "matrix-rain"
+      },
+      "size": {
+        "px": 84
+      },
+      "min": 0,
+      "max": 240
+    }
+  ],
+  "background": "#000000",
+  "terminal_padding": [
+    14,
+    12
+  ],
+  "divider": {
+    "width": 1,
+    "color": "border"
+  },
+  "titlebar": "none",
+  "traffic_lights": [
+    12,
+    16
+  ],
+  "theme": "matrix",
+  "colors": {
+    "accent": "#5eead4",
+    "selected": "#0f2e2a"
+  },
+  "terminal_opacity": 0.72
+}
