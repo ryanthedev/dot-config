@@ -1,17 +1,12 @@
 #!/usr/bin/env bash
 # Claude Code statusLine — renders one line beneath the input box:
 #
-#      Opus  ·   high  ·   12%  ·   main  ·   db16221
-#     model      effort     context    branch     commit
-#
-# NOTE: this re-runs on conversation activity, not on a timer, so the git segments
-# refresh on activity, not on `git checkout`. The clock lives in a Claude Code mod
-# instead (dev-mods/…/clock), which ticks on a real timer.
+#      Opus  ·   high  ·   12%
+#     model      effort     context
 #
 # Reads the session JSON on stdin (schema: code.claude.com/docs/en/statusline).
 # Fields Claude omits are skipped: effort.level is absent on non-reasoning models,
-# context_window.used_percentage is null early in a session. Git segments are
-# skipped outside a repo, and the branch is skipped on a detached HEAD. Colors are
+# context_window.used_percentage is null early in a session. Colors are
 # truecolor SGR tuned to the herdr theme (green accent #9ece6a). macOS /bin/bash
 # 3.2 safe — nerd-font glyphs are built from raw UTF-8 bytes (no $'\u' which 3.2
 # lacks), and no associative arrays.
@@ -27,14 +22,15 @@
 # the dotfiles repo. Claude reads settings.json at launch, so edits here show on
 # the next session start.
 input=$(cat)
+# Usage-governor feed: keep the latest payload (it carries rate_limits) for ~/.claude/governor.
+{ mkdir -p "$HOME/.claude/usage" && printf '%s' "$input" > "$HOME/.claude/usage/.sl.$$" && mv -f "$HOME/.claude/usage/.sl.$$" "$HOME/.claude/usage/statusline-latest.json"; } 2>/dev/null
+{ sid=$(printf '%s' "$input" | jq -r '.session_id // empty'); [ -n "$sid" ] && mkdir -p "$HOME/.claude/usage/sessions" && printf '%s' "$input" > "$HOME/.claude/usage/sessions/.$sid.$$" && mv -f "$HOME/.claude/usage/sessions/.$sid.$$" "$HOME/.claude/usage/sessions/$sid.json"; } 2>/dev/null
 
 esc=$'\033'; R="${esc}[0m"
 GREEN="${esc}[38;2;158;206;106m"   # accent green — context when low
 BLUE="${esc}[38;2;122;162;247m"    # model
 PEACH="${esc}[38;2;224;175;104m"   # effort
 RED="${esc}[38;2;247;118;142m"     # context when high
-PURPLE="${esc}[38;2;187;154;247m"  # branch
-CYAN="${esc}[38;2;125;207;255m"    # commit
 FG="${esc}[38;2;192;202;245m"      # values
 DIM="${esc}[38;2;86;95;137m"       # separators
 SEP=" ${DIM}\xc2\xb7${R} "         # " · "
@@ -43,31 +39,22 @@ SEP=" ${DIM}\xc2\xb7${R} "         # " · "
 CHIP=$(printf '\xef\x8b\x9b')      # U+F2DB microchip (model)
 BOLT=$(printf '\xef\x83\xa7')      # U+F0E7 bolt (effort)
 GAUGE=$(printf '\xef\x83\xa4')     # U+F0E4 tachometer (context)
-FORK=$(printf '\xef\x84\xa6')      # U+F126 code-fork (branch)
-GIT=$(printf '\xef\x87\x93')       # U+F1D3 git (commit)
-TODO=$(printf '\xef\x81\x86')      # U+F046 check-square-o (domod)
 sep=$(printf "$SEP")
 
 SEP_W=3        # rendered cells of " · "
 GLYPH_W=2      # assume double-width glyphs; over-counting only hides sooner
 PAD=2          # right-edge breathing room
-MAX_BRANCH=24  # longer branch names are elided, not dropped
 
 # Lowest priority first. Anything not named here is never dropped (context %).
-DROP_ORDER="commit branch effort todo model"
+DROP_ORDER="effort model"
 
-# Open domod items for this project, written by the domod mod
-# (github.com/ryanthedev/domod) as { "<project root>": { "me": n, "claude": n, "waiting": n } }.
-DOMOD_COUNTS="$HOME/.claude/domod/counts.json"
 
 # IFS must be tab-only: display_name contains spaces ("Opus 5 (1M context)"), and
-# default IFS would shred it across the other three variables.
-IFS=$'\t' read -r model effort pct dir < <(printf '%s' "$input" | jq -r '
+# default IFS would shred it across the other two variables.
+IFS=$'\t' read -r model effort pct < <(printf '%s' "$input" | jq -r '
   [ (.model.display_name // ""),
     (.effort.level // ""),
-    (.context_window.used_percentage // ""),
-    (.workspace.current_dir // .cwd // "") ] | @tsv')
-project=$(printf '%s' "$input" | jq -r '.workspace.project_dir // .workspace.current_dir // .cwd // ""')
+    (.context_window.used_percentage // "") ] | @tsv')
 
 # name / rendered text / cell width, in display order.
 names=(); texts=(); widths=()
@@ -81,35 +68,6 @@ if [ -n "$pct" ]; then
   addseg context "${col}${GAUGE}${R} ${col}${p}%${R}" $((GLYPH_W + 1 + ${#p} + 1))
 fi
 
-# "3 you" in peach (yours to act on), "1 Claude" plain; skipped when nothing is open.
-if [ -n "$project" ] && [ -r "$DOMOD_COUNTS" ]; then
-  IFS=$'\t' read -r mine claudes < <(jq -r --arg p "$project" \
-    '[(.[$p].me // 0), (.[$p].claude // 0)] | @tsv' "$DOMOD_COUNTS" 2>/dev/null)
-  todo_text=""; todo_plain=""
-  if [ "${mine:-0}" -gt 0 ]; then
-    todo_text="${PEACH}${mine} you${R}"; todo_plain="${mine} you"
-  fi
-  if [ "${claudes:-0}" -gt 0 ]; then
-    [ -n "$todo_plain" ] && { todo_text+=" "; todo_plain+=" "; }
-    todo_text+="${FG}${claudes} Claude${R}"; todo_plain+="${claudes} Claude"
-  fi
-  [ -n "$todo_plain" ] && addseg todo "${PEACH}${TODO}${R} ${todo_text}" $((GLYPH_W + 1 + ${#todo_plain}))
-fi
-
-# Two cheap plumbing calls — no index read, so they stay fast in large repos.
-# symbolic-ref fails on a detached HEAD; rev-parse fails before the first commit.
-if [ -n "$dir" ] && command -v git >/dev/null 2>&1; then
-  branch=$(git -C "$dir" symbolic-ref --quiet --short HEAD 2>/dev/null)
-  sha=$(git -C "$dir" rev-parse --short HEAD 2>/dev/null)
-  if [ ${#branch} -gt $MAX_BRANCH ]; then
-    branch="${branch:0:$((MAX_BRANCH - 1))}$(printf '\xe2\x80\xa6')"  # …
-    bw=$MAX_BRANCH
-  else
-    bw=${#branch}
-  fi
-  [ -n "$branch" ] && addseg branch "${PURPLE}${FORK}${R} ${FG}${branch}${R}" $((GLYPH_W + 1 + bw))
-  [ -n "$sha" ]    && addseg commit "${CYAN}${GIT}${R} ${FG}${sha}${R}"       $((GLYPH_W + 1 + ${#sha}))
-fi
 
 alive=(); for i in "${!names[@]}"; do alive[$i]=1; done
 
