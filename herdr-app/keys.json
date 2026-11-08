@@ -79,7 +79,9 @@
       "args": {
         "direction": "right",
         "argv": [
-          "/Users/r/.config/herdr/scripts/clock.sh"
+          "/bin/zsh",
+          "-lc",
+          "exec ~/.config/herdr/scripts/clock.sh"
         ]
       }
     },

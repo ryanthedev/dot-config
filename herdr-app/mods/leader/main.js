@@ -4,9 +4,9 @@
 
 import { View, div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { run, props, closeOverlay, openOverlay, focused, panes, theme } from "herdr";
+import { run, props, closeOverlay, openOverlay, focused, panes, theme, home } from "herdr";
 
-const HOME = "/Users/r";
+const HOME = home();
 const split = (argv) => () => run("pane.split", { direction: "right", argv });
 const worktree = (action, width, height) => () => {
   const f = focused();
@@ -30,10 +30,10 @@ function scrollback() {
     " if #L<n then return end n=#L" +
     " vim.api.nvim_buf_set_lines(b,0,-1,false,L) vim.bo[b].modified=false" +
     " if vim.api.nvim_get_current_buf()==b then vim.cmd('normal! G') end end) end" +
-    " local hc='/Users/r/.local/bin/hc'" +
+    " local hc='" + HOME + "/.local/bin/hc'" +
     " vim.system({hc,'read','" + t + "'},{text=true},fill)" +
     " vim.system({hc,'read','" + t + "','--lines','3000'},{text=true},fill)";
-  run("pane.split", { direction: "right", argv: ["/opt/homebrew/bin/nvim",
+  run("pane.split", { direction: "right", argv: ["/bin/zsh", "-lc", 'exec nvim "$@"', "nvim",
     "+lua " + lua,
     "+setlocal number buftype=nofile bufhidden=wipe noswapfile nomodified",
     "+nnoremap <buffer> q :q!<CR>", "+normal! G"] });

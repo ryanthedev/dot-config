@@ -49,6 +49,11 @@ hotkeys:
   ctrl+alt-j: "@window swap down -m"
   ctrl+alt-k: "@window swap up -m"
 
+  # Float the focused window out of the grid; press again to tile it
+  ctrl+alt-f:
+    run: "@window float"
+    repeat: false
+
   # Resize (faster rate for smooth resizing)
   cmd+alt-h:
     run: "@resize cell left 0.01"
@@ -128,3 +133,11 @@ hotkeys:
 #   Ghostty:
 #     cmd-h: ~
 #     cmd-l: ~
+
+apps:
+  # Herdr: cmd-h / cmd-l move between Herdr panes first, then to the next
+  # window at the edge (herdr-nav.sh). Without this, bfd swallows the keys and
+  # Herdr never sees its own pane.go:left / pane.go:right bindings.
+  Herdr:
+    cmd-h: "~/.config/thegrid/herdr-nav.sh left"
+    cmd-l: "~/.config/thegrid/herdr-nav.sh right"
