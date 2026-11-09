@@ -411,6 +411,39 @@ setup_claude_links() {
     done
 }
 
+# Herdr mods that live in their own repos (the rest of herdr-app is tracked
+# here). Clones each into ~/repos if missing, then installs it with the repo's
+# own script. Needs the Herdr app (herdr-app on PATH) and GitHub SSH access.
+HERDR_MOD_REPOS="herdr-md herdr-draw herdr-stage"
+
+setup_herdr_mods() {
+    info "Installing Herdr mods from their repos..."
+    if ! command -v herdr-app &>/dev/null; then
+        warn "  herdr-app not found: install the Herdr app first, then run 'make herdr'"
+        return 0
+    fi
+    local mods="$CONFIG_DIR/herdr-app/mods" name dir
+    mkdir -p "$HOME/repos" "$HOME/.local/bin" "$mods"
+    for name in $HERDR_MOD_REPOS; do
+        dir="$HOME/repos/$name"
+        if [[ ! -d "$dir/.git" ]]; then
+            git clone -q "git@github.com:ryanthedev/$name.git" "$dir" \
+                || { warn "  $name: clone failed, skipped"; continue; }
+        fi
+        case "$name" in
+            herdr-md)
+                # Its render/ npm deps (~400 MB) install on first use, so they're left out.
+                rsync -a --exclude node_modules --exclude .cache "$dir/mods/herdr-md/" "$mods/herdr-md/" \
+                    && ln -sf "$mods/herdr-md/mdh" "$HOME/.local/bin/mdh" \
+                    && env -u HERDR_APP_HOME herdr-app check "$mods/herdr-md" >/dev/null
+                ;;
+            *)
+                env -u HERDR_APP_HOME "$dir/scripts/install.sh" >/dev/null
+                ;;
+        esac && info "  $name: installed" || warn "  $name: install failed"
+    done
+}
+
 verify_status() {
     info "Verifying services..."
     echo ""
@@ -456,6 +489,7 @@ run_all() {
     setup_thegrid
     setup_remote_terminfo
     setup_claude_links
+    setup_herdr_mods
     verify_status
 
     echo ""
@@ -505,12 +539,15 @@ run_target() {
         claude)
             setup_claude_links
             ;;
+        herdr)
+            setup_herdr_mods
+            ;;
         status)
             verify_status
             ;;
         *)
             error "Unknown target: $target"
-            echo "Available targets: all, check, symlinks, services, cleanup, cleanup-aerospace, cleanup-yabai, cleanup-skhd, thegrid, terminfo, claude, status"
+            echo "Available targets: all, check, symlinks, services, cleanup, cleanup-aerospace, cleanup-yabai, cleanup-skhd, thegrid, terminfo, claude, herdr, status"
             exit 1
             ;;
     esac

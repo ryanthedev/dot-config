@@ -4,7 +4,7 @@
 SHELL := /bin/bash
 BOOTSTRAP := $(HOME)/.config/bin/dabootstrap
 
-.PHONY: all check symlinks services cleanup thegrid fonts terminfo claude status help
+.PHONY: all check symlinks services cleanup thegrid fonts terminfo claude herdr status help
 .PHONY: cleanup-aerospace cleanup-yabai cleanup-skhd
 
 # Default target
@@ -51,6 +51,10 @@ terminfo:
 claude:
 	@$(BOOTSTRAP) claude
 
+# Install Herdr mods kept in their own repos (herdr-md, herdr-draw, herdr-stage)
+herdr:
+	@$(BOOTSTRAP) herdr
+
 # Show service status
 status:
 	@$(BOOTSTRAP) status
@@ -71,6 +75,7 @@ help:
 	@echo "  fonts     Install kitty-repaired Berkeley Mono fonts"
 	@echo "  terminfo  Install Ghostty terminfo on remote hosts"
 	@echo "  claude    Link shared Claude Code config into ~/.claude"
+	@echo "  herdr     Install Herdr mods from their repos"
 	@echo "  status    Show service status"
 	@echo ""
 	@echo "Cleanup targets:"

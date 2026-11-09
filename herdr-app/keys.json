@@ -121,7 +121,6 @@
   },
   "layout:matrix": {
     "cmd-g": { "command": "pane.split", "args": { "direction": "right", "mod": "stage" } },
-    "cmd-shift-m": "layout.toggle:phone-bridge",
     "cmd-shift-g": "fleet.keys"
   }
 }

@@ -153,17 +153,6 @@
           "size": {
             "px": 28
           }
-        },
-        {
-          "id": "phone-bridge",
-          "type": "block",
-          "content": {
-            "mod": "mobile-bridge"
-          },
-          "size": {
-            "px": 28
-          },
-          "hidden": true
         }
       ],
       "resizable": false,
