@@ -422,12 +422,18 @@ setup_herdr_mods() {
         warn "  herdr-app not found: install the Herdr app first, then run 'make herdr'"
         return 0
     fi
-    local mods="$CONFIG_DIR/herdr-app/mods" name dir
+    local mods="$CONFIG_DIR/herdr-app/mods" name dir base
     mkdir -p "$HOME/repos" "$HOME/.local/bin" "$mods"
+    # Clone from wherever this config repo came from, so a machine whose default
+    # GitHub login is another account (an ssh alias like github.com-dotconfig)
+    # still reaches the private repos.
+    base=$(git -C "$CONFIG_DIR" remote get-url origin 2>/dev/null || true)
+    base="${base%/*}"
+    [[ "$base" == *ryanthedev ]] || base="git@github.com:ryanthedev"
     for name in $HERDR_MOD_REPOS; do
         dir="$HOME/repos/$name"
         if [[ ! -d "$dir/.git" ]]; then
-            git clone -q "git@github.com:ryanthedev/$name.git" "$dir" \
+            git clone -q "$base/$name.git" "$dir" \
                 || { warn "  $name: clone failed, skipped"; continue; }
         fi
         case "$name" in
