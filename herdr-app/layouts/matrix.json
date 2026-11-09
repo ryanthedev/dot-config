@@ -94,21 +94,17 @@
                     "position": "top"
                   },
                   "border": {
-                    "width": 1,
+                    "width": 2,
                     "color": "border"
                   },
                   "focus": {
-                    "width": 1,
-                    "color": "accent"
+                    "width": 2,
+                    "color": "#B0EFB5"
                   },
                   "radius": 10,
                   "gap": 8,
                   "lone": true
                 }
-              },
-              "background": {
-                "image": "backgrounds/matrix.png",
-                "fit": "cover"
               }
             },
             {
@@ -152,7 +148,7 @@
           "id": "status",
           "type": "block",
           "content": {
-            "mod": "workspace-status"
+            "mod": "my-status"
           },
           "size": {
             "px": 28
@@ -170,7 +166,11 @@
           "hidden": true
         }
       ],
-      "resizable": false
+      "resizable": false,
+      "background": {
+        "image": "backgrounds/cityscape.png",
+        "fit": "cover"
+      }
     },
     {
       "id": "fleet",
@@ -195,7 +195,8 @@
         "px": 84
       },
       "min": 0,
-      "max": 240
+      "max": 240,
+      "hidden": true
     }
   ],
   "background": "#000000",
@@ -208,7 +209,7 @@
     14,
     12
   ],
-  "terminal_opacity": 0.7200000286102295,
+  "terminal_opacity": 0.5,
   "divider": {
     "width": 1,
     "color": "border"

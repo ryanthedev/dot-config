@@ -80,6 +80,7 @@ herdr-app/mods/*
 !herdr-app/mods/matrix-rain/
 !herdr-app/mods/matrix-spaces/
 !herdr-app/mods/my-files/
+!herdr-app/mods/my-status/
 # rewritten by the app on every start
 herdr-app/mods/*/gpui-kit.d.ts
 herdr-app/mods/*/jsconfig.json

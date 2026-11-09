@@ -85,7 +85,27 @@
         ]
       }
     },
-    "ctrl-space": "mod.open:leader"
+    "ctrl-space": "mod.open:leader",
+    "cmd-shift-b": {
+      "command": "pane.split",
+      "args": {
+        "direction": "right",
+        "mod": "herdr-draw",
+        "props": {
+          "pick": true
+        }
+      }
+    },
+    "cmd-shift-o": {
+      "command": "pane.split",
+      "args": {
+        "direction": "right",
+        "mod": "herdr-md",
+        "props": {
+          "pick": true
+        }
+      }
+    }
   },
   "terminal": {
     "cmd-f": "terminal.search",
@@ -100,7 +120,7 @@
     "cmd-backspace": "send:\u0015"
   },
   "layout:matrix": {
-    "cmd-g": "mod.open:stage",
+    "cmd-g": { "command": "pane.split", "args": { "direction": "right", "mod": "stage" } },
     "cmd-shift-m": "layout.toggle:phone-bridge",
     "cmd-shift-g": "fleet.keys"
   }
