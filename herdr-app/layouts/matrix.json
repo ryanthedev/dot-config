@@ -172,7 +172,8 @@
       },
       "min": 280,
       "max": 1800,
-      "background": "chrome"
+      "background": "chrome",
+      "hidden": true
     },
     {
       "id": "rain",
