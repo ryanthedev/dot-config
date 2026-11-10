@@ -108,6 +108,22 @@
               }
             },
             {
+              "id": "stage-dock",
+              "type": "block",
+              "size": {
+                "px": 440
+              },
+              "min": 300,
+              "max": 720,
+              "resizable": true,
+              "content": {
+                "mod": "stage",
+                "props": {
+                  "dock": true
+                }
+              }
+            },
+            {
               "id": "panel",
               "type": "column",
               "children": [

@@ -412,8 +412,8 @@ setup_claude_links() {
 }
 
 # Herdr mods that live in their own repos (the rest of herdr-app is tracked
-# here). Clones each into ~/repos if missing, then installs it with the repo's
-# own script. Needs the Herdr app (herdr-app on PATH) and GitHub SSH access.
+# here). Clones each into ~/repos if missing, or fast-forwards a clean clone,
+# then installs it with the repo's own script. Needs the Herdr app (herdr-app on PATH) and GitHub SSH access.
 HERDR_MOD_REPOS="herdr-md herdr-draw herdr-stage"
 
 setup_herdr_mods() {
@@ -435,6 +435,13 @@ setup_herdr_mods() {
         if [[ ! -d "$dir/.git" ]]; then
             git clone -q "$base/$name.git" "$dir" \
                 || { warn "  $name: clone failed, skipped"; continue; }
+        elif [[ -n "$(git -C "$dir" status --porcelain --untracked-files=no)" ]]; then
+            # A clone with local edits is someone's work in progress: install it as it is.
+            warn "  $name: local changes, not updated"
+        else
+            # Existing clones would otherwise stay at whatever they first cloned.
+            git -C "$dir" pull -q --ff-only \
+                || warn "  $name: pull failed, installing what's there"
         fi
         case "$name" in
             herdr-md)
