@@ -109,6 +109,7 @@
             },
             {
               "id": "stage-dock",
+              "hidden": true,
               "type": "block",
               "size": {
                 "px": 440
