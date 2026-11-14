@@ -209,16 +209,10 @@ return {
 
 			require("mason-lspconfig").setup({
 				ensure_installed = { "vtsls", "eslint", "jsonls", "yamlls" },
-			})
-
-			vim.lsp.config("helm_ls", {
-				settings = {
-					["helm-ls"] = {
-						yamlls = {
-							path = "yaml-language-server",
-						},
-					},
-				},
+				-- ts_ls: vtsls already serves TS/JS, so Mason's typescript-language-server
+				-- must not auto-enable and double-attach. pylsp: Python uses pyright.
+				-- helm_ls: not installed; skip until wanted.
+				automatic_enable = { exclude = { "ts_ls", "pylsp", "helm_ls" } },
 			})
 
 			vim.lsp.config("vtsls", {
@@ -262,8 +256,27 @@ return {
 				},
 			})
 
-			-- Swift: sourcekit-lsp (bundled with Xcode, not managed by Mason)
-			vim.lsp.enable("sourcekit")
+			vim.lsp.config("lua_ls", {
+				settings = {
+					Lua = {
+						runtime = { version = "LuaJIT" },
+						workspace = {
+							checkThirdParty = false,
+							library = { vim.env.VIMRUNTIME },
+						},
+						diagnostics = { globals = { "vim" } },
+						telemetry = { enable = false },
+					},
+				},
+			})
+
+			-- lspconfig's sourcekit also claims c/cpp, which would double up with clangd
+			vim.lsp.config("sourcekit", { filetypes = { "swift", "objc", "objcpp" } })
+
+			-- Servers taken from PATH (Brewfile / rustup / mise / Xcode), not Mason:
+			-- pyright, rust-analyzer, clangd, ruby-lsp, lua-language-server, sourcekit-lsp.
+			-- vim.lsp.enable() on a missing binary is harmless: the server just never starts.
+			vim.lsp.enable({ "pyright", "rust_analyzer", "clangd", "ruby_lsp", "lua_ls", "sourcekit" })
 		end,
 	},
 	-- C# / Razor: Roslyn, the same language server VS Code's C# extension uses.
