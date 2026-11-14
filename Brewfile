@@ -39,13 +39,13 @@ brew "kubeseal"
 brew "kustomize"
 # Simple terminal UI for git commands
 brew "lazygit"
-# Language server for Lua
+# Language Server for the Lua language
 brew "lua-language-server"
 # Package manager for the Lua programming language
 brew "luarocks"
 # Create, run, and share large language models (LLMs)
 brew "ollama", restart_service: :changed
-# Static type checker and language server for Python
+# Static type checker for Python
 brew "pyright"
 # Search tool like grep and The Silver Searcher
 brew "ripgrep"
@@ -53,8 +53,6 @@ brew "ripgrep"
 brew "tailscale"
 # Terminal multiplexer
 brew "tmux"
-# TypeScript & JavaScript language server
-brew "typescript-language-server"
 # Process YAML, JSON, XML, CSV and properties documents from the CLI
 brew "yq"
 # Shell extension to navigate your filesystem faster

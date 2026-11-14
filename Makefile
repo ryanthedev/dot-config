@@ -4,7 +4,7 @@
 SHELL := /bin/bash
 BOOTSTRAP := $(HOME)/.config/bin/dabootstrap
 
-.PHONY: all check symlinks services cleanup thegrid fonts terminfo claude herdr status help
+.PHONY: all check symlinks services cleanup thegrid fonts terminfo claude herdr lsp status help
 .PHONY: cleanup-aerospace cleanup-yabai cleanup-skhd
 
 # Default target
@@ -55,6 +55,10 @@ claude:
 herdr:
 	@$(BOOTSTRAP) herdr
 
+# Install typescript-language-server + TypeScript 5 via npm (brew's typescript 7 has no tsserver.js)
+lsp:
+	@$(BOOTSTRAP) lsp
+
 # Show service status
 status:
 	@$(BOOTSTRAP) status
@@ -76,6 +80,7 @@ help:
 	@echo "  terminfo  Install Ghostty terminfo on remote hosts"
 	@echo "  claude    Link shared Claude Code config into ~/.claude"
 	@echo "  herdr     Install Herdr mods from their repos"
+	@echo "  lsp       Install typescript-language-server + TypeScript 5 (npm)"
 	@echo "  status    Show service status"
 	@echo ""
 	@echo "Cleanup targets:"

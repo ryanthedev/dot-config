@@ -457,6 +457,27 @@ setup_herdr_mods() {
     done
 }
 
+# typescript-language-server comes from npm, not Homebrew: brew's `typescript` is 7.x (native, no
+# lib/tsserver.js), which the brew server bundles, so outside projects with their own node_modules
+# it fails to initialize ("Could not find a valid TypeScript installation"). The npm server resolves
+# the `typescript` installed beside it, so install both globally with TypeScript pinned to 5.x.
+setup_lsp_typescript() {
+    info "Checking typescript-language-server + TypeScript 5..."
+    if ! command -v npm &>/dev/null; then
+        warn "  npm not found: install node first"
+        return 0
+    fi
+    local root
+    root=$(npm root -g)
+    if [[ -f "$root/typescript/lib/tsserver.js" ]] && command -v typescript-language-server &>/dev/null; then
+        info "  Already installed ($root)"
+    elif npm install -g typescript@5 typescript-language-server &>/dev/null; then
+        info "  Installed typescript@5 and typescript-language-server globally"
+    else
+        warn "  npm install -g typescript@5 typescript-language-server failed (brew's typescript/typescript-language-server conflict: brew uninstall them)"
+    fi
+}
+
 verify_status() {
     info "Verifying services..."
     echo ""
@@ -503,6 +524,7 @@ run_all() {
     setup_remote_terminfo
     setup_claude_links
     setup_herdr_mods
+    setup_lsp_typescript
     verify_status
 
     echo ""
@@ -555,12 +577,15 @@ run_target() {
         herdr)
             setup_herdr_mods
             ;;
+        lsp)
+            setup_lsp_typescript
+            ;;
         status)
             verify_status
             ;;
         *)
             error "Unknown target: $target"
-            echo "Available targets: all, check, symlinks, services, cleanup, cleanup-aerospace, cleanup-yabai, cleanup-skhd, thegrid, terminfo, claude, herdr, status"
+            echo "Available targets: all, check, symlinks, services, cleanup, cleanup-aerospace, cleanup-yabai, cleanup-skhd, thegrid, terminfo, claude, herdr, lsp, status"
             exit 1
             ;;
     esac

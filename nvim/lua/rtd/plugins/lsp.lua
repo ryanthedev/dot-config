@@ -270,8 +270,8 @@ return {
 				},
 			})
 
-			-- lspconfig's sourcekit also claims c/cpp, which would double up with clangd
-			vim.lsp.config("sourcekit", { filetypes = { "swift", "objc", "objcpp" } })
+			-- lspconfig's sourcekit also claims c/cpp/objc/objcpp, which would double up with clangd (clangd handles all of those)
+			vim.lsp.config("sourcekit", { filetypes = { "swift" } })
 
 			-- Servers taken from PATH (Brewfile / rustup / mise / Xcode), not Mason:
 			-- pyright, rust-analyzer, clangd, ruby-lsp, lua-language-server, sourcekit-lsp.
